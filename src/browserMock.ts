@@ -47,6 +47,7 @@ const examples: Array<[ModelFile['kind'], string, number]> = [
   ['diffusion_models', 'fastvideo_fasth3_8step_v2_pruned_int8_convrot.safetensors', 22_100_000_000],
   ['text_encoders', 'qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors', 15_687_142_551],
   ['text_encoders', 'qwen3vl_32b_minimax_h3_int8_convrot.safetensors', 27_100_000_000],
+  ['vae', 'minimax_h3_video_vae_int8_convrot.safetensors', 3_620_000_000],
   ['vae', 'minimax_h3_video_vae_fp16.safetensors', 5_207_808_496],
   ['vae', 'minimax_h3_audio_vae_fp32.safetensors', 605_254_808],
   ['vae_approx', 'taeh3_decoder.safetensors', 39_458_084],

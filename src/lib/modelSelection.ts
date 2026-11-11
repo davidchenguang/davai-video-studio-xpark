@@ -33,7 +33,10 @@ export function inferSelections(files: ModelFile[], turbo: 'off' | '4' | '8' | '
     textEncoder: textEncoderPreference === 'quality'
       ? find('text_encoders', /^qwen3vl_32b_minimax_h3_int8_convrot\.safetensors$/i)
       : find('text_encoders', [/^qwen3vl_32b_minimax_h3_nvfp4_awq\.safetensors$/i, /^qwen3vl_32b_minimax_h3.*\.safetensors$/i]),
-    videoVae: find('vae', [/^minimax_h3_video_vae_fp16\.safetensors$/i, /^minimax_h3_video_vae.*\.safetensors$/i]),
+    // The int8+ConvRot decoder is the official Comfy-Org video VAE and decodes
+    // faster with a smaller footprint than the fp16 copy. The fp16 file stays a
+    // valid fallback for engines that only carry it.
+    videoVae: find('vae', [/^minimax_h3_video_vae_int8_convrot\.safetensors$/i, /^minimax_h3_video_vae_fp16\.safetensors$/i, /^minimax_h3_video_vae.*\.safetensors$/i]),
     audioVae: find('vae', [/^minimax_h3_audio_vae_fp32\.safetensors$/i, /^minimax_h3_audio_vae.*\.safetensors$/i]),
     previewVae: find('vae_approx', /^taeh3_decoder\.safetensors$/i),
     fl2vLora: find('loras', new RegExp(`^minimax_h3_fl2v_turbo_${turboSteps}step.*\\.safetensors$`, 'i')),
@@ -48,6 +51,18 @@ export function inferSelections(files: ModelFile[], turbo: 'off' | '4' | '8' | '
         /^minimax_h3_ref2v_turbo_4step.*\.safetensors$/i,
       ]),
   }
+}
+
+/**
+ * Turbo 4 needs a 4-step Turbo LoRA. The lightx2v 4-step adapters the app was
+ * built against were withdrawn upstream, and the larryvrh 4-step file needs its
+ * own LoRA node, so Turbo 4 is only offered when a usable adapter is installed.
+ */
+export function hasTurbo4Lora(files: ModelFile[]) {
+  return Boolean(findModel(files, 'loras', [
+    /^minimax_h3_fl2v_turbo_4step.*\.safetensors$/i,
+    /^minimax_h3_ref2v_turbo_4step.*\.safetensors$/i,
+  ]))
 }
 
 export function inferLtx25Selections(files: ModelFile[], latentUpscalers: string[]): Ltx25ModelSelection {

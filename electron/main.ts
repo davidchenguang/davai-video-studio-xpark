@@ -8,6 +8,7 @@ import { restoreLegacyLocalStorage } from './legacyBrowserStorage.js'
 import { buildPromptCompletionRequest } from './promptCompletion.js'
 import { lmStudioEndpoint, parseLmStudioModels } from './lmStudioApi.js'
 import { readLlmStream, type LlmStreamUpdate } from './llmStream.js'
+import { mergeModelInventory, MODEL_KINDS, type ModelFile, type ModelKind } from './modelInventory.js'
 import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
@@ -17,7 +18,6 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import WebSocket from 'ws'
 
-type ModelKind = 'diffusion_models' | 'text_encoders' | 'vae' | 'loras' | 'vae_approx' | 'clip_vision'
 type GpuRouteDevice = 'auto' | 'cpu' | `gpu:${number}`
 type GpuRoutingSettings = { preset: 'automatic' | 'single' | 'split' | 'custom'; strategy: 'resident' | 'sequential' | 'cpu-fallback'; diffusion: GpuRouteDevice; textEncoder: GpuRouteDevice; videoVae: GpuRouteDevice; audioVae: GpuRouteDevice; previewVae: GpuRouteDevice; allowOvercommit: boolean; preloadDiffusionDuringTextEncoding: boolean }
 
@@ -87,7 +87,7 @@ let mobileCharacterLibrary: unknown[] = []
 let lanServer: Server | null = null
 let lanStatus: LanStatus = { running: false }
 
-const modelKinds: ModelKind[] = ['diffusion_models', 'text_encoders', 'vae', 'loras', 'vae_approx', 'clip_vision']
+const modelKinds: ModelKind[] = MODEL_KINDS
 const modelExtensions = new Set(['.safetensors', '.pt', '.pth', '.gguf', '.onnx'])
 const mediaExtensions = new Set(['.mp4', '.webm', '.mov', '.mkv'])
 const audioExtensions = new Set(['.flac', '.wav', '.mp3', '.ogg', '.m4a', '.aac', '.opus'])
@@ -440,7 +440,7 @@ async function factoryResetSettings(confirmation: unknown) {
 }
 
 async function scanDirectory(root: string, kind: ModelKind) {
-  const results: Array<{ name: string; path: string; kind: ModelKind; bytes: number }> = []
+  const results: ModelFile[] = []
   if (!root || !existsSync(root)) return results
   const pending = [normalize(root)]
   while (pending.length) {
@@ -464,6 +464,35 @@ async function scanDirectory(root: string, kind: ModelKind) {
     }
   }
   return results
+}
+
+// The engine that renders the video owns the model files. When ComfyUI runs on
+// another machine, a local folder scan cannot see them, so the model list would
+// report every component as missing. Ask the engine which files it has.
+async function listComfyServerModels(url: string) {
+  const discovered: Array<{ name: string; kind: ModelKind }> = []
+  await Promise.all(modelKinds.map(async (kind) => {
+    try {
+      const listed = await comfyFetch(url, `/models/${kind}`, { signal: AbortSignal.timeout(15_000) })
+      if (!Array.isArray(listed)) return
+      listed.forEach((name) => { if (typeof name === 'string' && name.trim()) discovered.push({ name, kind }) })
+    } catch {
+      // One unavailable folder must not hide the rest of the engine inventory.
+    }
+  }))
+  return discovered
+}
+
+/** The local model folders plus the files the connected engine reports. */
+async function collectModelInventory(settings: AppSettings): Promise<ModelFile[]> {
+  const groups = await Promise.all(modelKinds.map((kind) => scanDirectory(settings.paths?.[kind], kind)))
+  let serverModels: Array<{ name: string; kind: ModelKind }> = []
+  try {
+    serverModels = await listComfyServerModels(settings.comfyUrl)
+  } catch {
+    // An unreachable engine keeps the local inventory instead of emptying it.
+  }
+  return mergeModelInventory(groups.flat(), serverModels)
 }
 
 async function findLatestMedia(root: string, since: number, kind: 'video' | 'audio' = 'video') {
@@ -625,7 +654,7 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
       if (token !== lanToken) return sendJson(response, 401, { error: 'This LAN link is no longer authorized. Open the current sharing panel again.' })
       const settings = await loadSettings()
       if (url.pathname === '/api/lan/bootstrap' && request.method === 'GET') {
-        const groups = await Promise.all(modelKinds.map((kind) => scanDirectory(settings.paths[kind], kind)))
+        const inventory = await collectModelInventory(settings)
         const started = Date.now()
         try {
           await comfyFetch(settings.comfyUrl, '/system_stats')
@@ -639,9 +668,9 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
           const llmUrl = llmProvider === 'lmstudio' ? settings.lmStudioUrl : settings.ollamaUrl
           const llmModel = llmProvider === 'lmstudio' ? settings.lmStudioModel : settings.ollamaModel
           const llmModels = await listLlmModels(llmUrl, llmProvider).catch(() => [])
-          return sendJson(response, 200, { connected: true, latencyMs: Date.now() - started, models: groups.flat(), upscalers, ltxModel: latentUpscalers.find((name) => /ltx-2\.5.*spatial.*x2/i.test(name)) ?? '', ltxVae: vaes.find((name) => /ltx-2\.5.*video.*vae/i.test(name)) ?? '', ltxUpscaleReady: ltxUpscaleMissing.length === 0, ltxUpscaleMissing, ltxNativeReady: ltxNativeMissing.length === 0, ltxNativeMissing, ollamaModels: llmModels.map((item) => item.name), ollamaModel: llmModel, llmProvider, llmModels: llmModels.map((item) => item.name), llmModel })
+          return sendJson(response, 200, { connected: true, latencyMs: Date.now() - started, models: inventory, upscalers, ltxModel: latentUpscalers.find((name) => /ltx-2\.5.*spatial.*x2/i.test(name)) ?? '', ltxVae: vaes.find((name) => /ltx-2\.5.*video.*vae/i.test(name)) ?? '', ltxUpscaleReady: ltxUpscaleMissing.length === 0, ltxUpscaleMissing, ltxNativeReady: ltxNativeMissing.length === 0, ltxNativeMissing, ollamaModels: llmModels.map((item) => item.name), ollamaModel: llmModel, llmProvider, llmModels: llmModels.map((item) => item.name), llmModel })
         } catch (error) {
-          return sendJson(response, 200, { connected: false, latencyMs: Date.now() - started, models: groups.flat(), error: error instanceof Error ? error.message : String(error) })
+          return sendJson(response, 200, { connected: false, latencyMs: Date.now() - started, models: inventory, error: error instanceof Error ? error.message : String(error) })
         }
       }
       if (url.pathname === '/api/lan/characters' && request.method === 'GET') return sendJson(response, 200, { characters: mobileCharacterLibrary })
@@ -1234,10 +1263,7 @@ app.whenReady().then(async () => {
     if (result.canceled) return []
     return result.filePaths.map((path) => ({ path, name: basename(path) }))
   })
-  ipcMain.handle('models:scan', async (_event, settings: AppSettings) => {
-    const groups = await Promise.all(modelKinds.map((kind) => scanDirectory(settings.paths[kind], kind)))
-    return groups.flat().sort((a, b) => a.name.localeCompare(b.name))
-  })
+  ipcMain.handle('models:scan', async (_event, settings: AppSettings) => collectModelInventory(settings))
   ipcMain.handle('comfy:status', async (_event, url: string) => {
     const started = Date.now()
     try {
