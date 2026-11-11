@@ -39,8 +39,8 @@ export function readSavedJobs(raw: string | null): GenerationJob[] {
       outputUrl: typeof job.outputUrl === 'string' ? playableOutputUrl(job.outputUrl) : undefined,
       comfyActivity: Array.isArray(job.comfyActivity) ? job.comfyActivity.filter((entry) => entry && typeof entry.message === 'string' && Number.isFinite(entry.at) && Number.isFinite(new Date(entry.at).getTime())) : undefined,
       ...(interrupted ? {
-        error: 'The app lost this render before it received a prompt ID. Check ComfyUI queue or history before retrying to avoid a duplicate; your source and script are safe.',
-        progressLabel: 'Submission interrupted',
+        error: '应用在收到提示词 ID 之前丢失了这次渲染。请先检查 ComfyUI 队列或历史记录再重试，以避免重复渲染；你的素材和脚本都已保留。',
+        progressLabel: '提交已中断',
       } : {}),
     }]
   })

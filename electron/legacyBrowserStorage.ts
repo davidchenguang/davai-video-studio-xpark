@@ -10,7 +10,7 @@ export type BrowserStorageRestore = { restored: boolean; backupPath?: string }
  * Call this before Electron opens a session, with all other app windows closed.
  */
 export function restoreLegacyLocalStorage(sourceProfile: string, destinationProfile: string, move = renameSync): BrowserStorageRestore {
-  if (resolve(sourceProfile).toLowerCase() === resolve(destinationProfile).toLowerCase()) throw new Error('The previous and current browser profiles must be different directories.')
+  if (resolve(sourceProfile).toLowerCase() === resolve(destinationProfile).toLowerCase()) throw new Error('旧浏览器配置与当前浏览器配置必须是不同的目录。')
   const source = join(sourceProfile, 'Local Storage')
   if (!existsSync(source)) return { restored: false }
 
@@ -32,7 +32,7 @@ export function restoreLegacyLocalStorage(sourceProfile: string, destinationProf
       if (movedCurrent) {
         try { move(backup, destination) }
         catch (rollbackError) {
-          throw new Error(`Could not restore the original browser storage from ${backup}: ${String(rollbackError)}`, { cause: error })
+          throw new Error(`无法从 ${backup} 恢复原始浏览器存储：${String(rollbackError)}`, { cause: error })
         }
       }
       throw error

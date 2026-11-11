@@ -3,7 +3,7 @@ type ComfyRequest = (path: string, init?: RequestInit) => Promise<Response>
 
 async function readResponse(response: Response) {
   const body = await response.text().catch(() => '')
-  if (!response.ok) throw new Error(body || `ComfyUI returned ${response.status}`)
+  if (!response.ok) throw new Error(body || `ComfyUI 返回了 ${response.status}`)
   return body ? JSON.parse(body) as unknown : null
 }
 
@@ -20,7 +20,7 @@ async function finishedState(promptId: string, request: ComfyRequest): Promise<C
 }
 
 export async function cancelComfyPrompt(promptId: string, request: ComfyRequest): Promise<ComfyCancellation> {
-  if (!promptId) throw new Error('A ComfyUI prompt ID is required to cancel a generation.')
+  if (!promptId) throw new Error('取消生成需要 ComfyUI 提示词 ID。')
   const current = queueState(await readResponse(await request('/queue')), promptId)
   if (!current) return finishedState(promptId, request)
 

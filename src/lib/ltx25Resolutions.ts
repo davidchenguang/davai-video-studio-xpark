@@ -10,11 +10,11 @@ export type Ltx25Orientation = keyof typeof LTX25_RESOLUTIONS
 export const LTX25_MAX_PIXELS = 1920 * 1088
 
 export function ltx25ResolutionLabel(size: string) {
-  if (size === '1056x608' || size === '1216x512') return 'Recommended · quality + speed'
+  if (size === '1056x608' || size === '1216x512') return '推荐 · 兼顾画质与速度'
   const [width, height] = size.split('x').map(Number)
   const pixels = width * height
-  if (pixels >= 2_000_000) return 'Maximum'
-  if (pixels >= 1_500_000) return 'High'
-  if (pixels >= 1_000_000) return 'Balanced'
-  return 'Standard'
+  if (pixels >= 2_000_000) return '最高画质'
+  if (pixels >= 1_500_000) return '高画质'
+  if (pixels >= 1_000_000) return '均衡画质'
+  return '标准画质'
 }

@@ -6,7 +6,7 @@ export const LOCATION_LIBRARY_EVENT = 'minimax-location-library-changed'
 
 export function newLocationProject(index = 1): LocationProject {
   const now = Date.now()
-  return { id: createId(), name: `Location ${index}`, environmentMode: 'mixed', locationContext: 'mixed', description: '', atmosphere: '', timeOfDay: '', continuityAnchors: '', accuracyDetails: '', visualStyle: 'cinematic photorealism', referencePrompt: '', createdAt: now, updatedAt: now, referenceMode: 'set', referenceImages: [] }
+  return { id: createId(), name: `地点 ${index}`, environmentMode: 'mixed', locationContext: 'mixed', description: '', atmosphere: '', timeOfDay: '', continuityAnchors: '', accuracyDetails: '', visualStyle: 'cinematic photorealism', referencePrompt: '', createdAt: now, updatedAt: now, referenceMode: 'set', referenceImages: [] }
 }
 
 export function loadLocationProjects(): LocationProject[] {

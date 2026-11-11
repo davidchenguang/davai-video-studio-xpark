@@ -1,0 +1,442 @@
+[
+  {
+    "label": "草稿本",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "MiniMax H3",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "01--.png"
+  },
+  {
+    "label": "H3 视频",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "02-H3-.png"
+  },
+  {
+    "label": "续接",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "MiniMax H3 Extender",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "03--.png"
+  },
+  {
+    "label": "LTX 2.5",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "04-LTX-2-5.png"
+  },
+  {
+    "label": "LTX Ripple",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "05-LTX-Ripple.png"
+  },
+  {
+    "label": "照片编辑",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "06--.png"
+  },
+  {
+    "label": "生成图片",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio",
+      "Z-Image Turbo"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "07--.png"
+  },
+  {
+    "label": "音乐 · ACE-Step",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio",
+      "XL Base",
+      "XL SFT"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "08--ACE-Step.png"
+  },
+  {
+    "label": "音乐 · Music 3",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "09--Music-3.png"
+  },
+  {
+    "label": "参考图准备",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "10--.png"
+  },
+  {
+    "label": "角色",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "11--.png"
+  },
+  {
+    "label": "发型",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "12--.png"
+  },
+  {
+    "label": "服装",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "13--.png"
+  },
+  {
+    "label": "配饰",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "14--.png"
+  },
+  {
+    "label": "地点",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "15--.png"
+  },
+  {
+    "label": "队列",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "16--.png"
+  },
+  {
+    "label": "视频库",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "17--.png"
+  },
+  {
+    "label": "影片剪辑",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio",
+      "Untitled movie"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "18--.png"
+  },
+  {
+    "label": "片段工坊",
+    "status": "ok",
+    "english": [
+      "LTX Ripple",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "19--.png"
+  },
+  {
+    "label": "设置",
+    "status": "ok",
+    "english": [
+      "FL2V Turbo",
+      "Kitchen INT8",
+      "LM Studio",
+      "LTX Ripple",
+      "NVIDIA GB10",
+      "Oyama AI Video Studio",
+      "Ref2V Turbo"
+    ],
+    "missed": [],
+    "wide": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "narrow": {
+      "scrollWidth": 900,
+      "innerWidth": 900,
+      "overflow": false
+    },
+    "screenshot": "20--.png"
+  },
+  {
+    "label": "movie-editor",
+    "status": "ok",
+    "english": [
+      "Untitled movie"
+    ],
+    "missed": [],
+    "overflow": {
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "overflow": false
+    },
+    "screenshot": "90-movie-editor.png"
+  },
+  {
+    "label": "mobile",
+    "status": "ok",
+    "english": [
+      "MiniMax H3",
+      "Oyama AI Video Studio"
+    ],
+    "missed": [],
+    "overflow": {
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "overflow": false
+    },
+    "screenshot": "90-mobile.png"
+  }
+]

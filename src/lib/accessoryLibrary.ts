@@ -7,7 +7,7 @@ export const ACCESSORY_LIBRARY_EVENT = 'minimax-accessory-library-changed'
 
 export function newAccessoryProject(index = 1): AccessoryProject {
   const now = Date.now()
-  return { id: createId(), name: `Accessory ${index}`, category: 'other', description: '', materials: '', colors: '', visualStyle: 'cinematic product photography', referencePrompt: '', createdAt: now, updatedAt: now }
+  return { id: createId(), name: `配饰 ${index}`, category: 'other', description: '', materials: '', colors: '', visualStyle: 'cinematic product photography', referencePrompt: '', createdAt: now, updatedAt: now }
 }
 
 export function loadAccessoryProjects(): AccessoryProject[] {
@@ -16,7 +16,7 @@ export function loadAccessoryProjects(): AccessoryProject[] {
     const projects = raw.filter((item) => item.id).map((item, index) => ({ ...newAccessoryProject(index + 1), ...item }))
     if (localStorage.getItem(MIGRATION_KEY)) return projects
     const wardrobes = JSON.parse(localStorage.getItem('minimax.wardrobe-projects') ?? '[]') as Array<{ accessories?: string[]; visualStyle?: string }>
-    const migrated = wardrobes.flatMap((wardrobe) => (wardrobe.accessories ?? []).map((description) => ({ description, visualStyle: wardrobe.visualStyle }))).map(({ description, visualStyle }, index) => ({ ...newAccessoryProject(projects.length + index + 1), name: description.slice(0, 48) || `Accessory ${projects.length + index + 1}`, description, visualStyle: visualStyle || 'cinematic product photography' }))
+    const migrated = wardrobes.flatMap((wardrobe) => (wardrobe.accessories ?? []).map((description) => ({ description, visualStyle: wardrobe.visualStyle }))).map(({ description, visualStyle }, index) => ({ ...newAccessoryProject(projects.length + index + 1), name: description.slice(0, 48) || `配饰 ${projects.length + index + 1}`, description, visualStyle: visualStyle || 'cinematic product photography' }))
     const next = [...projects, ...migrated]
     localStorage.setItem(KEY, JSON.stringify(next)); localStorage.setItem(MIGRATION_KEY, '1')
     return next

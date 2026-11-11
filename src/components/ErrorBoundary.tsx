@@ -29,12 +29,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (this.state.failed) {
       return <main className="app-error-boundary" role="alert">
         <AlertTriangle size={32} aria-hidden="true" />
-        <h1>This view hit an error</h1>
-        <p>The workspace is still open. Reload this view to try again.</p>
+        <h1>此视图遇到错误</h1>
+        <p>工作区仍在运行。重新加载此视图即可重试。</p>
         <code>{this.state.reason}</code>
         {this.state.path && <small>{this.state.path}</small>}
-        <small>Support reference: {this.state.reference}</small>
-        <button type="button" className="secondary-button" onClick={this.reloadView}><RotateCcw size={15} />Reload view</button>
+        <small>支持参考号：{this.state.reference}</small>
+        <button type="button" className="secondary-button" onClick={this.reloadView}><RotateCcw size={15} />重新加载视图</button>
       </main>
     }
     return this.props.children

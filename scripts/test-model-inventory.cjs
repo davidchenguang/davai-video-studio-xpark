@@ -84,7 +84,7 @@ const fp16Only = inferSelections([
 assert.equal(fp16Only.videoVae, 'minimax_h3_video_vae_fp16.safetensors', 'The fp16 video VAE is still selected when it is the only copy')
 assert.equal(h3StackReport([
   { kind: 'vae', name: 'minimax_h3_video_vae_fp16.safetensors' },
-]).rows.find((row) => row.label === 'Video VAE').selected, 'minimax_h3_video_vae_fp16.safetensors', 'The fp16 copy is reported as a usable variant')
+]).rows.find((row) => row.label === '视频 VAE').selected, 'minimax_h3_video_vae_fp16.safetensors', 'The fp16 copy is reported as a usable variant')
 
 // Turbo 4 needs a 4-step Turbo LoRA. The larryvrh 4-step file needs its own
 // LoRA node, so it must not count as one.

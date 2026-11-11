@@ -88,7 +88,7 @@ async function main() {
     state.history.done = { status: { completed: true } }
     assert.deepEqual(cancelShape(await cancelComfyPrompt('done', request)), { cancelled: false, state: 'finished' })
     assert.deepEqual(cancelShape(await cancelComfyPrompt('missing', request)), { cancelled: false, state: 'unknown' })
-    await assert.rejects(cancelComfyPrompt('', request), /prompt ID is required/)
+    await assert.rejects(cancelComfyPrompt('', request), /提示词 ID/)
     process.stdout.write('PASS: modern and legacy ComfyUI cancellation, race protection, terminal states, and resubmission\n')
   } finally {
     server.close()

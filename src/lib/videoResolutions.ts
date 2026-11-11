@@ -7,11 +7,20 @@ export const MINIMAX_VIDEO_RESOLUTION_GROUPS: Record<'landscape' | 'ultrawide' |
 
 export const MINIMAX_VIDEO_RESOLUTIONS = Object.values(MINIMAX_VIDEO_RESOLUTION_GROUPS).flat()
 
+// 画幅方向名只用于分辨率下拉框的显示文本（存储值仍是尺寸字符串），属显示层，译为中文；
+// 口径与 App.tsx 里分辨率下拉框的 optgroup 标题（方形/横屏/竖屏/超宽）一致。
+const VIDEO_RESOLUTION_ORIENTATION_LABELS: Record<string, string> = {
+  square: '方形',
+  landscape: '横屏',
+  portrait: '竖屏',
+  ultrawide: '超宽',
+}
+
 export function videoResolutionLabel(size: string) {
   const group = (Object.keys(MINIMAX_VIDEO_RESOLUTION_GROUPS) as Array<keyof typeof MINIMAX_VIDEO_RESOLUTION_GROUPS>)
     .find((orientation) => MINIMAX_VIDEO_RESOLUTION_GROUPS[orientation].includes(size))
   const [width, height] = size.split('x').map(Number)
   const orientation = group ?? (width === height ? 'square' : width > height ? 'landscape' : 'portrait')
-  const name = orientation === 'ultrawide' ? 'Ultrawide' : orientation[0].toUpperCase() + orientation.slice(1)
+  const name = VIDEO_RESOLUTION_ORIENTATION_LABELS[orientation] ?? orientation
   return `${name} · ${size.replace('x', ' × ')}`
 }

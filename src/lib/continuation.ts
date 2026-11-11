@@ -55,6 +55,15 @@ export function continuationFilenamePart(value: string, fallback: string, maxLen
   return value.trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, maxLength) || fallback.slice(0, maxLength)
 }
 
+// Beat and video names are authored in Chinese, but filenames stay ASCII.
+// A CJK-only name sanitizes down to digits or nothing, so fall back to the
+// English label whenever the sanitized part carries no letters.
+function asciiFilenamePart(value: string, fallback: string, maxLength = 48) {
+  const part = continuationFilenamePart(value, fallback, maxLength)
+  const hasCjk = Array.from(value).some(char => (char.codePointAt(0) ?? 0) > 127)
+  return hasCjk && !/[a-z]/i.test(part) ? fallback.slice(0, maxLength) : part
+}
+
 export function continuationLineage(script: ContinueScript, target: ContinueBeat) {
   const lineage: ContinueBeat[] = []
   const seen = new Set<string>()
@@ -81,7 +90,7 @@ export function continuationLongestSequence(script: ContinueScript, beatJobs: Ma
     if (duration > longest.duration || (duration === longest.duration && beats.length > longest.beats.length)) longest = { job, beats, duration }
   }
   let start = base
-  const segments = [{ id: 'original', label: 'Original', start: 0, duration: base }, ...longest.beats.map(beat => {
+  const segments = [{ id: 'original', label: '原始', start: 0, duration: base }, ...longest.beats.map(beat => {
     const duration = beatJobs.get(beat.id)?.continuation?.deliveredDuration ?? beat.duration
     const segment = { id: beat.id, label: beat.name, start, duration }
     start += duration
@@ -91,7 +100,7 @@ export function continuationLongestSequence(script: ContinueScript, beatJobs: Ma
 }
 
 export function continuationOutputStem(script: ContinueScript, target: ContinueBeat) {
-  const video = continuationFilenamePart(script.videoName, 'Untitled-Video')
+  const video = asciiFilenamePart(script.videoName, 'Untitled-Video')
   const lineage = continuationLineage(script, target)
   // Keep every beat visible while staying below common filesystem component
   // limits. Longer scripts shorten each label evenly instead of dropping
@@ -99,13 +108,13 @@ export function continuationOutputStem(script: ContinueScript, target: ContinueB
   const nameBudget = Math.max(6, Math.min(48, Math.floor((198 - video.length - lineage.length * 10) / Math.max(1, lineage.length))))
   const chain = lineage.map(beat => {
     const index = script.beats.findIndex(item => item.id === beat.id) + 1
-    return `beat${index}-${continuationFilenamePart(beat.name, `Beat-${index}`, nameBudget)}`
+    return `beat${index}-${asciiFilenamePart(beat.name, `Beat-${index}`, nameBudget)}`
   })
   return `${video}__${chain.join('_')}`
 }
 
 export function continuationOutputName(script: ContinueScript, target: ContinueBeat) {
-  const video = continuationFilenamePart(script.videoName, 'Untitled-Video')
+  const video = asciiFilenamePart(script.videoName, 'Untitled-Video')
   const lineage = continuationOutputStem(script, target)
   const filename = script.beats.at(-1)?.id === target.id ? `Final_${lineage}` : lineage
   return `continuations/${video}/${filename}`

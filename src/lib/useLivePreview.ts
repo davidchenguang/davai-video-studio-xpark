@@ -94,31 +94,31 @@ export function useLivePreview(url: string | undefined, enabled: boolean, onProg
             if (blobUrl) URL.revokeObjectURL(blobUrl)
             blobUrl = ''
             setPreview(null)
-            onProgress(active, { progress: 1, label: 'Starting workflow' })
+            onProgress(active, { progress: 1, label: '正在启动工作流' })
           }
-          if (msg.type === 'execution_cached') onProgress(promptId, { label: 'Reusing cached model data' })
+          if (msg.type === 'execution_cached') onProgress(promptId, { label: '复用缓存的模型数据' })
           if (msg.type === 'executing' && msg.data.node !== undefined) {
             const nodeId = msg.data.node
             if (nodeId) {
               const nodeType = workflowNodes.current.get(promptId)?.[nodeId]
               const pass = samplerPassForNode(nodeId, nodeType)
-              if (pass) { samplerPass = pass; samplerStage = pass === 'refine' ? 'Refinement pass' : 'First sampling pass' }
+              if (pass) { samplerPass = pass; samplerStage = pass === 'refine' ? '精修采样轮' : '首轮采样' }
               onProgress(promptId, { label: pass ? samplerStage : nodeStageLabel(nodeType, nodeId), nodeId, ...(pass ? { samplerPass: pass } : {}) })
             } else {
-              onProgress(promptId, { label: 'Finalizing workflow', nodeId: null })
+              onProgress(promptId, { label: '正在收尾工作流', nodeId: null })
             }
           }
           // KJNodes announces its LTX outer-sampler stream before it begins
           // sending binary PREVIEW_IMAGE frames. Surface that separately from
           // generic socket connectivity so a missing frame stream is obvious.
-          if (msg.type === 'VHS_latentpreview') onProgress(promptId, { label: `LTX sampling preview stream · ${msg.data.fps ?? msg.data.rate ?? 24} fps` })
+          if (msg.type === 'VHS_latentpreview') onProgress(promptId, { label: `LTX 采样预览流 · ${msg.data.fps ?? msg.data.rate ?? 24} fps` })
           if (msg.type === 'progress' && msg.data.max) {
             const currentStep = Math.max(0, msg.data.value ?? 0)
             const totalSteps = msg.data.max
-            onProgress(promptId, { progress: Math.min(95, (currentStep / totalSteps) * 95), label: `${samplerStage || 'Sampling'} · step ${currentStep} of ${totalSteps}`, currentStep, totalSteps, samplerPass })
+            onProgress(promptId, { progress: Math.min(95, (currentStep / totalSteps) * 95), label: `${samplerStage || '采样中'} · 第 ${currentStep} 步，共 ${totalSteps} 步`, currentStep, totalSteps, samplerPass })
           }
           if (msg.type === 'execution_success') {
-            onProgress(promptId, { progress: 98, label: 'Finalizing saved output', nodeId: null })
+            onProgress(promptId, { progress: 98, label: '正在保存最终输出', nodeId: null })
             workflowNodes.current.delete(promptId)
             previewDisabled.current.delete(promptId)
           }

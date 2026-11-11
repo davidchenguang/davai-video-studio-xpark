@@ -12,7 +12,7 @@ const oldStorage = join(source, 'Local Storage', 'leveldb')
 const currentStorage = join(destination, 'Local Storage', 'leveldb')
 
 try {
-  assert.throws(() => restoreLegacyLocalStorage(source, source), /different directories/)
+  assert.throws(() => restoreLegacyLocalStorage(source, source), /不同的目录/)
   mkdirSync(oldStorage, { recursive: true })
   mkdirSync(currentStorage, { recursive: true })
   writeFileSync(join(oldStorage, 'CURRENT'), 'legacy characters')

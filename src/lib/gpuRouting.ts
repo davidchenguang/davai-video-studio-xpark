@@ -7,7 +7,10 @@ export type RoutingPlacement = { component: RoutingComponent; requested: GpuRout
 export type ResolvedGpuRouting = { workflow: WorkflowGpuRouting; placements: Record<RoutingComponent, RoutingPlacement>; gpus: RoutingGpu[]; warnings: string[]; vramWarnings: string[]; summary: string; logLine: string }
 
 const components: RoutingComponent[] = ['diffusion', 'textEncoder', 'videoVae', 'audioVae', 'previewVae']
-const labels: Record<RoutingComponent, string> = { diffusion: 'Diffusion', textEncoder: 'Text Encoder', videoVae: 'Video VAE', audioVae: 'Audio VAE', previewVae: 'Preview VAE' }
+const labels: Record<RoutingComponent, string> = { diffusion: '扩散模型', textEncoder: '文本编码器', videoVae: '视频 VAE', audioVae: '音频 VAE', previewVae: '预览 VAE' }
+
+// 中英混排时英文/数字与中文之间留一个空格；以英文字母结尾的标签需要补空格。
+const label = (component: RoutingComponent) => /[A-Za-z0-9]$/.test(labels[component]) ? `${labels[component]} ` : labels[component]
 
 // Settings can outlive a release that introduced a new routing field. Never
 // let a partially persisted preference take down the React settings surface.
@@ -68,11 +71,11 @@ function routeFor(component: RoutingComponent, device: Exclude<GpuRouteDevice, '
   } else if (component === 'videoVae' || component === 'audioVae') {
     if (info.VAELoaderMultiGPU && hasInput(info, 'VAELoaderMultiGPU', 'device')) return { route: { device, method: 'loader', nodeType: 'VAELoaderMultiGPU', ...(hasInput(info, 'VAELoaderMultiGPU', 'offload_device') && offloadDevice ? { offloadDevice } : {}) } }
     if (device !== 'cpu' && info.SelectVAEDevice) return { route: { device, method: 'selector', nodeType: 'SelectVAEDevice' } }
-    if (device === 'cpu' && info.SelectVAEDevice) return { warning: `${labels[component]} CPU placement is unsupported by ComfyUI's Select VAE Device node. Install ComfyUI-MultiGPU for CPU VAE routing.` }
+    if (device === 'cpu' && info.SelectVAEDevice) return { warning: `ComfyUI 的 Select VAE Device 节点不支持${label(component)}放在 CPU 上。请安装 ComfyUI-MultiGPU 以支持 CPU VAE 路由。` }
   } else if (component === 'previewVae' && previewNode && hasInput(info, previewNode, 'device')) {
     return { route: { device, method: 'inline', nodeType: previewNode } }
   }
-  return { warning: `${labels[component]} routing is unavailable because this ComfyUI server does not expose a compatible device-aware node.` }
+  return { warning: `此 ComfyUI 服务器没有提供兼容的设备感知节点，因此无法为${label(component)}路由。` }
 }
 
 export function resolveGpuRouting(settings: GpuRoutingSettings, gpus: RoutingGpu[], info: ObjectInfo, sizes: Partial<Record<RoutingComponent, number>> = {}, previewNode?: string): ResolvedGpuRouting {
@@ -84,7 +87,7 @@ export function resolveGpuRouting(settings: GpuRoutingSettings, gpus: RoutingGpu
   for (const component of components) {
     let target = safeRoute(requested[component])
     if (target.startsWith('gpu:') && Number(target.slice(4)) >= gpus.length) {
-      warnings.push(`${labels[component]} requested ${target}, but that GPU is not currently detected; using Auto.`)
+      warnings.push(`${label(component)}请求了 ${target}，但当前未检测到该 GPU；改用自动。`)
       target = 'auto'
     }
     if (target === 'auto') {
@@ -105,20 +108,20 @@ export function resolveGpuRouting(settings: GpuRoutingSettings, gpus: RoutingGpu
     const estimate = requested.strategy === 'sequential'
       ? Math.max(sizes.textEncoder ?? 0, assigned.filter((item) => item !== 'textEncoder').reduce((sum, item) => sum + (sizes[item] ?? 0), 0))
       : assigned.reduce((sum, item) => sum + (sizes[item] ?? 0), 0)
-    if (estimate > gpu.freeBytes && gpu.freeBytes > 0) vramWarnings.push(`GPU ${gpu.index} (${gpu.name}) has ${formatGiB(gpu.freeBytes)} free; routed components are estimated to need ${formatGiB(estimate)}${requested.strategy === 'sequential' ? ' at peak with sequential offload' : ''}.`)
+    if (estimate > gpu.freeBytes && gpu.freeBytes > 0) vramWarnings.push(`GPU ${gpu.index}（${gpu.name}）剩余 ${formatGiB(gpu.freeBytes)} 显存；已路由组件预计需要 ${formatGiB(estimate)}${requested.strategy === 'sequential' ? '（顺序卸载下的峰值）' : ''}。`)
   }
   if (settings.preloadDiffusionDuringTextEncoding) {
     const diffusionDevice = placements.diffusion?.resolved
     const encoderDevice = placements.textEncoder?.resolved
     const helperReady = Boolean(info.OyamaH3PreloadStart && info.OyamaH3PreloadAwait)
-    if (requested.strategy !== 'resident') warnings.push('DiT preload requires Keep Resident; normal sequential loading remains active.')
-    else if (!helperReady) warnings.push('DiT preload helper nodes are not detected; normal resident loading remains active until ComfyUI is restarted with the Oyama helper installed.')
-    else if (!diffusionDevice?.startsWith('gpu:') || !encoderDevice?.startsWith('gpu:') || diffusionDevice === encoderDevice) warnings.push('DiT preload requires the diffusion model and text encoder on two different CUDA GPUs; normal resident loading remains active.')
-    else if (vramWarnings.length) warnings.push('DiT preload was withheld because the current resident placement exceeds a free-VRAM estimate; normal resident loading remains active.')
+    if (requested.strategy !== 'resident') warnings.push('DiT 预加载需要「保持常驻」；顺序加载照常生效。')
+    else if (!helperReady) warnings.push('未检测到 DiT 预加载辅助节点；在安装 Oyama 辅助节点并重启 ComfyUI 之前，常驻加载照常生效。')
+    else if (!diffusionDevice?.startsWith('gpu:') || !encoderDevice?.startsWith('gpu:') || diffusionDevice === encoderDevice) warnings.push('DiT 预加载要求扩散模型与文本编码器位于两块不同的 CUDA GPU 上；常驻加载照常生效。')
+    else if (vramWarnings.length) warnings.push('当前常驻放置超出空闲显存估算，已放弃 DiT 预加载；常驻加载照常生效。')
     else workflow.preloadDiffusion = { startNodeType: 'OyamaH3PreloadStart', awaitNodeType: 'OyamaH3PreloadAwait' }
   }
-  const deviceName = (placement: RoutingPlacement) => placement.resolved === 'auto' ? 'Auto' : placement.resolved === 'cpu' ? 'CPU' : gpus[Number(placement.resolved.slice(4))]?.name ?? placement.resolved
-  const summary = `H3: ${deviceName(placements.diffusion)} | VAE: ${deviceName(placements.videoVae)} | TE: ${deviceName(placements.textEncoder)}${requested.strategy === 'sequential' ? ' sequential' : ''}${workflow.preloadDiffusion ? ' · async preload' : ''} | Sol: Triton/Sol node | Sage fallback: launch setting | ${requested.strategy === 'sequential' ? 'Sequential Offload' : requested.strategy === 'cpu-fallback' ? 'CPU Fallback' : 'Keep Resident'}`
+  const deviceName = (placement: RoutingPlacement) => placement.resolved === 'auto' ? '自动' : placement.resolved === 'cpu' ? 'CPU' : gpus[Number(placement.resolved.slice(4))]?.name ?? placement.resolved
+  const summary = `H3: ${deviceName(placements.diffusion)} | VAE: ${deviceName(placements.videoVae)} | TE: ${deviceName(placements.textEncoder)}${requested.strategy === 'sequential' ? ' 顺序' : ''}${workflow.preloadDiffusion ? ' · 异步预加载' : ''} | Sol: Triton/Sol 节点 | Sage 回退：启动时设置 | ${requested.strategy === 'sequential' ? '顺序卸载' : requested.strategy === 'cpu-fallback' ? 'CPU 回退' : '保持常驻'}`
   const runtimeDevice = (placement: RoutingPlacement) => placement.resolved === 'auto' ? 'auto' : placement.resolved === 'cpu' ? 'cpu' : `cuda:${placement.resolved.slice(4)}`
   const logLine = components.map((component) => `${labels[component]}: ${runtimeDevice(placements[component])}`).join(' | ')
   return { workflow, placements, gpus, warnings, vramWarnings, summary, logLine }

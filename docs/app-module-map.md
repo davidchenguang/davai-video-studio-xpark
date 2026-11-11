@@ -10,6 +10,7 @@
 | `src/lib/workspaceSearch.tsx` | Setting discovery and result labels; the active workspace controls remain the source of truth. |
 | `src/lib/workspaceTips.ts` and `src/components/WorkspaceTips.tsx` | Workspace help copy and its dialog. |
 | `src/lib/jobPresentation.ts` and `src/components/JobsView.tsx` | Queue status, render configuration, and activity display. |
+| `src/lib/music3Vocabulary.ts` and `src/components/Music3Workspace.tsx` | Music 3 vocabulary: the English prompt/storage values (genre, key, progression, keyword and style-descriptor presets) together with their Chinese display labels. The workspace renders the labels; the English values still reach the prompt verbatim. |
 | `src/components/LibraryView.tsx` and `src/components/VideoPlayer.tsx` | Render library filtering, output cards, and media playback controls. |
 | `src/components/SettingsView.tsx` and `src/components/FormFields.tsx` | Settings panels and shared labeled input controls. |
 | `src/lib/h3Diagnostics.ts` and `src/lib/h3NodeDetection.ts` | H3 benchmark persistence, model stack reports, and ComfyUI node detection. |

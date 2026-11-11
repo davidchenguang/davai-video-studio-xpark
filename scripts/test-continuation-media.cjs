@@ -71,8 +71,8 @@ async function main() {
       const cut = await probe(selected)
       assert.equal(Number(cut.streams.find(item => item.codec_type === 'video').nb_frames), 13, 'Retain source through the chosen frame, inclusive')
       assert.ok(Math.abs(Number(cut.streams.find(item => item.codec_type === 'audio').duration) - 13 / 24) < 0.03)
-      await assert.rejects(prepare(null, [input], 8, folder, ffmpeg), /outside/)
-      await assert.rejects(prepare(null, [input], -1, folder, ffmpeg), /valid source frame/)
+      await assert.rejects(prepare(null, [input], 8, folder, ffmpeg), /超出/)
+      await assert.rejects(prepare(null, [input], -1, folder, ffmpeg), /来源帧/)
     }
     const input = path.join(folder, '30.mp4')
     const configuredOutput = path.join(folder, 'configured-output')
@@ -140,7 +140,7 @@ async function main() {
     const exportVideo = handler('video:export', { ...dependencies, BrowserWindow: { fromWebContents: () => null }, dialog: { showSaveDialog: async () => result } })
     assert.equal(await exportVideo({ sender: {} }, input, 'Sample.mp4'), destination)
     assert.deepEqual(await fsp.readFile(destination), await fsp.readFile(input))
-    await assert.rejects(exportVideo({ sender: {} }, input, 'Sample.mp4'), /already exists/)
+    await assert.rejects(exportVideo({ sender: {} }, input, 'Sample.mp4'), /已存在/)
     result = { canceled: true }
     assert.equal(await exportVideo({ sender: {} }, input, 'Sample.mp4'), null)
     console.log('PASS: real FFmpeg continuation cadence, inclusive frame cut, silent audio alignment, source fallback, byte-range playback, local/remote thumbnail cache, and non-destructive exports')

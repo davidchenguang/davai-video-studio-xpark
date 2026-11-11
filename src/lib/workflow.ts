@@ -68,16 +68,16 @@ export function buildMiniMaxWorkflow(
     source?: UploadedFile
   },
 ): ComfyPrompt {
-  if (options.turbo === 'fast' && options.mode !== 'text') throw new Error('FastVideo FastH3 supports text-to-audio-video only. Use the base MiniMax H3 model for image, first/last-frame, or reference generation.')
+  if (options.turbo === 'fast' && options.mode !== 'text') throw new Error('FastVideo FastH3 仅支持文字生成音视频。图像、首尾帧或参考图生成请使用基础 MiniMax H3 模型。')
   const scene = options.sceneState
-  if (!Number.isFinite(options.duration) || options.duration <= 0 || options.duration > 15) throw new Error('Clip duration must be greater than 0 and no longer than 15 seconds.')
+  if (!Number.isFinite(options.duration) || options.duration <= 0 || options.duration > 15) throw new Error('片段时长必须大于 0 且不超过 15 秒。')
   const compiled = scene ? compileScene(scene) : undefined
   if (!options.ignoreSceneConflicts && compiled?.conflicts.some(item => item.severity === 'error')) throw new Error(compiled.conflicts.filter(item => item.severity === 'error').map(item => item.message).join('\n'))
   if (scene) {
-    if (scene.mode !== options.mode || scene.duration !== options.duration) throw new Error('Scene mode and duration must match the render payload.')
+    if (scene.mode !== options.mode || scene.duration !== options.duration) throw new Error('场景模式与时长必须与渲染载荷一致。')
     const counts = { image: uploads.images.length, video: uploads.videos.length, audio: uploads.audios.length }
-    if (options.mode === 'reference' && Object.entries(counts).some(([kind, count]) => scene.references.filter(ref => ref.file.kind === kind).length !== count)) throw new Error('Reference upload order/count differs from the compiled scene.')
-    if (options.mode !== 'reference' && (Boolean(uploads.first) !== scene.references.some(ref => ref.anchor === 'opening') || Boolean(uploads.last) !== scene.references.some(ref => ref.anchor === 'ending'))) throw new Error('Frame uploads differ from the compiled scene anchors.')
+    if (options.mode === 'reference' && Object.entries(counts).some(([kind, count]) => scene.references.filter(ref => ref.file.kind === kind).length !== count)) throw new Error('参考素材上传顺序或数量与编译后的场景不一致。')
+    if (options.mode !== 'reference' && (Boolean(uploads.first) !== scene.references.some(ref => ref.anchor === 'opening') || Boolean(uploads.last) !== scene.references.some(ref => ref.anchor === 'ending'))) throw new Error('首尾帧上传与编译后的场景锚点不一致。')
   }
   const prompt: ComfyPrompt = {}
   const routed = options.gpuRouting
@@ -260,7 +260,7 @@ export function buildMiniMaxWorkflow(
   }
   if (options.upscale?.type === 'refine') {
     const { steps, denoise } = options.upscale
-    if (!Number.isInteger(steps) || steps < 1 || steps > 30 || !Number.isFinite(denoise) || denoise <= 0 || denoise > 1) throw new Error('H3 refinement requires 1–30 steps and a denoise strength above 0 and at most 1.')
+    if (!Number.isInteger(steps) || steps < 1 || steps > 30 || !Number.isFinite(denoise) || denoise <= 0 || denoise > 1) throw new Error('H3 精修需要 1–30 步，且降噪强度大于 0、不超过 1。')
     prompt['110'] = { class_type: 'BasicScheduler', inputs: { model: modelLink, scheduler, steps, denoise } }
     prompt['111'] = { class_type: 'SamplerCustomAdvanced', inputs: { noise: ['11', 0], guider: ['12', 0], sampler: ['13', 0], sigmas: ['110', 0], latent_image: ['15', 0] } }
     prompt['16'] = { class_type: 'VAEDecode', inputs: { samples: ['111', 0], vae: videoVaeLink } }
@@ -330,7 +330,7 @@ export function buildMiniMaxWorkflow(
     prompt['84'] = { class_type: 'SaveVideo', inputs: { video: ['83', 0], filename_prefix: `${options.filenamePrefix}_RTX_AI_2x`, format: 'auto', 'format.codec': 'auto' } }
   }
   if (options.continuationAssembly) {
-    if (!uploads.source) throw new Error('Continuation assembly requires the completed source video upload.')
+    if (!uploads.source) throw new Error('续接组装需要已完成渲染的源视频上传。')
     const previousFrames = addLoader(prompt, '170', 'video', uploadedName(uploads.source))
     const trimFrames: number | Link = options.continuationAssembly.useMotionTrim && options.motionContext
       ? ['161', 1]

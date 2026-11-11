@@ -29,7 +29,7 @@ async function main() {
  assert.deepEqual(await fs.readFile(red),before,'Source is unchanged')
  const streams = JSON.parse(await run('ffprobe',['-v','error','-show_streams','-of','json',result.path])).streams
  assert.ok(streams.some(s => s.codec_type === 'audio'),'Silent and audio clips share an audio stream')
- await assert.rejects(handler(null,[{source:red,startFrame:20,endFrame:30}],root,''),/Invalid segment/)
+ await assert.rejects(handler(null,[{source:red,startFrame:20,endFrame:30}],root,''),/分段帧范围/)
  const leftovers = (await fs.readdir(root)).filter(name => name.startsWith('oyama-'))
  assert.equal(leftovers.length,0,'Temporary segments and concat lists are cleaned')
  console.log('PASS: exact inclusive splice, mixed dimensions, silent/audio sources, original preservation, invalid range rejection, temporary cleanup')

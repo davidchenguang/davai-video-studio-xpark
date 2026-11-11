@@ -9,22 +9,22 @@ type LegacyMigrationControlProps = {
 
 export function LegacyMigrationControl({ status, running, onRun }: LegacyMigrationControlProps) {
   const description = status?.needsBrowserStorageRepair
-    ? 'Restore the previous local characters, projects, and workspace state. This replaces Oyama browser-backed workspace data, then requires a restart.'
+    ? '恢复此前的本地角色、项目与工作区状态。此操作会替换 Oyama 当前基于浏览器存储的工作区数据，完成后需要重启应用。'
     : status?.migrated
-      ? 'The previous MiniMax Studio profile was imported. Run this again only to collect files added to the old app after the first import.'
+      ? '此前 MiniMax Studio 的配置文件已导入。只有当首次导入之后旧应用又新增了文件，才需要再次运行。'
       : status?.available
-        ? 'Import your previous MiniMax Studio profile into Oyama. Existing Oyama data is never replaced.'
-        : 'No previous MiniMax Studio profile was found on this computer.'
+        ? '把此前 MiniMax Studio 的配置文件导入 Oyama。绝不会替换现有的 Oyama 数据。'
+        : '这台电脑上没有找到此前 MiniMax Studio 的配置文件。'
 
   return <div className="legacy-migration-settings">
     <div>
-      <strong>Previous Studio data</strong>
+      <strong>旧版 Studio 数据</strong>
       <small>{description}</small>
-      {status?.repairError && <p className="settings-note warning" role="alert">The last restore could not finish: {status.repairError}. Close other Oyama windows before retrying. Your previous profile remains in place.</p>}
+      {status?.repairError && <p className="settings-note warning" role="alert">上一次恢复未能完成：{status.repairError}。重试前请先关闭其他 Oyama 窗口。你此前的配置文件仍保持原样。</p>}
     </div>
     <button type="button" className="secondary-button" disabled={!status?.available || running} onClick={onRun}>
       {running ? <LoaderCircle className="spin" size={15} /> : <History size={15} />}
-      {running ? 'Importing…' : status?.needsBrowserStorageRepair ? 'Restore projects & characters' : status?.migrated ? 'Import missing data again' : 'Import previous data'}
+      {running ? '正在导入…' : status?.needsBrowserStorageRepair ? '恢复项目与角色' : status?.migrated ? '再次导入缺失数据' : '导入旧版数据'}
     </button>
   </div>
 }

@@ -6,7 +6,7 @@ export const WARDROBE_LIBRARY_EVENT = 'minimax-wardrobe-library-changed'
 
 export function newWardrobeProject(index = 1): WardrobeProject {
   const now = Date.now()
-  return { id: createId(), name: `Wardrobe ${index}`, description: '', accessories: [], materials: '', colors: '', visualStyle: 'cinematic photorealism', referencePrompt: '', referenceImages: [], createdAt: now, updatedAt: now }
+  return { id: createId(), name: `服装 ${index}`, description: '', accessories: [], materials: '', colors: '', visualStyle: 'cinematic photorealism', referencePrompt: '', referenceImages: [], createdAt: now, updatedAt: now }
 }
 
 export function loadWardrobeProjects(): WardrobeProject[] {

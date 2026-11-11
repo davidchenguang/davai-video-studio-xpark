@@ -9,12 +9,12 @@ const same = (a: string, b: string) => a.toLowerCase().replace(/[-\s]/g, '') ===
 const personAttributes: Attribute[] = ['identity', 'face', 'body', 'hair', 'wardrobe', 'accessories']
 
 export const promptMarkupLegend = [
-  { tag: '##scene', description: 'Main visual action, composition, and camera direction.' },
-  { tag: '##music', description: 'Non-diegetic score; compiled into non_diegetic_music.' },
-  { tag: '##soundscape', description: 'Diegetic ambience, effects, and sounds in the world.' },
-  { tag: '##style', description: 'Comma-separated visual treatments.' },
-  { tag: '##location', description: 'Environment and fixed geography.' },
-  { tag: '##lighting', description: 'Lighting direction, color, and atmosphere.' },
+  { tag: '##scene', description: '主要视觉动作、构图与机位方向。' },
+  { tag: '##music', description: '画外配乐；会编入 non_diegetic_music。' },
+  { tag: '##soundscape', description: '画面内的环境声、音效与世界中的声响。' },
+  { tag: '##style', description: '用逗号分隔的视觉风格处理。' },
+  { tag: '##location', description: '环境与固定的地理设定。' },
+  { tag: '##lighting', description: '光线方向、色彩与氛围。' },
 ] as const
 
 export function parsePromptMarkup(input: string) {
@@ -51,7 +51,7 @@ export function compileScene(state: ScenePromptState): CompiledScene {
     const wardrobe = state.scene.match(new RegExp(`\\b${name} (?:wears|is wearing|changes into) ([^.!?]+)`, 'i'))?.[1]
     const explicit = character.attributes.wardrobe
     if (wardrobe && explicit?.value && (explicit.source === 'USER' || explicit.locked) && !same(wardrobe, explicit.value)) {
-      conflicts.push({ code: 'wardrobe-conflict', severity: 'error', message: `${character.name}: Scene requests ${wardrobe}, but Character wardrobe is ${explicit.value}.` })
+      conflicts.push({ code: 'wardrobe-conflict', severity: 'error', message: `${character.name}：「场景」要求 ${wardrobe}，但角色服装字段是 ${explicit.value}。` })
       return character
     }
     return wardrobe && !explicit?.locked ? { ...character, attributes: { ...character.attributes, wardrobe: { value: wardrobe, source: 'USER' as const } } } : character
@@ -72,67 +72,67 @@ export function compileScene(state: ScenePromptState): CompiledScene {
   // the compiler so the transport and UI cannot accidentally drop clothing.
   const wardrobeRefs = refs.filter(ref => ref.file.kind !== 'audio' && (ref.file.referenceRole === 'wardrobe' || ref.preserve.includes('wardrobe')))
   const unownedWardrobeRefs = wardrobeRefs.filter(ref => !ref.ownerId)
-  if (state.view !== 'manual' && !state.scene.trim() && !state.dialogue.length && !state.shots.some(shot => shot.description.trim())) error('empty-scene', 'The Scene field is empty.')
-  if (!Number.isFinite(state.duration) || state.duration <= 0 || state.duration > 15) error('duration', 'Choose a clip duration greater than 0 and no longer than 15 seconds.')
-  if (openings.length > 1 || endings.length > 1) error('multiple-anchors', 'Only one native Frame 0 anchor and one ending-frame anchor can be active.')
-  if (state.mode === 'image' && !openings.length) error('missing-opening', 'Choose an opening frame for image-to-video.')
-  if (state.mode === 'frames' && !endings.length) error('missing-ending', 'Choose an ending frame. The opening frame is optional for last-frame generation.')
-  if (mode === 'Ref2VA' && !counters.image && !counters.video) error('visual-required', 'Reference generation requires an image or video; audio cannot be the only input.')
-  if (counters.image > 9 || counters.video > 3 || counters.audio > 3) error('reference-limit', 'Reference limits are 9 images, 3 videos and 3 audio files.')
-  if (new Set(refs.map(ref => ref.id)).size !== refs.length) error('duplicate-reference', 'Reference IDs must be unique.')
+  if (state.view !== 'manual' && !state.scene.trim() && !state.dialogue.length && !state.shots.some(shot => shot.description.trim())) error('empty-scene', '「场景」字段是空的。')
+  if (!Number.isFinite(state.duration) || state.duration <= 0 || state.duration > 15) error('duration', '片段时长必须大于 0 秒且不超过 15 秒。')
+  if (openings.length > 1 || endings.length > 1) error('multiple-anchors', '只能同时启用一个原生帧 0 锚定和一个尾帧锚定。')
+  if (state.mode === 'image' && !openings.length) error('missing-opening', '请为图生视频选择一张开场帧。')
+  if (state.mode === 'frames' && !endings.length) error('missing-ending', '请选择一张尾帧。首尾帧端点模式下开场帧可选。')
+  if (mode === 'Ref2VA' && !counters.image && !counters.video) error('visual-required', '参考图生成至少需要一张图片或一段视频；音频不能是唯一输入。')
+  if (counters.image > 9 || counters.video > 3 || counters.audio > 3) error('reference-limit', '参考上限为 9 张图片、3 段视频和 3 路音频。')
+  if (new Set(refs.map(ref => ref.id)).size !== refs.length) error('duplicate-reference', '参考 ID 必须唯一。')
   const shots = state.shots
-  if (!shots.length) error('missing-shots', 'Add at least one shot.')
+  if (!shots.length) error('missing-shots', '请至少添加一个镜头。')
   shots.forEach((shot, index) => {
-    if (!Number.isFinite(shot.start) || !Number.isFinite(shot.end) || shot.end <= shot.start || shot.start < 0 || shot.end > state.duration || (index === 0 && shot.start !== 0) || (index > 0 && shot.start !== shots[index - 1].end)) error('shot-timing', `Shot ${index + 1} must follow the previous shot without gaps and stay inside ${state.duration}s.`)
+    if (!Number.isFinite(shot.start) || !Number.isFinite(shot.end) || shot.end <= shot.start || shot.start < 0 || shot.end > state.duration || (index === 0 && shot.start !== 0) || (index > 0 && shot.start !== shots[index - 1].end)) error('shot-timing', `镜头 ${index + 1} 必须紧接上一个镜头且不超出 ${state.duration} 秒的片段范围。`)
   })
-  if (shots.length && shots.at(-1)!.end !== state.duration) error('shot-end', 'The final shot must end at the selected clip duration.')
+  if (shots.length && shots.at(-1)!.end !== state.duration) error('shot-end', '最后一个镜头必须结束于所选的片段时长。')
   const detected = suggestScene(state.scene)
   for (const suggestion of detected) {
     const explicit = state.camera[suggestion.field as keyof Camera]
-    if (explicit?.source === 'USER' && explicit.value && !same(explicit.value, suggestion.value)) error('camera-conflict', `Scene requests ${suggestion.value}, but ${suggestion.field} is explicitly ${explicit.value}. Resolve the two user instructions.`)
+    if (explicit?.source === 'USER' && explicit.value && !same(explicit.value, suggestion.value)) error('camera-conflict', `「场景」要求 ${suggestion.value}，但 ${suggestion.field} 已明确设置为 ${explicit.value}。请解决这两条手动指令的冲突。`)
   }
   for (const ref of refs) {
-    if (ref.ownerId && !state.characters.some(character => character.id === ref.ownerId)) error('missing-owner', `${ref.name} belongs to a character that is no longer present.`, ref.id)
+    if (ref.ownerId && !state.characters.some(character => character.id === ref.ownerId)) error('missing-owner', `${ref.name} 所属的角色已不存在。`, ref.id)
     const retainedPersonAttributes = [...new Set([...ref.preserve, ...(ref.file.referenceRole === 'wardrobe' ? ['wardrobe' as Attribute] : [])])].filter(attribute => personAttributes.includes(attribute))
     const wardrobeOnly = retainedPersonAttributes.length === 1 && retainedPersonAttributes[0] === 'wardrobe'
-    if (!ref.ownerId && retainedPersonAttributes.length && !(wardrobeOnly && state.characters.length <= 1)) error('owner-required', `Assign a character to ${ref.name} before retaining identity, hair, accessories, or wardrobe shared by multiple subjects.`, ref.id)
-    if (!ref.ownerId && wardrobeOnly && state.characters.length > 1) error('owner-required', `Assign ${ref.name} to the character who should wear it; an unassigned wardrobe cannot be shared by multiple subjects.`, ref.id)
+    if (!ref.ownerId && retainedPersonAttributes.length && !(wardrobeOnly && state.characters.length <= 1)) error('owner-required', `多个主体共用的身份、发型、配饰或服装在保留前，请先给 ${ref.name} 指派一个角色。`, ref.id)
+    if (!ref.ownerId && wardrobeOnly && state.characters.length > 1) error('owner-required', `请把 ${ref.name} 指派给应穿着它的角色；未指派的服装不能被多个主体共用。`, ref.id)
     if (ref.anchor) {
-      if (ref.file.kind !== 'image') error('anchor-kind', 'Literal frame anchors must be images.', ref.id)
+      if (ref.file.kind !== 'image') error('anchor-kind', '字面帧锚定必须是图片。', ref.id)
       const shot = ref.anchor === 'ending' ? shots.at(-1) : shots[0]
       const camera = { ...state.camera, ...shot?.camera }
       for (const attribute of ['shotSize', 'angle'] as const) {
         const requested = present(camera[attribute]) || (ref.anchor === 'opening' ? detected.find(item => item.field === attribute)?.value : '')
-        if (requested && ref.observed[attribute] && !same(requested, ref.observed[attribute]!)) error('anchor-conflict', `${ref.name} anchors ${ref.observed[attribute]}, conflicting with ${requested}. Remove the anchor or change the shot.`, ref.id)
-        else if (requested && !ref.observed[attribute] && !ref.reviewed) error('anchor-review', `Review ${ref.name}'s framing against ${requested}; its ${attribute} has not been described.`, ref.id)
+        if (requested && ref.observed[attribute] && !same(requested, ref.observed[attribute]!)) error('anchor-conflict', `${ref.name} 锚定的是 ${ref.observed[attribute]}，与请求的 ${requested} 冲突。请移除锚定或修改镜头。`, ref.id)
+        else if (requested && !ref.observed[attribute] && !ref.reviewed) error('anchor-review', `请把 ${ref.name} 的取景与 ${requested} 对照检查；它的${attribute === 'shotSize' ? '帧景别' : '帧机位角度'}尚未描述。`, ref.id)
       }
       for (const attribute of ref.preserve) {
         const explicit = ref.ownerId ? state.characters.find(character => character.id === ref.ownerId)?.attributes[attribute] : state.overrides[attribute] || (attribute === 'environment' ? state.environment : attribute === 'lighting' ? state.lighting : undefined)
-        if (explicit?.source === 'USER' && explicit.value && ref.observed[attribute] && !same(explicit.value, ref.observed[attribute]!)) error('anchor-attribute', `${ref.name} fixes ${attribute} as ${ref.observed[attribute]}. The explicit ${explicit.value} instruction conflicts with this literal frame.`, ref.id)
+        if (explicit?.source === 'USER' && explicit.value && ref.observed[attribute] && !same(explicit.value, ref.observed[attribute]!)) error('anchor-attribute', `${ref.name} 把${attribute === 'shotSize' ? '景别' : attribute === 'angle' ? '机位角度' : attribute}固定为 ${ref.observed[attribute]}。明确的 ${explicit.value} 指令与这个字面帧冲突。`, ref.id)
       }
     }
     for (const attribute of ref.locks) {
       const requested = attribute === 'shotSize' || attribute === 'angle' ? state.camera[attribute]?.value || detected.find(item => item.field === attribute)?.value : state.overrides[attribute]?.value
-      if (requested && ref.observed[attribute] && !same(requested, ref.observed[attribute]!)) error('reference-lock', `${ref.name} locks ${attribute} to ${ref.observed[attribute]}, which conflicts with ${requested}. Unlock it to change the shot.`, ref.id)
+      if (requested && ref.observed[attribute] && !same(requested, ref.observed[attribute]!)) error('reference-lock', `${ref.name} 把${attribute === 'shotSize' ? '景别' : attribute === 'angle' ? '机位角度' : attribute}锁定为 ${ref.observed[attribute]}，与 ${requested} 冲突。请先解锁才能修改镜头。`, ref.id)
     }
-    if (mode === 'Ref2VA' && ref.file.kind === 'image' && !ref.preserve.length && !ref.locks.length && !ref.anchor) error('role-required', `Choose what ${ref.name} contributes, or remove it.`, ref.id)
+    if (mode === 'Ref2VA' && ref.file.kind === 'image' && !ref.preserve.length && !ref.locks.length && !ref.anchor) error('role-required', `请选择 ${ref.name} 贡献的内容，或移除它。`, ref.id)
   }
-  if (state.continuity.exactFrame && !openings.length) error('continuation-anchor', 'Frame-0 continuation is required, but no picture is assigned as the native Frame 0 anchor.')
+  if (state.continuity.exactFrame && !openings.length) error('continuation-anchor', '续接必须使用帧 0，但还没有图片被指派为原生帧 0 锚定。')
   const vocalDirection = /\b(?:says|whispers|shouts|speaks|asks|replies|sings|narrates)\b|<d>/i
-  if (state.noDialogue && (state.dialogue.length || vocalDirection.test(`${state.scene}\n${state.soundscape.value}`) || refs.some(ref => ref.audio?.layer === 'voice'))) error('speech-disabled', 'Dialogue, vocal direction, or a voice reference is present while No dialogue is enabled.')
-  if (/<(?:Subject|Picture|Video|Audio)\s+\d+>|(?:subject_definitions|integrated_multimodal_description|retention_analysis):/i.test(state.scene)) warning('legacy-format', 'This scene contains compiled H3 syntax. Use Manual Override to preserve an existing H3 prompt, or replace it with a natural scene description.')
+  if (state.noDialogue && (state.dialogue.length || vocalDirection.test(`${state.scene}\n${state.soundscape.value}`) || refs.some(ref => ref.audio?.layer === 'voice'))) error('speech-disabled', '启用「无对白」时，仍存在台词、发声指令或人声参考。')
+  if (/<(?:Subject|Picture|Video|Audio)\s+\d+>|(?:subject_definitions|integrated_multimodal_description|retention_analysis):/i.test(state.scene)) warning('legacy-format', '这个场景包含已编译的 H3 语法。要保留现有 H3 提示词，请使用「手动覆盖」；或替换为自然的场景描述。')
 
   const speakers: Record<string, string> = {}
   const dialogue = [...state.dialogue].sort((a, b) => (shots.findIndex(shot => shot.id === a.shotId) - shots.findIndex(shot => shot.id === b.shotId)) || a.at - b.at)
   for (const line of dialogue) {
     const shot = shots.find(shot => shot.id === line.shotId)
-    if (!shot || !Number.isFinite(line.at) || line.at < shot.start || line.at >= shot.end) error('dialogue-time', 'Dialogue must begin within its assigned shot.')
-    if (!line.text.trim() || !line.language.trim() || !line.speakerIds.length) error('dialogue-fields', 'Each dialogue line needs a speaker, language and spoken words.')
-    if (/<\/?(?:d|scenetrans|cutoff)>|[<>]/.test(line.text) || /[[\]<>]/.test(line.language)) error('dialogue-markup', 'Write plain dialogue and a language name; the compiler owns dialogue tags.')
-    line.speakerIds.forEach(id => { if (!state.characters.some(character => character.id === id)) error('speaker-missing', 'A dialogue speaker is no longer in the scene.'); if (!speakers[id]) speakers[id] = `S${Object.keys(speakers).length + 1}` })
-    if (shot && line.text.split(/\s+/).length / 3 > shot.end - line.at && !line.cutoff && !line.continues) warning('speech-fit', 'A dialogue line may be too long for its remaining shot time.')
-    if ((line.continues === 'from' || line.continues === 'both') && !dialogue.some(other => other.shotId === shots[shots.findIndex(s => s.id === line.shotId) - 1]?.id && (other.continues === 'to' || other.continues === 'both') && other.speakerIds.join() === line.speakerIds.join())) error('speech-continuation', 'Dialogue across a cut needs matching continuation parts and the same speaker.')
-    if ((line.continues === 'to' || line.continues === 'both') && !dialogue.some(other => other.shotId === shots[shots.findIndex(s => s.id === line.shotId) + 1]?.id && (other.continues === 'from' || other.continues === 'both') && other.speakerIds.join() === line.speakerIds.join())) error('speech-continuation', 'Add the dialogue continuation in the following shot.')
+    if (!shot || !Number.isFinite(line.at) || line.at < shot.start || line.at >= shot.end) error('dialogue-time', '台词必须在其所属镜头内开始。')
+    if (!line.text.trim() || !line.language.trim() || !line.speakerIds.length) error('dialogue-fields', '每句台词都需要说话人、语言和台词内容。')
+    if (/<\/?(?:d|scenetrans|cutoff)>|[<>]/.test(line.text) || /[[\]<>]/.test(line.language)) error('dialogue-markup', '请只写台词和语言名称；对白标签由编译器生成。')
+    line.speakerIds.forEach(id => { if (!state.characters.some(character => character.id === id)) error('speaker-missing', '一句台词的说话人已不在场景中。'); if (!speakers[id]) speakers[id] = `S${Object.keys(speakers).length + 1}` })
+    if (shot && line.text.split(/\s+/).length / 3 > shot.end - line.at && !line.cutoff && !line.continues) warning('speech-fit', '一句台词相对剩余镜头时长可能太长。')
+    if ((line.continues === 'from' || line.continues === 'both') && !dialogue.some(other => other.shotId === shots[shots.findIndex(s => s.id === line.shotId) - 1]?.id && (other.continues === 'to' || other.continues === 'both') && other.speakerIds.join() === line.speakerIds.join())) error('speech-continuation', '跨切台词需要匹配的续接部分和相同的说话人。')
+    if ((line.continues === 'to' || line.continues === 'both') && !dialogue.some(other => other.shotId === shots[shots.findIndex(s => s.id === line.shotId) + 1]?.id && (other.continues === 'from' || other.continues === 'both') && other.speakerIds.join() === line.speakerIds.join())) error('speech-continuation', '请在下一个镜头中添加台词的续接部分。')
   }
   const definitions: string[] = [], retention: string[] = [], wardrobeContracts: string[] = []
   const subjects: CompiledScene['subjects'] = []
@@ -153,7 +153,7 @@ export function compileScene(state: ScenePromptState): CompiledScene {
       // independently composable.
       if (attribute === 'wardrobe' && (references || field.value)) {
         if (explicitNudityDirection && !wardrobeConflictReported) {
-          error('wardrobe-nudity-conflict', 'Scene explicitly requests nudity while a preserved wardrobe is active. Remove the nudity direction or disable Wardrobe Preserve before rendering.', field.referenceIds?.[0])
+          error('wardrobe-nudity-conflict', '「场景」明确要求裸露，而保留服装正在生效。渲染前请移除裸露描述，或关闭服装来源上的「保留」。', field.referenceIds?.[0])
           wardrobeConflictReported = true
         }
         const safety = explicitNudityDirection
@@ -191,7 +191,7 @@ export function compileScene(state: ScenePromptState): CompiledScene {
         const pool = owned.length ? owned : sources
         // Identity may intentionally have multiple angles. Other attributes need
         // one canonical source; competing sources are resolved in the UI.
-        if (pool.length > 1 && !['identity', 'face', 'body'].includes(attribute)) error('attribute-sources', `${attribute} has multiple sources for ${state.characters.find(character => character.id === key)?.name || 'the scene'}. Choose one canonical source.`, pool[0].id)
+        if (pool.length > 1 && !['identity', 'face', 'body'].includes(attribute)) error('attribute-sources', `${attribute} 在${state.characters.find(character => character.id === key)?.name || '场景'}上有多个来源。请选择一个唯一来源。`, pool[0].id)
         fields.push([attribute, { value: pool.map(ref => ref.observed[attribute]).filter(Boolean).join('; '), source: 'PRESERVE', referenceIds: pool.map(ref => ref.id) }])
       } else if (authored?.value) fields.push([attribute, authored])
     }
@@ -220,7 +220,7 @@ export function compileScene(state: ScenePromptState): CompiledScene {
     const observed = ref.observed.wardrobe ? ` (${clean(ref.observed.wardrobe)})` : ''
     const target = state.characters.length === 1 ? clean(state.characters[0].name) : 'the visible subject'
     if (explicitNudityDirection && !wardrobeConflictReported) {
-      error('wardrobe-nudity-conflict', 'Scene explicitly requests nudity while a preserved wardrobe is active. Remove the nudity direction or disable Wardrobe Preserve before rendering.', ref.id)
+      error('wardrobe-nudity-conflict', '「场景」明确要求裸露，而保留服装正在生效。渲染前请移除裸露描述，或关闭服装来源上的「保留」。', ref.id)
       wardrobeConflictReported = true
     }
     const safety = explicitNudityDirection
@@ -242,8 +242,8 @@ export function compileScene(state: ScenePromptState): CompiledScene {
     }
     if (ref.audio) {
       const audio = ref.audio
-      if (audio.layer === 'voice' && (!audio.speakerId || !speakers[audio.speakerId])) error('audio-speaker', `${ref.name} needs a target speaker with an actual vocal event.`, ref.id)
-      if (audio.relation === 'fully_copy' && (audio.layer !== 'soundtrack' || state.dialogue.length || state.soundscape.value || state.music.value || refs.some(other => other.id !== ref.id && other.audio))) error('full-audio-conflict', 'Complete audio reuse must be the entire soundtrack without added dialogue, score, ambience or other audio sources.', ref.id)
+      if (audio.layer === 'voice' && (!audio.speakerId || !speakers[audio.speakerId])) error('audio-speaker', `${ref.name} 需要一个有真实发声事件的说话人。`, ref.id)
+      if (audio.relation === 'fully_copy' && (audio.layer !== 'soundtrack' || state.dialogue.length || state.soundscape.value || state.music.value || refs.some(other => other.id !== ref.id && other.audio))) error('full-audio-conflict', '完整复用音频时，它必须是整条原声，不能再有额外的对白、配乐、环境声或其他音频来源。', ref.id)
       const speaker = audio.speakerId ? `${subjectByOwner.get(audio.speakerId) || state.characters.find(c => c.id === audio.speakerId)?.name || 'speaker'} (${speakers[audio.speakerId] || '?'})` : ''
       definitions.push(`${label} is the ${audio.layer} source${speaker ? ` for ${speaker}` : ''}: ${clean(audio.description)}.`)
       retention.push(`${label}: ${audio.relation} - ${audio.relation === 'reference' ? 'follow only the assigned sound characteristics; do not copy the original signal or words' : audio.relation === 'fully_copy' ? 'reuse the source as the complete final audio track' : audio.relation === 'partially_copy' ? 'copy only the specified source layers or time range' : 'use only broad auditory similarity'}.`)
@@ -291,12 +291,12 @@ export function compileScene(state: ScenePromptState): CompiledScene {
   const compiled = mode === 'Ref2VA' ? [`subject_definitions:\n${definitions.join('\n')}`, `summary: [${task}${audioTask}] Create a ${state.duration.toFixed(2)}-second target video using the defined reference roles.`, `retention_analysis:\n${retention.join('\n')}`, `detailed_description: ${styles ? `The target video uses ${styles}.\n` : ''}${clothingDirection ? `${clothingDirection}\n` : ''}${description}\n${continuity}`, `overall_soundscape: ${sound}`, `non_diegetic_music: ${music}`].join('\n\n') : [alignment, `integrated_multimodal_description: ${clothingDirection ? `${clothingDirection}\n` : ''}${description}\n${continuity}`, `overall_soundscape: ${sound}`, `non_diegetic_music: ${music}`].filter(Boolean).join('\n\n')
   const prompt = state.view === 'manual' ? state.manualPrompt : compiled
   if (state.view === 'manual') {
-    if (!prompt.trim()) error('empty-manual', 'Manual Override is empty.')
+    if (!prompt.trim()) error('empty-manual', '「手动覆盖」是空的。')
     for (const match of prompt.matchAll(/<(Picture|Video|Audio)\s+(\d+)>/g)) {
       const count = match[1] === 'Picture' ? counters.image : match[1] === 'Video' ? counters.video : counters.audio
-      if (+match[2] < 1 || +match[2] > count) error('manual-reference', `${match[0]} has no attached input. Update Manual Override after changing references.`)
+      if (+match[2] < 1 || +match[2] > count) error('manual-reference', `${match[0]} 没有附加的输入。修改参考后请更新「手动覆盖」。`)
     }
-    for (const match of prompt.matchAll(/\[Shot (\d+)\] At (\d+):(\d+\.\d+)/g)) if (+match[2] * 60 + +match[3] >= state.duration) error('manual-timing', 'A manual cut falls outside the clip duration.')
+    for (const match of prompt.matchAll(/\[Shot (\d+)\] At (\d+):(\d+\.\d+)/g)) if (+match[2] * 60 + +match[3] >= state.duration) error('manual-timing', '一次手动剪切超出了片段时长。')
   }
   return { mode, prompt, conflicts, references: mapping, subjects, speakers, timing: shots.map((shot, index) => ({ shot: index + 1, start: shot.start, end: shot.end })) }
 }

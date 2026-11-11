@@ -10,7 +10,10 @@ function load(filename) {
   cache.set(absolute, exports)
   const code = ts.transpileModule(fs.readFileSync(absolute, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
   const localRequire = request => request.startsWith('.') ? load(path.resolve(path.dirname(absolute), `${request}.ts`)) : require(request)
-  vm.runInNewContext(code, { exports, require: localRequire, URLSearchParams, URL, console, localStorage: { getItem: () => null } }, { filename: absolute })
+  // Host scripts (e.g. the prompt-parity harness) can stage extra globals for
+  // the sandboxed module by setting global.__TS_LOADER_EXTRA_GLOBALS__ before load().
+  const extraGlobals = global.__TS_LOADER_EXTRA_GLOBALS__ || {}
+  vm.runInNewContext(code, { exports, require: localRequire, URLSearchParams, URL, console, localStorage: { getItem: () => null }, ...extraGlobals }, { filename: absolute })
   return exports
 }
 module.exports = { load }

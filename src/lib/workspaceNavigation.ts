@@ -4,26 +4,26 @@ export type MusicEngine = 'acestep' | 'music3'
 export type WorkspaceDestination = { view: View; engine?: MusicEngine; label: string; description: string; group: string }
 
 export const workspaceDestinations: WorkspaceDestination[] = [
-  { view: 'scratchpad', label: 'Scratchpad', description: 'Plan a scene and develop prompts before generating.', group: 'Create' },
-  { view: 'create', label: 'Video · MiniMax H3', description: 'Generate video from text, images, or references. T2V, I2V, Ref2VA.', group: 'Create' },
-  { view: 'continue', label: 'Continue video', description: 'Extend an existing video with the next scene or beat.', group: 'Create' },
-  { view: 'ltx25', label: 'Video · LTX 2.5', description: 'Generate video with the LTX engine.', group: 'Create' },
-  { view: 'ltxripple', label: 'LTX Ripple', description: 'First Frame All Frames: propagate a first-frame edit through source video.', group: 'Create' },
-  { view: 'photoedit', label: 'Photo Edit · FireRed', description: 'Edit a photo with a written instruction and send it to Ripple.', group: 'Create' },
-  { view: 'zimage', label: 'Create image', description: 'Generate still images with Z-Image.', group: 'Create' },
-  { view: 'music', engine: 'acestep', label: 'Music · ACE-Step', description: 'Compose music and vocals from lyrics and style.', group: 'Create' },
-  { view: 'music', engine: 'music3', label: 'Music · Music 3', description: 'Generate songs with MiniMax Music 3.', group: 'Create' },
-  { view: 'referenceprep', label: 'Reference Prep', description: 'Crop images and remove backgrounds for references.', group: 'Prepare assets' },
-  { view: 'characters', label: 'Characters', description: 'Build reusable character identities and reference sets.', group: 'Prepare assets' },
-  { view: 'hair', label: 'Hair', description: 'Create reusable hairstyles for characters.', group: 'Prepare assets' },
-  { view: 'wardrobes', label: 'Wardrobe', description: 'Prepare clothing and outfit references.', group: 'Prepare assets' },
-  { view: 'accessories', label: 'Accessories', description: 'Prepare props and accessories.', group: 'Prepare assets' },
-  { view: 'locations', label: 'Locations', description: 'Build reusable scene and environment references.', group: 'Prepare assets' },
-  { view: 'queue', label: 'Queue', description: 'Follow generation progress, stop jobs, and review errors.', group: 'Review & edit' },
-  { view: 'library', label: 'Video library', description: 'Review finished videos and reference stills; bookmark frames.', group: 'Review & edit' },
-  { view: 'movie', label: 'Movie editor', description: 'Assemble clips and audio on a timeline. Oyama AI Movie.', group: 'Review & edit' },
-  { view: 'clipmaster', label: 'Clip Master', description: 'Trim, inspect, and refine individual clips.', group: 'Review & edit' },
-  { view: 'settings', label: 'Settings', description: 'Connect ComfyUI, configure models, and troubleshoot setup.', group: 'Setup' },
+  { view: 'scratchpad', label: '草稿本', description: '在正式生成前规划场景、打磨提示词。', group: '创作' },
+  { view: 'create', label: '视频 · MiniMax H3', description: '用文字、图片或参考图生成视频，支持 T2V、I2V、Ref2VA。', group: '创作' },
+  { view: 'continue', label: '续接视频', description: '在已有视频之后续写下一个场景或节拍。', group: '创作' },
+  { view: 'ltx25', label: '视频 · LTX 2.5', description: '使用 LTX 引擎生成视频。', group: '创作' },
+  { view: 'ltxripple', label: 'LTX Ripple', description: '首帧到全帧：把对首帧的编辑沿源视频传递到每一帧。', group: '创作' },
+  { view: 'photoedit', label: '照片编辑 · FireRed', description: '用一句文字指令编辑照片，并直接发往 Ripple。', group: '创作' },
+  { view: 'zimage', label: '生成图片', description: '使用 Z-Image 生成静态图片。', group: '创作' },
+  { view: 'music', engine: 'acestep', label: '音乐 · ACE-Step', description: '根据歌词与风格创作音乐和人声。', group: '创作' },
+  { view: 'music', engine: 'music3', label: '音乐 · Music 3', description: '使用 MiniMax Music 3 生成歌曲。', group: '创作' },
+  { view: 'referenceprep', label: '参考图准备', description: '为参考图裁剪画面、去除背景。', group: '准备素材' },
+  { view: 'characters', label: '角色', description: '建立可复用的角色形象与参考图组。', group: '准备素材' },
+  { view: 'hair', label: '发型', description: '为角色创建可复用的发型。', group: '准备素材' },
+  { view: 'wardrobes', label: '服装', description: '准备服装与穿搭参考。', group: '准备素材' },
+  { view: 'accessories', label: '配饰', description: '准备道具与配饰。', group: '准备素材' },
+  { view: 'locations', label: '地点', description: '建立可复用的场景与环境参考。', group: '准备素材' },
+  { view: 'queue', label: '队列', description: '跟踪生成进度、停止任务、查看错误。', group: '查看与编辑' },
+  { view: 'library', label: '视频库', description: '回看完成的视频与参考静帧，收藏帧画面。', group: '查看与编辑' },
+  { view: 'movie', label: '影片剪辑', description: '在时间线上组装片段与音频（Oyama AI Movie）。', group: '查看与编辑' },
+  { view: 'clipmaster', label: '片段工坊', description: '修剪、检查、精修单个片段。', group: '查看与编辑' },
+  { view: 'settings', label: '设置', description: '连接 ComfyUI、配置模型、排查环境问题。', group: '配置' },
 ]
 
 export function workspaceLabel(view: View, engine: MusicEngine = 'acestep'): string {
@@ -48,7 +48,7 @@ export function workspaceProjectScope(view: View, engine: MusicEngine = 'acestep
   return view === 'create' || view === 'ltx25' || view === 'ltxripple' || view === 'zimage' ? view : null
 }
 export function workspaceProjectLabel(scope: WorkspaceProjectScope): string {
-  return scope === 'music3' ? 'Music · Music 3' : workspaceLabel(scope, 'acestep')
+  return scope === 'music3' ? '音乐 · Music 3' : workspaceLabel(scope, 'acestep')
 }
 export function workspaceStorageKey(scope: Exclude<WorkspaceProjectScope, 'create'>): string {
   return { ltx25: 'ltx25.workspace', ltxripple: 'ltx-ripple.workspace.v1', zimage: 'minimax.zimage-workspace', music: 'acestep.workspace', music3: 'minimax.music3-workspace' }[scope]

@@ -203,16 +203,16 @@ function lmStudioPath(url: string, path: string) {
 
 function assertLocalLmStudioUrl(value: string) {
   let parsed: URL
-  try { parsed = new URL(value) } catch { throw new Error('Enter a valid LM Studio server URL.') }
+  try { parsed = new URL(value) } catch { throw new Error('请输入有效的 LM Studio 服务器地址。') }
   const hostname = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase()
-  if (!['127.0.0.1', 'localhost', '::1'].includes(hostname)) throw new Error('LM Studio is restricted to this computer. Use localhost, 127.0.0.1, or ::1.')
-  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('LM Studio must use an HTTP or HTTPS URL.')
+  if (!['127.0.0.1', 'localhost', '::1'].includes(hostname)) throw new Error('LM Studio 仅限本机使用。请使用 localhost、127.0.0.1 或 ::1。')
+  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('LM Studio 必须使用 HTTP 或 HTTPS 地址。')
 }
 
 function assertLlmUrl(value: string, provider: LlmProvider) {
   let parsed: URL
-  try { parsed = new URL(value) } catch { throw new Error(`Enter a valid ${llmLabel(provider)} server URL.`) }
-  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(`${llmLabel(provider)} must use an HTTP or HTTPS URL.`)
+  try { parsed = new URL(value) } catch { throw new Error(`请输入有效的 ${llmLabel(provider)} 服务器地址。`) }
+  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(`${llmLabel(provider)} 必须使用 HTTP 或 HTTPS 地址。`)
   if (provider === 'lmstudio') assertLocalLmStudioUrl(value)
 }
 
@@ -224,8 +224,8 @@ async function llmFetch(url: string, path: string, provider: LlmProvider, init?:
     response = await fetch(provider === 'lmstudio' ? path : `${cleanUrl(url)}${path}`, { ...init, signal: init?.signal ?? AbortSignal.timeout(timeoutMs) })
   } catch (cause) {
     const timedOut = cause instanceof Error && (cause.name === 'TimeoutError' || cause.name === 'AbortError')
-    if (timedOut) throw new Error(`${label} did not respond in time. Confirm the selected model is loaded, then try again.`)
-    throw new Error(`Could not reach ${label} at ${cleanUrl(url)}. ${provider === 'ollama' ? 'Start Ollama' : 'Start the LM Studio local server'}, check the server URL, then try again.`)
+    if (timedOut) throw new Error(`${label} 未及时响应。请确认所选模型已加载后重试。`)
+    throw new Error(`无法连接 ${cleanUrl(url)} 上的 ${label}。请${provider === 'ollama' ? '启动 Ollama' : '启动 LM Studio 本地服务器'}，检查服务器地址后重试。`)
   }
   if (!response.ok) {
     const body = await response.text().catch(() => '')
@@ -234,11 +234,11 @@ async function llmFetch(url: string, path: string, provider: LlmProvider, init?:
       const parsed = JSON.parse(body) as { error?: string | { message?: string }; message?: string }
       detail = typeof parsed.error === 'string' ? parsed.error : parsed.error?.message ?? parsed.message ?? detail
     } catch { /* Keep a non-JSON provider response as the detail. */ }
-    if (response.status === 404 && /model/i.test(detail)) throw new Error(`${detail.replace(/\s+/g, ' ')} Refresh models in Settings and choose an installed model.`)
-    throw new Error(`${label} returned ${response.status}${detail ? `: ${detail.replace(/\s+/g, ' ').slice(0, 500)}` : '.'}`)
+    if (response.status === 404 && /model/i.test(detail)) throw new Error(`${detail.replace(/\s+/g, ' ')} 请在设置中刷新模型列表，并选择一个已安装的模型。`)
+    throw new Error(`${label} 返回了 ${response.status}${detail ? `：${detail.replace(/\s+/g, ' ').slice(0, 500)}` : '。'}`)
   }
   if (onStream) {
-    if (!response.body) throw new Error(`${label} returned no response stream.`)
+    if (!response.body) throw new Error(`${label} 未返回响应流。`)
     const result = await readLlmStream(response.body, provider, onStream)
     return provider === 'lmstudio' ? { choices: [{ message: { content: result.content } }] } : { message: { content: result.content }, response: result.content }
   }
@@ -259,12 +259,12 @@ async function generateWithLlm(url: string, model: string, prompt: string, provi
   if (provider === 'lmstudio') {
     const data = await llmFetch(url, lmStudioPath(url, '/chat/completions'), provider, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], stream: Boolean(onStream), temperature: 0.65, max_tokens: 1800 }) }, 600_000, onStream) as { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } | string }
     const answer = finalOllamaAnswer(data.choices?.[0]?.message?.content ?? '')
-    if (!answer) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message || 'LM Studio returned an empty response.')
+    if (!answer) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message || 'LM Studio 返回了空响应。')
     return answer
   }
   const data = await llmFetch(url, '/api/generate', provider, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, prompt, stream: Boolean(onStream), keep_alive: '10m', ...(!onStream ? { think: false } : {}), options: { temperature: 0.65, num_predict: 1200 } }) }, 600_000, onStream) as { response?: string; error?: string }
   const answer = data.response ? finalOllamaAnswer(data.response) : ''
-  if (!answer) throw new Error(data.error || 'Ollama returned an empty response.')
+  if (!answer) throw new Error(data.error || 'Ollama 返回了空响应。')
   return answer
 }
 
@@ -432,7 +432,7 @@ async function saveSettings(settings: AppSettings) {
 
 function factoryResetMarkerPath() { return join(app.getPath('userData'), 'pending-factory-reset.json') }
 async function factoryResetSettings(confirmation: unknown) {
-  if (confirmation !== 'Reset') throw new Error('Type Reset exactly to confirm factory reset.')
+  if (confirmation !== 'Reset') throw new Error('请准确输入 Reset 以确认恢复出厂设置。')
   await writeAtomicFile(factoryResetMarkerPath(), JSON.stringify({ requestedAt: Date.now() }))
   // Apply before any window opens on the next launch so a second editor or
   // autosave cannot restore the cleared projects from stale in-memory state.
@@ -540,10 +540,10 @@ async function comfyFetch(url: string, path: string, init?: RequestInit) {
     try {
       const parsed = JSON.parse(body) as { error?: { message?: string } | string; node_errors?: Record<string, { errors?: Array<{ message?: string; details?: string }> }> }
       const promptError = typeof parsed.error === 'string' ? parsed.error : parsed.error?.message
-      const nodeError = Object.entries(parsed.node_errors ?? {}).flatMap(([nodeId, value]) => (value.errors ?? []).map(error => `Node ${nodeId}: ${error.message ?? error.details ?? 'invalid input'}`))[0]
+      const nodeError = Object.entries(parsed.node_errors ?? {}).flatMap(([nodeId, value]) => (value.errors ?? []).map(error => `节点 ${nodeId}：${error.message ?? error.details ?? '无效输入'}`))[0]
       message = [promptError, nodeError].filter(Boolean).join(' · ')
     } catch { /* Preserve non-JSON server errors verbatim. */ }
-    throw new Error(message || `ComfyUI returned ${response.status}`)
+    throw new Error(message || `ComfyUI 返回了 ${response.status}`)
   }
   const contentType = response.headers.get('content-type') ?? ''
   return contentType.includes('application/json') ? response.json() : response.text()
@@ -574,7 +574,7 @@ function comfyChoices(info: Record<string, unknown>, node: string, field: string
 
 function streamLanEvents(request: IncomingMessage, response: ServerResponse, search: URLSearchParams, comfyUrl: string) {
   const clientId = search.get('clientId') ?? ''
-  if (!/^[a-f0-9-]{16,64}$/i.test(clientId)) return sendJson(response, 400, { error: 'A valid preview client ID is required.' })
+  if (!/^[a-f0-9-]{16,64}$/i.test(clientId)) return sendJson(response, 400, { error: '需要有效的预览客户端 ID。' })
   response.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' })
   response.write(': connected\n\n')
   const address = new URL(cleanUrl(comfyUrl))
@@ -607,7 +607,7 @@ async function readJson(request: IncomingMessage, maximumBytes = 36_000_000) {
   for await (const chunk of request) {
     const buffer = Buffer.from(chunk)
     total += buffer.length
-    if (total > maximumBytes) throw new Error('Request is too large.')
+    if (total > maximumBytes) throw new Error('请求过大。')
     chunks.push(buffer)
   }
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as Record<string, unknown>
@@ -631,11 +631,11 @@ function historyOutput(history: Record<string, unknown>, promptId: string, kind:
 
 async function proxyLanMedia(request: IncomingMessage, response: ServerResponse, search: URLSearchParams) {
   const filename = search.get('filename') ?? ''
-  if (!filename || filename.includes('/') || filename.includes('\\')) return sendJson(response, 400, { error: 'Invalid output filename.' })
+  if (!filename || filename.includes('/') || filename.includes('\\')) return sendJson(response, 400, { error: '无效的输出文件名。' })
   const settings = await loadSettings()
   const query = new URLSearchParams({ filename, subfolder: search.get('subfolder') ?? '', type: search.get('type') ?? 'output' })
   const upstream = await fetch(`${cleanUrl(settings.comfyUrl)}/view?${query}`, { headers: typeof request.headers.range === 'string' ? { Range: request.headers.range } : undefined })
-  if (!upstream.ok || !upstream.body) return sendJson(response, upstream.status, { error: 'The generated video is unavailable.' })
+  if (!upstream.ok || !upstream.body) return sendJson(response, upstream.status, { error: '生成的视频不可用。' })
   const headers: Record<string, string> = { 'content-type': upstream.headers.get('content-type') ?? 'video/mp4', 'accept-ranges': upstream.headers.get('accept-ranges') ?? 'bytes' }
   const length = upstream.headers.get('content-length')
   if (length) headers['content-length'] = length
@@ -651,7 +651,7 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
     const url = new URL(request.url ?? '/', 'http://minimax.local')
     if (url.pathname.startsWith('/api/lan/')) {
       const token = request.headers['x-minimax-token'] ?? url.searchParams.get('token')
-      if (token !== lanToken) return sendJson(response, 401, { error: 'This LAN link is no longer authorized. Open the current sharing panel again.' })
+      if (token !== lanToken) return sendJson(response, 401, { error: '此 LAN 链接已失效，请重新打开当前的共享面板。' })
       const settings = await loadSettings()
       if (url.pathname === '/api/lan/bootstrap' && request.method === 'GET') {
         const inventory = await collectModelInventory(settings)
@@ -677,7 +677,7 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
       if (url.pathname === '/api/lan/upload' && request.method === 'POST') {
         const body = await readJson(request)
         const data = typeof body.data === 'string' ? body.data : ''
-        if (!data.startsWith('data:image/png;base64,') || data.length > 35_000_000) return sendJson(response, 400, { error: 'Invalid prepared image.' })
+        if (!data.startsWith('data:image/png;base64,') || data.length > 35_000_000) return sendJson(response, 400, { error: '无效的预处理图像。' })
         const form = new FormData()
         form.append('image', new Blob([Buffer.from(data.split(',')[1], 'base64')], { type: 'image/png' }), `mobile-frame-${randomUUID()}.png`)
         form.append('type', 'input'); form.append('subfolder', 'minimax-mobile')
@@ -688,9 +688,9 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
         const data = typeof body.data === 'string' ? body.data : ''
         const name = typeof body.name === 'string' ? basename(body.name).replace(/[^a-z0-9._-]/gi, '_') : ''
         const match = /^data:([a-z0-9.+-]+\/[a-z0-9.+-]+);base64,(.+)$/is.exec(data)
-        if (!match || !name || data.length > 175_000_000) return sendJson(response, 400, { error: 'Invalid reference media.' })
+        if (!match || !name || data.length > 175_000_000) return sendJson(response, 400, { error: '无效的参考素材。' })
         const allowed = /^(image\/(png|jpeg|webp)|video\/(mp4|webm|quicktime)|audio\/(mpeg|wav|x-wav|ogg|mp4))$/i
-        if (!allowed.test(match[1])) return sendJson(response, 400, { error: 'Unsupported reference media type.' })
+        if (!allowed.test(match[1])) return sendJson(response, 400, { error: '不支持的参考素材类型。' })
         const form = new FormData()
         form.append('image', new Blob([Buffer.from(match[2], 'base64')], { type: match[1] }), name)
         form.append('type', 'input'); form.append('subfolder', 'minimax-mobile-references'); form.append('overwrite', 'true')
@@ -698,7 +698,7 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
       }
       if (url.pathname === '/api/lan/prompt' && request.method === 'POST') {
         const body = await readJson(request, 5_000_000)
-        if (!body.prompt || typeof body.prompt !== 'object') return sendJson(response, 400, { error: 'A ComfyUI workflow is required.' })
+        if (!body.prompt || typeof body.prompt !== 'object') return sendJson(response, 400, { error: '需要提供 ComfyUI 工作流。' })
         const clientId = typeof body.clientId === 'string' && /^[a-f0-9-]{16,64}$/i.test(body.clientId) ? body.clientId : randomUUID()
         const result = await comfyFetch(settings.comfyUrl, '/prompt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: body.prompt, client_id: clientId }) })
         return sendJson(response, 200, result)
@@ -707,18 +707,18 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
       if (url.pathname === '/api/lan/ollama' && request.method === 'POST') {
         const body = await readJson(request, 80_000)
         const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : ''
-        if (!prompt || prompt.length > 50_000) return sendJson(response, 400, { error: 'A shorter prompt-assistant request is required.' })
+        if (!prompt || prompt.length > 50_000) return sendJson(response, 400, { error: '提示词助手请求过长，请缩短后重试。' })
         const provider = settings.llmProvider ?? 'ollama'
         const llmUrl = provider === 'lmstudio' ? settings.lmStudioUrl : settings.ollamaUrl
         const llmModel = provider === 'lmstudio' ? settings.lmStudioModel : settings.ollamaModel
-        if (!llmModel) return sendJson(response, 503, { error: `No ${provider === 'lmstudio' ? 'LM Studio' : 'Ollama'} model is selected.` })
+        if (!llmModel) return sendJson(response, 503, { error: `未选择 ${provider === 'lmstudio' ? 'LM Studio' : 'Ollama'} 模型。` })
         const answer = await generateWithLlm(llmUrl, llmModel, prompt, provider)
         return sendJson(response, 200, { response: answer })
       }
       if (url.pathname === '/api/lan/cancel' && request.method === 'POST') {
         const body = await readJson(request, 10_000)
         const promptId = typeof body.promptId === 'string' ? body.promptId : ''
-        if (!promptId) return sendJson(response, 400, { error: 'A prompt ID is required.' })
+        if (!promptId) return sendJson(response, 400, { error: '需要提供提示词 ID。' })
         const result = await cancelComfyPrompt(promptId, (path, init) => fetch(`${cleanUrl(settings.comfyUrl)}${path}`, { ...init, signal: AbortSignal.timeout(10_000) }))
         return sendJson(response, 200, result)
       }
@@ -727,10 +727,10 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
         const history = await comfyFetch(settings.comfyUrl, `/history/${encodeURIComponent(promptId)}`) as Record<string, unknown>
         const output = historyOutput(history, promptId, url.searchParams.get('kind') === 'image' ? 'image' : 'video')
         const entry = history[promptId] as { status?: { status_str?: string } } | undefined
-        return sendJson(response, 200, { finished: Boolean(entry), error: entry?.status?.status_str === 'error' ? 'ComfyUI reported an execution error. Check the desktop console for the failed node.' : undefined, output })
+        return sendJson(response, 200, { finished: Boolean(entry), error: entry?.status?.status_str === 'error' ? 'ComfyUI 报告了执行错误。请在桌面端控制台查看失败的节点。' : undefined, output })
       }
       if (url.pathname === '/api/lan/media' && request.method === 'GET') return proxyLanMedia(request, response, url.searchParams)
-      return sendJson(response, 404, { error: 'Unknown mobile API route.' })
+      return sendJson(response, 404, { error: '未知的移动端 API 路由。' })
     }
 
     const distRoot = normalize(join(__dirname, '..', 'dist'))
@@ -771,8 +771,8 @@ function runFfmpeg(executable: string, args: string[]) {
     const child = spawn(resolvedExecutable, args, { windowsHide: true })
     let errorText = ''
     child.stderr.on('data', (chunk) => { errorText = `${errorText}${chunk}`.slice(-8000) })
-    child.once('error', (error) => reject(new Error(`Could not start FFmpeg: ${error.message}`)))
-    child.once('close', (code) => code === 0 ? resolve() : reject(new Error(`FFmpeg failed (${code}). ${errorText.split('\n').slice(-5).join(' ')}`)))
+    child.once('error', (error) => reject(new Error(`无法启动 FFmpeg：${error.message}`)))
+    child.once('close', (code) => code === 0 ? resolve() : reject(new Error(`FFmpeg 失败（${code}）。${errorText.split('\n').slice(-5).join(' ')}`)))
   })
 }
 
@@ -793,8 +793,8 @@ function runFfprobe(executable: string, args: string[]) {
     let stdout = ''; let stderr = ''
     child.stdout.on('data', (chunk) => { stdout += chunk })
     child.stderr.on('data', (chunk) => { stderr = `${stderr}${chunk}`.slice(-8000) })
-    child.once('error', (error) => reject(new Error(`Could not start FFprobe: ${error.message}`)))
-    child.once('close', (code) => code === 0 ? resolve(stdout) : reject(new Error(`FFprobe failed (${code}). ${stderr.split('\n').slice(-5).join(' ')}`)))
+    child.once('error', (error) => reject(new Error(`无法启动 FFprobe：${error.message}`)))
+    child.once('close', (code) => code === 0 ? resolve(stdout) : reject(new Error(`FFprobe 失败（${code}）。${stderr.split('\n').slice(-5).join(' ')}`)))
   })
 }
 
@@ -804,7 +804,7 @@ async function probeClipVideoMetadata(input: string, ffmpegPath: string): Promis
   const raw = await runFfprobe(ffmpegPath, ['-v', 'error', '-select_streams', 'v:0', '-count_frames', '-show_entries', 'stream=width,height,avg_frame_rate,r_frame_rate,nb_frames,nb_read_frames,duration:format=duration', '-of', 'json', input])
   const payload = JSON.parse(raw) as { streams?: Array<{ width?: number; height?: number; avg_frame_rate?: string; r_frame_rate?: string; nb_frames?: string | number; nb_read_frames?: string | number; duration?: string | number }>; format?: { duration?: string | number } }
   const stream = payload.streams?.[0]
-  if (!stream) throw new Error('No video stream was found in the selected clip.')
+  if (!stream) throw new Error('所选片段中未找到视频流。')
   const parseRate = (value?: string) => { const [numerator, denominator] = String(value ?? '').split('/').map(Number); return denominator > 0 ? numerator / denominator : Number(value) }
   const parsedFps = parseRate(stream.avg_frame_rate) || parseRate(stream.r_frame_rate) || 24
   const fps = Number.isFinite(parsedFps) && parsedFps > 0 ? parsedFps : 24
@@ -848,7 +848,7 @@ async function fitVideoForComfyUpload(source: string, limit: number, ffmpegPath:
   if ((await stat(source)).size <= budget) return { path: source, temporaryDirectory: null as string | null }
   const metadata = await probeClipVideoMetadata(source, ffmpegPath)
   const bitrate = Math.floor((budget * 8 / metadata.duration * 0.82 - 160_000) / 1000)
-  if (bitrate < 250) throw new Error('This video is too long for ComfyUI’s upload limit. Use a shorter source or raise ComfyUI’s --max-upload-size setting.')
+  if (bitrate < 250) throw new Error('该视频对于 ComfyUI 的上传限制来说过长。请改用更短的素材，或调大 ComfyUI 的 --max-upload-size 设置。')
   const temporaryDirectory = await mkdtemp(join(tmpdir(), 'oyama-comfy-upload-'))
   const output = join(temporaryDirectory, `source-${randomUUID()}-24fps.mp4`)
   try {
@@ -860,12 +860,12 @@ async function fitVideoForComfyUpload(source: string, limit: number, ffmpegPath:
         '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-y', output])
       if ((await stat(output)).size <= budget) {
         const prepared = await probeClipVideoMetadata(output, ffmpegPath)
-        if (Math.abs(metadata.fps - 24) < 0.01 && prepared.frameCount !== metadata.frameCount) throw new Error(`Upload conversion changed the source from ${metadata.frameCount} to ${prepared.frameCount} frames.`)
-        if (prepared.width !== Math.ceil(metadata.width / 2) * 2 || prepared.height !== Math.ceil(metadata.height / 2) * 2) throw new Error('Upload conversion changed the video resolution.')
+        if (Math.abs(metadata.fps - 24) < 0.01 && prepared.frameCount !== metadata.frameCount) throw new Error(`上传转换把素材从 ${metadata.frameCount} 帧改成了 ${prepared.frameCount} 帧。`)
+        if (prepared.width !== Math.ceil(metadata.width / 2) * 2 || prepared.height !== Math.ceil(metadata.height / 2) * 2) throw new Error('上传转换改变了视频分辨率。')
         return { path: output, temporaryDirectory }
       }
     }
-    throw new Error('FFmpeg could not fit this video under ComfyUI’s upload limit. Use a shorter source or raise --max-upload-size.')
+    throw new Error('FFmpeg 无法把该视频压缩到 ComfyUI 的上传限制以内。请改用更短的素材，或调大 --max-upload-size。')
   } catch (error) {
     await unlink(output).catch(() => undefined)
     await rmdir(temporaryDirectory).catch(() => undefined)
@@ -880,7 +880,7 @@ async function uploadFileToComfy(url: string, source: string, subfolder: string,
   const prefix = Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`)
   const suffix = Buffer.from(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="type"\r\n\r\ninput\r\n--${boundary}\r\nContent-Disposition: form-data; name="subfolder"\r\n\r\n${safeSubfolder}\r\n--${boundary}\r\nContent-Disposition: form-data; name="overwrite"\r\n\r\ntrue\r\n--${boundary}--\r\n`)
   const length = (await stat(source)).size + prefix.length + suffix.length
-  if (length > limit) throw new Error('This file exceeds ComfyUI’s upload limit. Use a smaller source or raise ComfyUI’s --max-upload-size setting.')
+  if (length > limit) throw new Error('该文件超出 ComfyUI 的上传限制。请改用更小的素材，或调大 ComfyUI 的 --max-upload-size 设置。')
   const body = Readable.from((async function* () {
     yield prefix
     for await (const chunk of createReadStream(source)) yield chunk
@@ -912,8 +912,8 @@ function runTool(executable: string, args: string[], label: string) {
     const child = spawn(executable, args, { windowsHide: true })
     let errorText = ''
     child.stderr.on('data', (chunk) => { errorText = `${errorText}${chunk}`.slice(-8000) })
-    child.once('error', (error) => reject(new Error(`Could not start ${label}: ${error.message}`)))
-    child.once('close', (code) => code === 0 ? resolve() : reject(new Error(`${label} failed (${code}). ${errorText.split('\n').slice(-5).join(' ')}`)))
+    child.once('error', (error) => reject(new Error(`无法启动 ${label}：${error.message}`)))
+    child.once('close', (code) => code === 0 ? resolve() : reject(new Error(`${label}失败（${code}）。${errorText.split('\n').slice(-5).join(' ')}`)))
   })
 }
 
@@ -933,40 +933,40 @@ async function findRifeExecutable(root = rifeDirectory()): Promise<string | null
 
 async function resolveUploadSource(source: string) {
   if (!source.startsWith('minimax-media:')) {
-    if (!existsSync(source) || !selectedMediaExtensions.has(extname(source).toLowerCase())) throw new Error('The selected media file is unavailable.')
+    if (!existsSync(source) || !selectedMediaExtensions.has(extname(source).toLowerCase())) throw new Error('所选媒体文件不可用。')
     return source
   }
   const parsed = new URL(source)
   if (parsed.hostname === 'local' || parsed.hostname === 'selected') {
     const path = parsed.searchParams.get('path') ?? ''
-    if (!existsSync(path) || !selectedMediaExtensions.has(extname(path).toLowerCase())) throw new Error('The selected media file is unavailable.')
+    if (!existsSync(path) || !selectedMediaExtensions.has(extname(path).toLowerCase())) throw new Error('所选媒体文件不可用。')
     return path
   }
   if (parsed.hostname === 'comfy') {
     const upstream = parsed.searchParams.get('url')
-    if (!upstream) throw new Error('The ComfyUI video address is missing.')
+    if (!upstream) throw new Error('缺少 ComfyUI 视频地址。')
     const configured = new URL(cleanUrl((await loadSettings()).comfyUrl))
     const target = new URL(upstream)
-    if (target.origin !== configured.origin || target.pathname !== '/view') throw new Error('The video is outside the configured ComfyUI server.')
+    if (target.origin !== configured.origin || target.pathname !== '/view') throw new Error('该视频不在所配置的 ComfyUI 服务器上。')
     const response = await fetch(target, { signal: AbortSignal.timeout(90_000) }).catch((error: unknown) => {
-      if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw new Error('ComfyUI did not return the source video within 90 seconds. Check its connection and retry.')
+      if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw new Error('ComfyUI 未在 90 秒内返回源视频。请检查其连接后重试。')
       throw error
     })
-    if (!response.ok) throw new Error(`Could not retrieve the ComfyUI video (${response.status}).`)
-    if (!response.body) throw new Error('ComfyUI returned an empty video response.')
+    if (!response.ok) throw new Error(`无法获取 ComfyUI 视频（${response.status}）。`)
+    if (!response.body) throw new Error('ComfyUI 返回了空的视频响应。')
     const extension = extname(target.searchParams.get('filename') ?? '').toLowerCase()
-    if (!selectedMediaExtensions.has(extension)) throw new Error('The ComfyUI media type is unsupported.')
+    if (!selectedMediaExtensions.has(extension)) throw new Error('不支持该 ComfyUI 媒体类型。')
     const temporary = join(app.getPath('temp'), `minimax-upload-${randomUUID()}${extension}`)
     try { await pipeline(Readable.fromWeb(response.body as unknown as Parameters<typeof Readable.fromWeb>[0]), createWriteStream(temporary)) }
     catch (error) { await unlink(temporary).catch(() => undefined); throw error }
     return temporary
   }
-  throw new Error('Unsupported media source.')
+  throw new Error('不支持的媒体来源。')
 }
 
 async function resolveVideoSource(source: string) {
   const resolved = await resolveUploadSource(source)
-  if (!mediaExtensions.has(extname(resolved).toLowerCase())) throw new Error('The selected video file is unavailable.')
+  if (!mediaExtensions.has(extname(resolved).toLowerCase())) throw new Error('所选视频文件不可用。')
   return resolved
 }
 
@@ -978,7 +978,7 @@ function createMovieEditorWindow() {
   nativeTheme.themeSource = 'dark'
   const window = new BrowserWindow({
     width: 1480, height: 940, minWidth: 980, minHeight: 680,
-    backgroundColor: '#171719', title: 'Oyama AI Movie',
+    backgroundColor: '#171719', title: 'Oyama AI 影片剪辑',
     autoHideMenuBar: true,
     webPreferences: { preload: join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   })
@@ -1153,8 +1153,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('window:open-studio', () => { if (!studioWindow || studioWindow.isDestroyed()) createWindow(); if (studioWindow?.isMinimized()) studioWindow.restore(); studioWindow?.show(); studioWindow?.focus() })
   ipcMain.handle('window:open-movie-editor', () => { createMovieEditorWindow() })
   ipcMain.handle('video:continuation-source', async (_event, sources: string[], throughTime: number | null, outputDirectory: string, ffmpegPath: string) => {
-    if (!Array.isArray(sources) || !sources.length || sources.length > 8) throw new Error('Select a valid continuation source.')
-    if (throughTime !== null && (!Number.isFinite(throughTime) || throughTime < 0)) throw new Error('Choose a valid source frame.')
+    if (!Array.isArray(sources) || !sources.length || sources.length > 8) throw new Error('请选择有效的续接来源。')
+    if (throughTime !== null && (!Number.isFinite(throughTime) || throughTime < 0)) throw new Error('请选择有效的来源帧。')
     let input = ''
     let temporaryInput = false
     let lastError: unknown
@@ -1165,10 +1165,10 @@ app.whenReady().then(async () => {
         break
       } catch (error) { lastError = error }
     }
-    if (!input) throw lastError ?? new Error('The source video is unavailable.')
+    if (!input) throw lastError ?? new Error('源视频不可用。')
     try {
     const metadata = await probeClipVideoMetadata(input, ffmpegPath)
-    if (throughTime !== null && throughTime >= metadata.duration) throw new Error('The chosen frame is outside this source. Choose a frame within the video.')
+    if (throughTime !== null && throughTime >= metadata.duration) throw new Error('所选帧超出了该素材的范围。请选择视频内的帧。')
     // LoadVideo preserves native cadence, while the H3 merger uses 24 fps.
     // Normalize before loading so a 30/60 fps source cannot play in slow motion.
     const frames = throughTime === null ? Math.max(1, Math.round(metadata.duration * 24)) : Math.floor(throughTime * 24) + 1
@@ -1193,20 +1193,20 @@ app.whenReady().then(async () => {
   })
   ipcMain.handle('window:open-dev-tools', (event) => {
     const target = BrowserWindow.fromWebContents(event.sender)
-    if (!target || target.isDestroyed()) throw new Error('The current window is unavailable. Reopen the studio and try again.')
+    if (!target || target.isDestroyed()) throw new Error('当前窗口不可用。请重新打开工作室后重试。')
     target.webContents.openDevTools({ mode: 'detach', activate: true })
   })
   ipcMain.handle('video:export', async (event, source: string, suggestedName: string) => {
     const input = await resolveVideoSource(source)
     const extension = extname(input).slice(1)
     const owner = BrowserWindow.fromWebContents(event.sender)
-    const options = { title: 'Export video', defaultPath: `${basename(suggestedName).replace(/\.[^.]+$/, '').replace(/[<>:"/\\|?*]/g, '-')}.${extension}`, filters: [{ name: 'Video', extensions: [extension] }] }
+    const options = { title: '导出视频', defaultPath: `${basename(suggestedName).replace(/\.[^.]+$/, '').replace(/[<>:"/\\|?*]/g, '-')}.${extension}`, filters: [{ name: '视频', extensions: [extension] }] }
     const result = owner ? await dialog.showSaveDialog(owner, options) : await dialog.showSaveDialog(options)
     if (result.canceled || !result.filePath) return null
-    if (resolve(input) === resolve(result.filePath)) throw new Error('Choose a different destination to preserve the source video.')
+    if (resolve(input) === resolve(result.filePath)) throw new Error('请选择其他保存位置，以保留源视频。')
     // An export must never replace a source or an earlier saved version.
     await copyFile(input, result.filePath, constants.COPYFILE_EXCL).catch((error: NodeJS.ErrnoException) => {
-      if (error.code === 'EEXIST') throw new Error('That file already exists. Choose a new filename for this export.')
+      if (error.code === 'EEXIST') throw new Error('该文件已存在。请为本次导出选择新的文件名。')
       throw error
     })
     return result.filePath
@@ -1227,9 +1227,9 @@ app.whenReady().then(async () => {
   ipcMain.handle('workflow:export-json', async (_event, suggestedName: string, workflow: unknown) => {
     const safeName = basename(String(suggestedName || 'minimax-workflow.json')).replace(/[^a-z0-9._ -]/gi, '_')
     const result = await dialog.showSaveDialog({
-      title: 'Export ComfyUI API workflow',
+      title: '导出 ComfyUI API 工作流',
       defaultPath: join(app.getPath('documents'), safeName.toLowerCase().endsWith('.json') ? safeName : `${safeName}.json`),
-      filters: [{ name: 'ComfyUI workflow JSON', extensions: ['json'] }],
+      filters: [{ name: 'ComfyUI 工作流 JSON', extensions: ['json'] }],
     })
     if (result.canceled || !result.filePath) return null
     const filePath = result.filePath.toLowerCase().endsWith('.json') ? result.filePath : `${result.filePath}.json`
@@ -1251,15 +1251,15 @@ app.whenReady().then(async () => {
   })
   ipcMain.handle('dialog:media', async (_event, type: 'image' | 'video' | 'audio') => {
     const filters = {
-      image: { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] },
-      video: { name: 'Videos', extensions: ['mp4', 'mov', 'mkv', 'webm'] },
-      audio: { name: 'Audio', extensions: ['wav', 'mp3', 'flac', 'm4a', 'ogg'] },
+      image: { name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp'] },
+      video: { name: '视频', extensions: ['mp4', 'mov', 'mkv', 'webm'] },
+      audio: { name: '音频', extensions: ['wav', 'mp3', 'flac', 'm4a', 'ogg'] },
     }
     const result = await dialog.showOpenDialog({ properties: ['openFile'], filters: [filters[type]] })
     return result.canceled ? null : { path: result.filePaths[0], name: basename(result.filePaths[0]) }
   })
   ipcMain.handle('dialog:videos', async () => {
-    const result = await dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'], filters: [{ name: 'Videos', extensions: ['mp4', 'mov', 'mkv', 'webm'] }] })
+    const result = await dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'], filters: [{ name: '视频', extensions: ['mp4', 'mov', 'mkv', 'webm'] }] })
     if (result.canceled) return []
     return result.filePaths.map((path) => ({ path, name: basename(path) }))
   })
@@ -1284,17 +1284,17 @@ app.whenReady().then(async () => {
       body: JSON.stringify({ prompt, client_id: clientId ?? randomUUID() }),
       signal: AbortSignal.timeout(60_000),
       }) as { prompt_id?: unknown; node_errors?: unknown }
-      if (typeof result.prompt_id !== 'string' || !result.prompt_id) throw new Error('ComfyUI accepted the request but did not return a prompt ID. Check its queue before retrying to avoid a duplicate render.')
+      if (typeof result.prompt_id !== 'string' || !result.prompt_id) throw new Error('ComfyUI 已接受请求，但未返回提示词 ID。重试前请先检查其队列，以免重复渲染。')
       return result
     } catch (error) {
-      if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw new Error('ComfyUI did not respond to the workflow submission within one minute. Check its queue before retrying to avoid a duplicate render.')
+      if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw new Error('ComfyUI 未在一分钟内响应工作流提交。重试前请先检查其队列，以免重复渲染。')
       throw error
     }
   })
   ipcMain.handle('comfy:queue', (_event, url: string) => comfyFetch(url, '/queue', { signal: AbortSignal.timeout(10_000) }))
   ipcMain.handle('comfy:info', (_event, url: string) => comfyFetch(url, '/object_info', { signal: AbortSignal.timeout(30_000) }))
   ipcMain.handle('comfy:upload-data', async (_event, url: string, data: string) => {
-    if (!data.startsWith('data:image/png;base64,') || data.length > 64_000_000) throw new Error('Invalid prepared image.')
+    if (!data.startsWith('data:image/png;base64,') || data.length > 64_000_000) throw new Error('无效的预处理图像。')
     const form = new FormData()
     form.append('image', new Blob([Buffer.from(data.split(',')[1], 'base64')], { type: 'image/png' }), `frame-${randomUUID()}.png`)
     form.append('type', 'input')
@@ -1304,17 +1304,17 @@ app.whenReady().then(async () => {
   ipcMain.handle('comfy:output-image', async (_event, url: string, file: { filename: string; subfolder?: string; type?: string }) => {
     const query = new URLSearchParams({ filename: file.filename, subfolder: file.subfolder ?? '', type: file.type ?? 'output' })
     const response = await fetch(`${cleanUrl(url)}/view?${query}`)
-    if (!response.ok) throw new Error(`Image download failed (${response.status}).`)
+    if (!response.ok) throw new Error(`图像下载失败（${response.status}）。`)
     const mime = response.headers.get('content-type')?.split(';')[0] ?? ''
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(mime)) throw new Error('ComfyUI did not return a supported image.')
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(mime)) throw new Error('ComfyUI 未返回受支持的图像。')
     return `data:${mime};base64,${Buffer.from(await response.arrayBuffer()).toString('base64')}`
   })
   ipcMain.handle('comfy:save-output-image', async (_event, url: string, file: { filename: string; subfolder?: string; type?: string }, requestedOutput: string, purpose: 'character' | 'photo-edit' | 'image-creation' = 'character') => {
     const settings = await loadSettings()
     const outputDirectory = normalize(requestedOutput)
-    if (outputDirectory.toLowerCase() !== normalize(settings.outputDirectory).toLowerCase()) throw new Error('Images must be saved inside the configured output folder.')
+    if (outputDirectory.toLowerCase() !== normalize(settings.outputDirectory).toLowerCase()) throw new Error('图像必须保存在配置的输出文件夹内。')
     const folders = { character: 'MiniMax Character References', 'photo-edit': 'FireRed Photo Edits', 'image-creation': 'Created Images' }
-    if (!Object.hasOwn(folders, purpose)) throw new Error('Unknown image output purpose.')
+    if (!Object.hasOwn(folders, purpose)) throw new Error('未知的图像输出用途。')
     const local = resolveComfyOutput(outputDirectory, file)
     const localExtension = local ? extname(local).toLowerCase() : ''
     let imageBytes: Buffer | null = null
@@ -1325,10 +1325,10 @@ app.whenReady().then(async () => {
     } else {
       const query = new URLSearchParams({ filename: basename(file.filename), subfolder: file.subfolder ?? '', type: file.type ?? 'output' })
       const response = await fetch(`${cleanUrl(url)}/view?${query}`)
-      if (!response.ok) throw new Error(`Image download failed (${response.status}).`)
+      if (!response.ok) throw new Error(`图像下载失败（${response.status}）。`)
       const mime = response.headers.get('content-type')?.split(';')[0] ?? ''
       extension = mime === 'image/jpeg' ? '.jpg' : mime === 'image/webp' ? '.webp' : mime === 'image/png' ? '.png' : ''
-      if (!extension) throw new Error('ComfyUI did not return a supported image.')
+      if (!extension) throw new Error('ComfyUI 未返回受支持的图像。')
       imageBytes = Buffer.from(await response.arrayBuffer())
     }
     const directory = join(outputDirectory, folders[purpose])
@@ -1341,13 +1341,13 @@ app.whenReady().then(async () => {
   ipcMain.handle('comfy:save-still-image', async (_event, url: string, file: { filename: string; subfolder?: string; type?: string }, requestedOutput: string) => {
     const settings = await loadSettings()
     const outputDirectory = normalize(requestedOutput)
-    if (outputDirectory.toLowerCase() !== normalize(settings.outputDirectory).toLowerCase()) throw new Error('Reference stills must be saved inside the configured output folder.')
+    if (outputDirectory.toLowerCase() !== normalize(settings.outputDirectory).toLowerCase()) throw new Error('参考静帧必须保存在配置的输出文件夹内。')
     const query = new URLSearchParams({ filename: basename(file.filename), subfolder: file.subfolder ?? '', type: file.type ?? 'output' })
     const response = await fetch(`${cleanUrl(url)}/view?${query}`)
-    if (!response.ok) throw new Error(`Reference still download failed (${response.status}).`)
+    if (!response.ok) throw new Error(`参考静帧下载失败（${response.status}）。`)
     const mime = response.headers.get('content-type')?.split(';')[0] ?? ''
     const extension = mime === 'image/jpeg' ? '.jpg' : mime === 'image/webp' ? '.webp' : mime === 'image/png' ? '.png' : ''
-    if (!extension) throw new Error('ComfyUI did not return a supported reference still.')
+    if (!extension) throw new Error('ComfyUI 未返回受支持的参考静帧。')
     const directory = join(outputDirectory, 'MiniMax Reference Stills')
     await mkdir(directory, { recursive: true })
     const target = join(directory, `ref2va-still-${Date.now()}-${randomUUID().slice(0, 8)}${extension}`)
@@ -1356,7 +1356,7 @@ app.whenReady().then(async () => {
   })
   ipcMain.handle('comfy:history', (_event, url: string, promptId: string) => comfyFetch(url, `/history/${encodeURIComponent(promptId)}`, { signal: AbortSignal.timeout(10_000) }))
   ipcMain.handle('comfy:cancel', async (_event, url: string, promptId: string) => {
-    if (typeof promptId !== 'string') throw new Error('A ComfyUI prompt ID is required to cancel a generation.')
+    if (typeof promptId !== 'string') throw new Error('取消生成需要 ComfyUI 提示词 ID。')
     return cancelComfyPrompt(promptId, (path, init) => fetch(`${cleanUrl(url)}${path}`, { ...init, signal: AbortSignal.timeout(10_000) }))
   })
   ipcMain.handle('outputs:latest', async (_event, outputDirectory: string, since: number, kind: 'video' | 'audio' = 'video') => {
@@ -1387,8 +1387,8 @@ app.whenReady().then(async () => {
       }
       try { return await uploadFileToComfy(url, converted?.path ?? source, subfolder, limit) }
       catch (error) {
-        if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw new Error(`ComfyUI did not finish uploading ${basename(source)} within five minutes. Check that ComfyUI is responsive, then retry.`)
-        if (error instanceof Error && /Maximum request body size|ComfyUI returned 413|Upload exceeds server limit/i.test(error.message)) throw new Error('ComfyUI rejected this upload at its size limit. Use a shorter source or raise ComfyUI’s --max-upload-size setting, then retry.')
+        if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw new Error(`ComfyUI 未能在五分钟内完成 ${basename(source)} 的上传。请确认 ComfyUI 响应正常后重试。`)
+        if (error instanceof Error && /Maximum request body size|ComfyUI returned 413|ComfyUI 返回了 413|Upload exceeds server limit/i.test(error.message)) throw new Error('ComfyUI 因超出大小限制拒绝了本次上传。请改用更短的素材，或调大 ComfyUI 的 --max-upload-size 设置后重试。')
         throw error
       }
     } finally {
@@ -1402,16 +1402,16 @@ app.whenReady().then(async () => {
   ipcMain.handle('ollama:status', async (_event, url: string, provider: LlmProvider = 'ollama') => ({ connected: true, models: await listLlmModels(url, provider) }))
   ipcMain.handle('ollama:generate', async (event, url: string, model: string, prompt: string, provider: LlmProvider = 'ollama', requestId?: string) => generateWithLlm(url, model, prompt, provider, requestId ? (update) => event.sender.send('llm:stream-update', requestId, update) : undefined))
   ipcMain.handle('llm:prompt-completion', async (_event, url: string, model: string, context: string, provider: LlmProvider = 'ollama') => {
-    if (!model || typeof context !== 'string' || context.length > 50_000) throw new Error('Choose a local model and enter a shorter scene direction.')
+    if (!model || typeof context !== 'string' || context.length > 50_000) throw new Error('请选择本地模型，并输入更短的场景指令。')
     return generatePromptCompletion(url, model, context, provider)
   })
   ipcMain.handle('video:ripple-chunk-source', async (_event, source: string, startFrame: number, sourceFrames: number, outputDirectory: string, ffmpegPath: string) => {
-    if (!Number.isInteger(startFrame) || startFrame < 0 || !Number.isInteger(sourceFrames) || sourceFrames < 48 || sourceFrames > 480 || sourceFrames % 8 !== 0) throw new Error('Choose a valid Ripple chunk range.')
+    if (!Number.isInteger(startFrame) || startFrame < 0 || !Number.isInteger(sourceFrames) || sourceFrames < 48 || sourceFrames > 480 || sourceFrames % 8 !== 0) throw new Error('请选择有效的 Ripple 分块范围。')
     const input = await resolveVideoSource(source)
     const temporaryInput = source.startsWith('minimax-media:') && new URL(source).hostname === 'comfy'
     try {
       const metadata = await probeClipVideoMetadata(input, ffmpegPath)
-      if (startFrame / 24 >= metadata.duration) throw new Error('The Ripple chunk starts beyond the source clip.')
+      if (startFrame / 24 >= metadata.duration) throw new Error('Ripple 分块的起点超出了源片段。')
       const folder = join(outputDirectory, 'LTX_Ripple', '_chunks')
       await mkdir(folder, { recursive: true })
       const output = join(folder, `source-${randomUUID()}.mp4`)
@@ -1427,13 +1427,13 @@ app.whenReady().then(async () => {
         '-c:a', 'aac', '-movflags', '+faststart', '-n', output,
       ]).catch(async error => { await unlink(output).catch(() => undefined); throw error })
       const prepared = await probeClipVideoMetadata(output, ffmpegPath)
-      if (prepared.frameCount !== sourceFrames) { await unlink(output).catch(() => undefined); throw new Error(`Ripple chunk has ${prepared.frameCount} frames instead of ${sourceFrames}. Check FFmpeg settings.`) }
+      if (prepared.frameCount !== sourceFrames) { await unlink(output).catch(() => undefined); throw new Error(`Ripple 分块有 ${prepared.frameCount} 帧，应为 ${sourceFrames} 帧。请检查 FFmpeg 设置。`) }
       return output
     } finally { if (temporaryInput) await unlink(input).catch(() => undefined) }
   })
   ipcMain.handle('video:ripple-assemble', async (_event, clips: Array<{ source: string; sourceFrames: number; overlapFrames: number }>, originalSource: string, duration: number, width: number, height: number, blend: boolean, outputDirectory: string, ffmpegPath: string) => {
-    if (!Array.isArray(clips) || clips.length < 2 || clips.length > 100 || !Number.isFinite(duration) || duration < 2 || duration > 300 || !Number.isInteger(width) || !Number.isInteger(height) || width < 256 || height < 256 || width > 2048 || height > 2048 || width % 32 || height % 32) throw new Error('Choose valid Ripple segments and output dimensions.')
-    if (clips.some((clip, index) => !clip || typeof clip.source !== 'string' || !Number.isInteger(clip.sourceFrames) || clip.sourceFrames < 48 || clip.sourceFrames > 480 || clip.sourceFrames % 8 || !Number.isInteger(clip.overlapFrames) || clip.overlapFrames < 0 || clip.overlapFrames > 48 || (index === 0 ? clip.overlapFrames !== 0 : clip.overlapFrames >= clip.sourceFrames / 2))) throw new Error('Ripple segments have invalid lengths or overlaps.')
+    if (!Array.isArray(clips) || clips.length < 2 || clips.length > 100 || !Number.isFinite(duration) || duration < 2 || duration > 300 || !Number.isInteger(width) || !Number.isInteger(height) || width < 256 || height < 256 || width > 2048 || height > 2048 || width % 32 || height % 32) throw new Error('请选择有效的 Ripple 分段与输出尺寸。')
+    if (clips.some((clip, index) => !clip || typeof clip.source !== 'string' || !Number.isInteger(clip.sourceFrames) || clip.sourceFrames < 48 || clip.sourceFrames > 480 || clip.sourceFrames % 8 || !Number.isInteger(clip.overlapFrames) || clip.overlapFrames < 0 || clip.overlapFrames > 48 || (index === 0 ? clip.overlapFrames !== 0 : clip.overlapFrames >= clip.sourceFrames / 2))) throw new Error('Ripple 分段的长度或重叠无效。')
     const inputs: string[] = []
     const temporary: string[] = []
     try {
@@ -1476,7 +1476,7 @@ app.whenReady().then(async () => {
       const output = join(folder, name)
       await runFfmpeg(ffmpegPath, ['-hide_banner', '-loglevel', 'error', ...inputs.flatMap(input => ['-i', input]), '-filter_complex', filters.join(';'), '-map', '[vout]', '-map', `${clips.length}:a:0?`, '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-r', '24', '-c:a', 'aac', '-b:a', '192k', '-t', String(duration), '-movflags', '+faststart', '-n', output]).catch(async error => { await unlink(output).catch(() => undefined); throw error })
       const result = await stat(output)
-      if (!result.size) throw new Error('Ripple assembly produced an empty video.')
+      if (!result.size) throw new Error('Ripple 组装产出了空视频。')
       return { path: output, name }
     } finally { await Promise.all(temporary.map(path => unlink(path).catch(() => undefined))) }
   })
@@ -1492,13 +1492,13 @@ app.whenReady().then(async () => {
         images.push({ base64: bytes.toString('base64'), mime })
       }
     }
-    if (!images.length) throw new Error('No readable local reference images were available to the copilot.')
+    if (!images.length) throw new Error('没有可供提示词助手读取的本地参考图。')
     const data = provider === 'lmstudio'
       ? await llmFetch(url, lmStudioPath(url, '/chat/completions'), provider, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, ...images.map((image) => ({ type: 'image_url', image_url: { url: `data:${image.mime};base64,${image.base64}` } }))] }], stream: false, temperature: 0.45, max_tokens: 1800 }) }) as { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } | string }
       : await llmFetch(url, '/api/chat', provider, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt, images: images.map((image) => image.base64) }], stream: false, keep_alive: 0, think: false, options: { temperature: 0.45, num_predict: 1800 } }) }) as { message?: { content?: string }; error?: string }
     const answer = provider === 'lmstudio' ? finalOllamaAnswer(('choices' in data ? data.choices?.[0]?.message?.content : '') ?? '') : finalOllamaAnswer(('message' in data ? data.message?.content : '') ?? '')
     const error = 'error' in data ? data.error : undefined
-    if (!answer) throw new Error(typeof error === 'string' ? error : error?.message || `${provider === 'lmstudio' ? 'LM Studio' : 'Ollama'} could not inspect the supplied reference images. Choose a local vision-capable model in Settings.`)
+    if (!answer) throw new Error(typeof error === 'string' ? error : error?.message || `${provider === 'lmstudio' ? 'LM Studio' : 'Ollama'} 无法识别所提供的参考图。请在设置中选择支持视觉的本地模型。`)
     return answer
   })
   ipcMain.handle('ollama:structured', async (event, url: string, model: string, prompt: string, schema: Record<string, unknown>, provider: LlmProvider = 'ollama', imagePaths: string[] = [], requestId?: string) => {
@@ -1537,9 +1537,9 @@ app.whenReady().then(async () => {
       data = await request(fallback)
       content = finalOllamaAnswer(provider === 'lmstudio' ? data.choices?.[0]?.message?.content ?? '' : data.message?.content ?? '')
     }
-    if (!content) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message || `${provider === 'lmstudio' ? 'LM Studio' : 'Ollama'} returned an empty structured response.`)
+    if (!content) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message || `${provider === 'lmstudio' ? 'LM Studio' : 'Ollama'} 返回了空的结构化响应。`)
     try { return JSON.parse(content) }
-    catch { throw new Error(`${provider === 'lmstudio' ? 'LM Studio' : 'Ollama'} returned a response that was not valid JSON.`) }
+    catch { throw new Error(`${provider === 'lmstudio' ? 'LM Studio' : 'Ollama'} 返回的响应不是有效的 JSON。`) }
   })
   ipcMain.handle('file:data-url', async (_event, filePath: string) => {
     const extension = extname(filePath).toLowerCase()
@@ -1547,20 +1547,20 @@ app.whenReady().then(async () => {
     return `data:${mime};base64,${(await readFile(filePath)).toString('base64')}`
   })
   ipcMain.handle('file:media-url', (_event, filePath: string) => {
-    if (!existsSync(filePath) || !selectedMediaExtensions.has(extname(filePath).toLowerCase())) throw new Error('The selected media is unavailable.')
+    if (!existsSync(filePath) || !selectedMediaExtensions.has(extname(filePath).toLowerCase())) throw new Error('所选媒体不可用。')
     return `minimax-media://selected?path=${encodeURIComponent(filePath)}`
   })
   ipcMain.handle('media:validate', async (_event, files: Array<{ path?: unknown; kind?: unknown }>) => {
-    if (!Array.isArray(files) || files.length > 16) throw new Error('Validate no more than 16 media files at once.')
+    if (!Array.isArray(files) || files.length > 16) throw new Error('一次最多校验 16 个媒体文件。')
     return Promise.all(files.map(async (file) => {
       const path = typeof file?.path === 'string' ? file.path : ''
       const kind = file?.kind === 'image' || file?.kind === 'video' || file?.kind === 'audio' ? file.kind : 'image'
-      if (!path) return { path, valid: false, reason: 'Missing file path.' }
+      if (!path) return { path, valid: false, reason: '缺少文件路径。' }
       if (path.startsWith('minimax-media:')) return { path, valid: true }
       const extensions = kind === 'image' ? imageExtensions : kind === 'video' ? mediaExtensions : new Set(['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'])
-      if (!extensions.has(extname(path).toLowerCase())) return { path, valid: false, reason: `Expected a supported ${kind} file.` }
+      if (!extensions.has(extname(path).toLowerCase())) return { path, valid: false, reason: `需要受支持的 ${kind} 文件。` }
       const details = await stat(path).catch(() => null)
-      if (!details?.isFile() || details.size < 1) return { path, valid: false, reason: 'File is missing or empty.' }
+      if (!details?.isFile() || details.size < 1) return { path, valid: false, reason: '文件缺失或为空。' }
       return { path, valid: true }
     }))
   })
@@ -1569,12 +1569,12 @@ app.whenReady().then(async () => {
     return probeClipVideoMetadata(input, ffmpegPath)
   })
   ipcMain.handle('clip-master:frames', async (_event, source: string, frames: Array<{ index: number; role: 'start' | 'end' | 'frame' }>, outputDirectory: string, ffmpegPath: string, sourceName: string) => {
-    if (!Array.isArray(frames) || !frames.length || frames.length > 100) throw new Error('Choose between 1 and 100 frames to save.')
+    if (!Array.isArray(frames) || !frames.length || frames.length > 100) throw new Error('请选择 1 到 100 帧进行保存。')
     const settings = await loadSettings()
-    if (normalize(outputDirectory).toLowerCase() !== normalize(settings.clipMasterOutputDirectory).toLowerCase()) throw new Error('Clip Master frames must be saved inside the configured Clip Master output folder.')
+    if (normalize(outputDirectory).toLowerCase() !== normalize(settings.clipMasterOutputDirectory).toLowerCase()) throw new Error('片段工坊的帧必须保存在配置的片段工坊输出文件夹内。')
     const input = await resolveVideoSource(source)
     const metadata = await probeClipVideoMetadata(input, ffmpegPath)
-    if (frames.some((item) => !Number.isFinite(Number(item.index)) || Number(item.index) < 0 || Math.floor(Number(item.index)) >= metadata.frameCount)) throw new Error(`Choose frame indexes between 0 and ${metadata.frameCount - 1}.`)
+    if (frames.some((item) => !Number.isFinite(Number(item.index)) || Number(item.index) < 0 || Math.floor(Number(item.index)) >= metadata.frameCount)) throw new Error(`请选择 0 到 ${metadata.frameCount - 1} 之间的帧序号。`)
     const folder = join(outputDirectory, 'ClipMaster', clipMasterSlug(sourceName))
     await mkdir(folder, { recursive: true })
     const files: Array<{ path: string; name: string; index: number; role: 'start' | 'end' | 'frame' }> = []
@@ -1585,7 +1585,7 @@ app.whenReady().then(async () => {
       const output = await nextClipMasterPath(folder, `${clipMasterSlug(sourceName)}_${label}_${String(index).padStart(4, '0')}`, 'png')
       await runFfmpeg(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-i', input, '-vf', `select=eq(n\\,${index})`, '-vsync', 'vfr', '-frames:v', '1', '-update', '1', '-y', output])
       const created = await stat(output).catch(() => null)
-      if (!created?.size) throw new Error(`FFmpeg did not produce frame ${index}.`)
+      if (!created?.size) throw new Error(`FFmpeg 未产出第 ${index} 帧。`)
       files.push({ path: output, name: basename(output), index, role: item.role })
     }
     return { folder, files }
@@ -1594,20 +1594,20 @@ app.whenReady().then(async () => {
     const folder = join(outputDirectory, 'ClipMaster', clipMasterSlug(sourceName))
     const suggested = await nextClipMasterPath(folder, `${clipMasterSlug(sourceName)}_clipmaster`, 'mp4', true)
     const result = await dialog.showSaveDialog({
-      title: 'Export Clip Master video',
+      title: '导出片段工坊视频',
       defaultPath: suggested,
-      filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
+      filters: [{ name: 'MP4 视频', extensions: ['mp4'] }],
     })
     return result.canceled || !result.filePath ? null : result.filePath
   })
   ipcMain.handle('clip-master:trim', async (_event, source: string, startFrame: number, endFrame: number, fps: number, outputPath: string, ffmpegPath: string) => {
     const start = Math.max(0, Math.floor(Number(startFrame))); const end = Math.max(start, Math.floor(Number(endFrame))); const requestedRate = Number(fps)
-    if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(requestedRate) || requestedRate <= 0) throw new Error('Choose a valid frame range and frame rate.')
-    if (!isAbsolute(outputPath) || extname(outputPath).toLowerCase() !== '.mp4') throw new Error('Choose a valid .mp4 export file location.')
-    if (existsSync(outputPath)) throw new Error(`“${basename(outputPath)}” already exists. Choose a new versioned filename so no earlier export is overwritten.`)
+    if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(requestedRate) || requestedRate <= 0) throw new Error('请选择有效的帧范围与帧率。')
+    if (!isAbsolute(outputPath) || extname(outputPath).toLowerCase() !== '.mp4') throw new Error('请选择有效的 .mp4 导出位置。')
+    if (existsSync(outputPath)) throw new Error(`“${basename(outputPath)}”已存在。请选择新的带版本号的文件名，以免覆盖早前的导出。`)
     const input = await resolveVideoSource(source)
     const metadata = await probeClipVideoMetadata(input, ffmpegPath)
-    if (end >= metadata.frameCount) throw new Error(`End frame ${end} is outside this clip. The final frame is ${metadata.frameCount - 1}.`)
+    if (end >= metadata.frameCount) throw new Error(`结束帧 ${end} 超出了该片段范围。最后一帧是 ${metadata.frameCount - 1}。`)
     const rate = metadata.fps
     const folder = dirname(outputPath); await mkdir(folder, { recursive: true })
     const duration = (end - start + 1) / rate
@@ -1624,7 +1624,7 @@ app.whenReady().then(async () => {
       await unlink(outputPath).catch(() => undefined)
       throw error
     }
-    const created = await stat(outputPath).catch(() => null); if (!created?.size) throw new Error('FFmpeg completed without producing the Clip Master export.')
+    const created = await stat(outputPath).catch(() => null); if (!created?.size) throw new Error('FFmpeg 已执行完成，但未产出片段工坊导出文件。')
     return { path: outputPath, name: basename(outputPath), url: `minimax-media://local?path=${encodeURIComponent(outputPath)}`, folder, frameCount: end - start + 1, duration }
   })
   ipcMain.handle('video:frame', async (_event, source: string, position: number | 'last', outputDirectory: string, ffmpegPath: string) => {
@@ -1642,7 +1642,7 @@ app.whenReady().then(async () => {
       await runFfmpeg(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-ss', String(Math.max(0, position)), '-i', input, '-map', '0:v:0', '-frames:v', '1', '-update', '1', '-y', output])
     }
     const extracted = await stat(output).catch(() => null)
-    if (!extracted?.size) throw new Error('FFmpeg completed without producing a frame. Check that the clip contains a video stream.')
+    if (!extracted?.size) throw new Error('FFmpeg 已执行完成，但未产出帧。请检查片段是否包含视频流。')
     return { path: output, name }
   })
   ipcMain.handle('video:thumbnail', async (_event, source: string, ffmpegPath: string) => {
@@ -1665,7 +1665,7 @@ app.whenReady().then(async () => {
         const position = metadata?.duration ? Math.min(2, metadata.duration / 3) : 0.2
         const extract = (at: number) => runFfmpeg(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-ss', String(at), '-i', videoInput, '-map', '0:v:0', '-frames:v', '1', '-vf', 'scale=480:270:force_original_aspect_ratio=decrease:force_divisible_by=2', '-q:v', '4', '-y', temporary])
         await extract(position).catch(() => extract(0))
-        if (!(await stat(temporary)).size) throw new Error('FFmpeg did not create a thumbnail.')
+        if (!(await stat(temporary)).size) throw new Error('FFmpeg 未创建缩略图。')
         await rename(temporary, output).catch(async (error) => { if (!existsSync(output)) throw error })
       } finally {
         await unlink(temporary).catch(() => undefined)
@@ -1676,7 +1676,7 @@ app.whenReady().then(async () => {
   })
   ipcMain.handle('video:frames', async (_event, source: string, positions: number[], outputDirectory: string, ffmpegPath: string) => {
     if (!Array.isArray(positions) || positions.length === 0 || positions.length > 100 || positions.some((position) => !Number.isFinite(position) || position < 0)) {
-      throw new Error('Choose between 1 and 100 valid frame bookmarks.')
+      throw new Error('请选择 1 到 100 个有效的帧书签。')
     }
     const input = await resolveVideoSource(source)
     const framesDirectory = join(outputDirectory, 'Oyama AI Video Studio Frames')
@@ -1690,7 +1690,7 @@ app.whenReady().then(async () => {
       const output = join(framesDirectory, name)
       await runFfmpeg(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-ss', String(position), '-i', input, '-map', '0:v:0', '-frames:v', '1', '-update', '1', '-y', output])
       const extracted = await stat(output).catch(() => null)
-      if (!extracted?.size) throw new Error(`FFmpeg did not produce the bookmarked frame at ${position.toFixed(3)} seconds.`)
+      if (!extracted?.size) throw new Error(`FFmpeg 未产出 ${position.toFixed(3)} 秒处的书签帧。`)
       outputs.push({ path: output, name })
     }
     return outputs
@@ -1701,7 +1701,7 @@ app.whenReady().then(async () => {
     const to = Number(end)
     const length = to - from
     if (!Number.isFinite(from) || !Number.isFinite(to) || from < 0 || length < 2 || length > 15) {
-      throw new Error('Reference clips must be between 2 and 15 seconds long.')
+      throw new Error('参考片段的长度必须在 2 到 15 秒之间。')
     }
     const directory = join(outputDirectory, 'Oyama AI Video Studio Reference Clips')
     await mkdir(directory, { recursive: true })
@@ -1713,11 +1713,11 @@ app.whenReady().then(async () => {
       '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', '-y', output,
     ])
     const created = await stat(output).catch(() => null)
-    if (!created?.size) throw new Error('FFmpeg completed without producing a reference clip.')
+    if (!created?.size) throw new Error('FFmpeg 已执行完成，但未产出参考片段。')
     return { path: output, name }
   })
   ipcMain.handle('clip-master:splice', async (_event, clips: Array<{ source: string; startFrame: number; endFrame: number }>, outputDirectory: string, ffmpegPath: string) => {
-    if (!Array.isArray(clips) || !clips.length || clips.length > 100) throw new Error('Select between 1 and 100 segments.')
+    if (!Array.isArray(clips) || !clips.length || clips.length > 100) throw new Error('请选择 1 到 100 个分段。')
     const temporary: string[] = []
     const directory = join(outputDirectory, 'ClipMaster')
     await mkdir(directory, { recursive: true })
@@ -1727,7 +1727,7 @@ app.whenReady().then(async () => {
       for (const clip of clips) {
         const input = await resolveVideoSource(clip.source)
         const meta = await probeClipVideoMetadata(input, ffmpegPath)
-        if (!Number.isInteger(clip.startFrame) || !Number.isInteger(clip.endFrame) || clip.startFrame < 0 || clip.endFrame < clip.startFrame || clip.endFrame >= meta.frameCount) throw new Error('Invalid segment frame range.')
+        if (!Number.isInteger(clip.startFrame) || !Number.isInteger(clip.endFrame) || clip.startFrame < 0 || clip.endFrame < clip.startFrame || clip.endFrame >= meta.frameCount) throw new Error('分段帧范围无效。')
         target ??= meta
         const duration = (clip.endFrame - clip.startFrame + 1) / meta.fps
         const audio = JSON.parse(await runFfprobe(ffmpegPath, ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=index', '-of', 'json', input])) as { streams?: unknown[] }
@@ -1748,7 +1748,7 @@ app.whenReady().then(async () => {
     finally { await Promise.all(temporary.map(path => unlink(path).catch(() => undefined))) }
   })
   ipcMain.handle('video:join', async (_event, clips: Array<{ source: string; start?: number; end?: number }>, outputDirectory: string, ffmpegPath: string) => {
-    if (!Array.isArray(clips) || clips.length < 2) throw new Error('Add at least two clips to join.')
+    if (!Array.isArray(clips) || clips.length < 2) throw new Error('请至少添加两个片段再合并。')
     const inputs = await Promise.all(clips.map((clip) => resolveVideoSource(clip.source)))
     const directory = join(outputDirectory, 'video')
     await mkdir(directory, { recursive: true })
@@ -1773,17 +1773,17 @@ app.whenReady().then(async () => {
       await mkdir(root, { recursive: true })
       const archive = join(root, 'rife-ncnn-vulkan-windows.zip')
       const response = await fetch(RIFE_RELEASE_URL)
-      if (!response.ok) throw new Error(`Official RIFE download failed (${response.status}).`)
+      if (!response.ok) throw new Error(`官方 RIFE 下载失败（${response.status}）。`)
       await writeFile(archive, Buffer.from(await response.arrayBuffer()))
-      await runTool('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Expand-Archive -LiteralPath '${archive.replace(/'/g, "''")}' -DestinationPath '${root.replace(/'/g, "''")}' -Force`], 'RIFE setup')
+      await runTool('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Expand-Archive -LiteralPath '${archive.replace(/'/g, "''")}' -DestinationPath '${root.replace(/'/g, "''")}' -Force`], 'RIFE 安装')
       const executable = await findRifeExecutable()
-      if (!executable) throw new Error('RIFE was extracted but its Windows executable was not found.')
+      if (!executable) throw new Error('RIFE 已解压，但未找到其中的 Windows 可执行文件。')
       return { installed: true, executable }
     } catch (error) { return { installed: false, error: error instanceof Error ? error.message : String(error) } }
   })
   ipcMain.handle('rife:interpolate', async (_event, source: string, outputDirectory: string, ffmpegPath: string, mode: 'fps-2x' | 'slow-motion') => {
     const executable = await findRifeExecutable()
-    if (!executable) throw new Error('RIFE is not installed. Install it from the Clip Editor first.')
+    if (!executable) throw new Error('尚未安装 RIFE。请先在片段编辑器中安装。')
     const input = await resolveVideoSource(source)
     const id = String(Date.now())
     const working = join(outputDirectory, 'Oyama AI Video Studio RIFE', id)
@@ -1792,15 +1792,15 @@ app.whenReady().then(async () => {
     await mkdir(frames, { recursive: true }); await mkdir(interpolated, { recursive: true })
     await runFfmpeg(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-i', input, '-vf', 'fps=24', '-vsync', '0', '-start_number', '0', '-y', join(frames, '%08d.png')])
     const frameCount = (await readdir(frames)).filter((file) => /\.png$/i.test(file)).length
-    if (frameCount < 2) throw new Error('RIFE needs a clip with at least two decoded frames.')
-    await runTool(executable, ['-i', frames, '-o', interpolated, '-n', String(frameCount * 2 - 1), '-m', join(dirname(executable), 'models', 'rife-v4.6')], 'RIFE optical-flow interpolation')
+    if (frameCount < 2) throw new Error('RIFE 需要至少包含两个已解码帧的片段。')
+    await runTool(executable, ['-i', frames, '-o', interpolated, '-n', String(frameCount * 2 - 1), '-m', join(dirname(executable), 'models', 'rife-v4.6')], 'RIFE 光流插值')
     const outputRoot = join(outputDirectory, 'Oyama AI Video Studio RIFE')
     await mkdir(outputRoot, { recursive: true })
     const output = join(outputRoot, `RIFE_${mode === 'slow-motion' ? 'Cinematic_Slow_Motion' : '48fps'}_${id}.mp4`)
     const outputFps = mode === 'slow-motion' ? '24' : '48'
     await runFfmpeg(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-framerate', outputFps, '-start_number', '0', '-i', join(interpolated, '%08d.png'), '-map', '0:v:0', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', '-y', output])
     const created = await stat(output).catch(() => null)
-    if (!created?.size) throw new Error('RIFE completed without producing a video.')
+    if (!created?.size) throw new Error('RIFE 已执行完成，但未产出视频。')
     return { path: output, url: `minimax-media://local?path=${encodeURIComponent(output)}` }
   })
   ipcMain.handle('shell:show-output', async (_event, outputPath: string) => {
@@ -1813,7 +1813,7 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 }).catch((error) => {
-  dialog.showErrorBox('Oyama AI Video Studio failed to start', `Startup failed before the window could open:\n\n${error instanceof Error ? error.stack ?? error.message : String(error)}\n\nThe application will close.`)
+  dialog.showErrorBox('Oyama AI Video Studio 启动失败', `窗口打开前启动失败：\n\n${error instanceof Error ? error.stack ?? error.message : String(error)}\n\n应用即将关闭。`)
   app.quit()
 })
 

@@ -47,8 +47,8 @@ export function VideoReferenceClipper({ source, onClose, onCreate }: Props) {
   return <div className="video-clipper-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}>
     <section className="video-clipper" role="dialog" aria-modal="true" aria-labelledby="video-clipper-title">
       <header>
-        <div><Scissors size={19} /><span><strong id="video-clipper-title">Create a video reference clip</strong><small>Choose the exact section MiniMax should study. Your original video stays unchanged.</small></span></div>
-        <button className="icon-button" onClick={onClose} disabled={busy} aria-label="Close video clipper"><X size={18} /></button>
+        <div><Scissors size={19} /><span><strong id="video-clipper-title">创建视频参考片段</strong><small>精确圈出 MiniMax 应该研读的段落。原视频保持不变。</small></span></div>
+        <button className="icon-button" onClick={onClose} disabled={busy} aria-label="关闭视频裁剪器"><X size={18} /></button>
       </header>
       <div className="video-clipper-body">
         <div className="video-clipper-player">
@@ -74,25 +74,25 @@ export function VideoReferenceClipper({ source, onClose, onCreate }: Props) {
               lastPlayheadUpdate.current = now
               setPlayhead(event.currentTarget.currentTime)
             }
-          }} onError={() => { setPlaybackState('paused'); setError('This video cannot be previewed by Electron. Try converting it to MP4 (H.264/AAC) first.') }} />
-          <div className="video-clipper-playback-status" role="status" aria-live="polite">{playbackState === 'loading' ? 'Loading preview…' : playbackState === 'playing' ? `Playing selection · stops at ${time(end)}` : playbackState === 'ended' ? 'Selection end reached' : 'Preview ready'}</div>
-          <div className="video-source-name"><CirclePlay size={14} /><span title={source.name}>{source.name}</span><output>{duration ? time(duration) : 'Reading video…'}</output></div>
+          }} onError={() => { setPlaybackState('paused'); setError('Electron 无法预览这个视频。请先把它转成 MP4（H.264/AAC）再试。') }} />
+          <div className="video-clipper-playback-status" role="status" aria-live="polite">{playbackState === 'loading' ? '正在加载预览…' : playbackState === 'playing' ? `正在播放所选段落 · 将停在 ${time(end)}` : playbackState === 'ended' ? '已到达所选段落的末尾' : '预览就绪'}</div>
+          <div className="video-source-name"><CirclePlay size={14} /><span title={source.name}>{source.name}</span><output>{duration ? time(duration) : '正在读取视频…'}</output></div>
         </div>
         <div className="video-clipper-controls">
-          <div className="clip-selection-heading"><span><strong>Selected reference</strong><small>Ref2V accepts a focused 2–15 second section.</small></span><output className={valid ? '' : 'invalid'}>{length.toFixed(1)} seconds</output></div>
-          <label>Playhead<input type="range" min="0" max={duration || 15} step="0.04" value={playhead} disabled={!duration} onChange={(event) => seek(Number(event.target.value))} /><output>{time(playhead)}</output></label>
+          <div className="clip-selection-heading"><span><strong>所选参考</strong><small>Ref2VA 接受 2–15 秒的聚焦段落。</small></span><output className={valid ? '' : 'invalid'}>{length.toFixed(1)} 秒</output></div>
+          <label>播放头<input type="range" min="0" max={duration || 15} step="0.04" value={playhead} disabled={!duration} onChange={(event) => seek(Number(event.target.value))} /><output>{time(playhead)}</output></label>
           <div className="clip-in-out">
-            <label>Start<input type="number" min="0" max={Math.max(0, end - 2)} step="0.04" value={Number(start.toFixed(2))} onChange={(event) => { const next = clamp(Number(event.target.value), 0, Math.max(0, end - 2)); setStart(next); seek(next) }} /></label>
-            <button className="secondary-button" disabled={!duration} onClick={setIn}>Set start to playhead</button>
-            <label>End<input type="number" min={start + 2} max={Math.min(duration || 15, start + 15)} step="0.04" value={Number(end.toFixed(2))} onChange={(event) => { const next = clamp(Number(event.target.value), start + 2, Math.min(duration || start + 15, start + 15)); setEnd(next); seek(next) }} /></label>
-            <button className="secondary-button" disabled={!duration} onClick={setOut}>Set end to playhead</button>
+            <label>入点<input type="number" min="0" max={Math.max(0, end - 2)} step="0.04" value={Number(start.toFixed(2))} onChange={(event) => { const next = clamp(Number(event.target.value), 0, Math.max(0, end - 2)); setStart(next); seek(next) }} /></label>
+            <button className="secondary-button" disabled={!duration} onClick={setIn}>把入点设到播放头</button>
+            <label>出点<input type="number" min={start + 2} max={Math.min(duration || 15, start + 15)} step="0.04" value={Number(end.toFixed(2))} onChange={(event) => { const next = clamp(Number(event.target.value), start + 2, Math.min(duration || start + 15, start + 15)); setEnd(next); seek(next) }} /></label>
+            <button className="secondary-button" disabled={!duration} onClick={setOut}>把出点设到播放头</button>
           </div>
           <div className="clip-range-track" aria-hidden="true"><span style={{ left: `${duration ? (start / duration) * 100 : 0}%`, right: `${duration ? 100 - (end / duration) * 100 : 0}%` }} /></div>
-          {!valid && duration > 0 && <p className="clip-validation" role="status">Choose a section between 2 and 15 seconds.</p>}
+          {!valid && duration > 0 && <p className="clip-validation" role="status">请选择 2 到 15 秒之间的段落。</p>}
           {error && <p className="clip-validation" role="alert">{error}</p>}
         </div>
       </div>
-      <footer><span>The new MP4 is saved in your output folder and used only as a reference.</span><div><button className="secondary-button" disabled={busy} onClick={onClose}>Cancel</button><button className="primary-button" disabled={!valid || busy} onClick={async () => { setBusy(true); setError(''); try { await onCreate(start, end) } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); setBusy(false) } }}>{busy ? <LoaderCircle className="spin" size={15} /> : <Scissors size={15} />}{busy ? 'Creating clip…' : 'Create reference clip'}</button></div></footer>
+      <footer><span>新的 MP4 会保存到你的输出文件夹，且只作为参考图使用。</span><div><button className="secondary-button" disabled={busy} onClick={onClose}>取消</button><button className="primary-button" disabled={!valid || busy} onClick={async () => { setBusy(true); setError(''); try { await onCreate(start, end) } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); setBusy(false) } }}>{busy ? <LoaderCircle className="spin" size={15} /> : <Scissors size={15} />}{busy ? '正在创建片段…' : '创建参考片段'}</button></div></footer>
     </section>
   </div>
 }

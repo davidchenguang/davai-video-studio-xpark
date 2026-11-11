@@ -19,7 +19,7 @@ assert.match(saved[0].outputUrl, /^minimax-media:\/\/comfy\?url=/)
 assert.equal(saved[1].status, 'failed', 'An interrupted local submission is recoverable in Queue')
 assert.equal(saved[1].progress, 100)
 assert.equal(saved[1].outputUrl, undefined)
-assert.match(saved[1].error, /prompt ID/)
+assert.match(saved[1].error, /提示词 ID/)
 assert.equal(playableOutputUrl('minimax-media://comfy?url=stored'), 'minimax-media://comfy?url=stored')
 
 console.log('PASS: saved job recovery, malformed entry isolation, and playback URL migration')

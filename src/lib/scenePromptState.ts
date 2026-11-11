@@ -93,7 +93,10 @@ export function bindSceneReferences(state: ScenePromptState, bindings: MovieRefe
     // retaining the old owner would orphan wardrobe preservation and allow the
     // identity subject to render without its assigned clothing.
     const ownerId = binding?.characterId ?? old?.ownerId
-    if (ownerId && !characters.has(ownerId)) characters.set(ownerId, { id: ownerId, name: binding?.label.replace(/^Character:\s*/, '').split(' / ')[0].split(' for ').at(-1) || 'Character', attributes: {}, source: 'CHARACTER' })
+    // SceneReference.name and the derived character name are storage/prompt
+    // layer, so they read the English prompt label (see keep-english.md).
+    const promptName = binding?.promptLabel ?? binding?.label
+    if (ownerId && !characters.has(ownerId)) characters.set(ownerId, { id: ownerId, name: promptName?.replace(/^Character:\s*/, '').split(' / ')[0].split(' for ').at(-1) || 'Character', attributes: {}, source: 'CHARACTER' })
     const role = binding?.purpose && binding.purpose !== 'generic' ? binding.purpose : file.referenceRole
     // A library binding is more authoritative than stale metadata on the
     // original file. Normalize it before the compiler and before the UI reads
@@ -110,7 +113,7 @@ export function bindSceneReferences(state: ScenePromptState, bindings: MovieRefe
     // role, keep authored attribute additions and add the canonical role field.
     const roleChanged = Boolean(old && (old.file.referenceRole ?? '') !== (resolvedFile.referenceRole ?? ''))
     const preserve = old && !roleChanged ? [...new Set([...old.preserve, ...attributes])] : attributes
-    refs.push(old ? { ...old, file: resolvedFile, ownerId, preserve, source: binding?.characterId ? 'CHARACTER' : old.source === 'CHARACTER' ? 'PRESERVE' : old.source } : { id, file: resolvedFile, ownerId, name: binding?.label ?? file.name, preserve, locks: role === 'composition' ? ['composition'] : [], anchor: anchor ?? (file.openingFrameTreatment === 'match' || file.openingFrameTreatment === 'arc' || binding?.purpose === 'continuity' ? 'opening' : undefined), observed: {}, source: binding?.characterId ? 'CHARACTER' : 'PRESERVE', ...(file.kind === 'video' ? { videoRole: 'motion' as const } : {}), ...(file.kind === 'audio' ? { audio: { relation: 'reference' as const, layer: 'ambience' as const, description: 'Sound texture' } } : {}) })
+    refs.push(old ? { ...old, file: resolvedFile, ownerId, preserve, source: binding?.characterId ? 'CHARACTER' : old.source === 'CHARACTER' ? 'PRESERVE' : old.source } : { id, file: resolvedFile, ownerId, name: binding?.promptLabel ?? binding?.label ?? file.name, preserve, locks: role === 'composition' ? ['composition'] : [], anchor: anchor ?? (file.openingFrameTreatment === 'match' || file.openingFrameTreatment === 'arc' || binding?.purpose === 'continuity' ? 'opening' : undefined), observed: {}, source: binding?.characterId ? 'CHARACTER' : 'PRESERVE', ...(file.kind === 'video' ? { videoRole: 'motion' as const } : {}), ...(file.kind === 'audio' ? { audio: { relation: 'reference' as const, layer: 'ambience' as const, description: 'Sound texture' } } : {}) })
   }
   if (state.mode === 'reference') { bindings.forEach(binding => add(binding.file, binding)); videos.forEach(file => add(file)); audios.forEach(file => add(file)) }
   else { if (first && (state.mode === 'image' || state.mode === 'frames')) add(first, undefined, 'opening'); if (last && state.mode === 'frames') add(last, undefined, 'ending') }
@@ -154,16 +157,89 @@ export function expandEmbeddedAudio(references: SceneReference[]): SceneReferenc
   return references.flatMap(ref => ref.file.kind === 'video' && ref.embeddedAudio ? [{ ...ref, id: `${ref.id}:soundtrack`, file: { ...ref.file, kind: 'audio' as const }, audio: ref.embeddedAudio, preserve: [], locks: [], anchor: undefined }, ref] : [ref])
 }
 
-export const cameraOptions = {
-  shotSize: ['Extreme Close-Up', 'Close-Up', 'Medium Close-Up', 'Medium Shot', 'Medium Wide Shot', 'Wide Shot', 'Extreme Wide Shot'],
-  angle: ['Eye Level', 'Low Angle', 'High Angle', 'Overhead', 'Dutch Angle', 'Over the Shoulder', 'POV'],
-  movement: ['Static Shot', 'Push In', 'Pull Out', 'Zoom In', 'Zoom Out', 'Pan Left', 'Pan Right', 'Truck Left', 'Truck Right', 'Tilt Up', 'Tilt Down', 'Pedestal Up', 'Pedestal Down', 'Arc Shot', 'Tracking Shot', 'Roll Clockwise', 'Roll Counterclockwise'],
-  speed: ['Slow', 'Normal', 'Fast'], stabilization: ['Handheld', 'Tripod', 'Gimbal', 'Steadicam'], amplitude: ['Small', 'Medium', 'Large'],
+// Camera option split: `value` is the storage + prompt-layer English term
+// (byte-identical to the historical single string, so camera state, compiled
+// prompts, and localStorage legacy values stay English), while `label` is the
+// Chinese display text for the panels' <select> options.
+export type CameraOption = { value: string; label: string }
+export const cameraOptions: Record<'shotSize' | 'angle' | 'movement' | 'speed' | 'stabilization' | 'amplitude', CameraOption[]> = {
+  shotSize: [
+    { value: 'Extreme Close-Up', label: '特写' },
+    { value: 'Close-Up', label: '近景' },
+    { value: 'Medium Close-Up', label: '中近景' },
+    { value: 'Medium Shot', label: '中景' },
+    { value: 'Medium Wide Shot', label: '中全景' },
+    { value: 'Wide Shot', label: '全景' },
+    { value: 'Extreme Wide Shot', label: '大远景' },
+  ],
+  angle: [
+    { value: 'Eye Level', label: '平视' },
+    { value: 'Low Angle', label: '仰拍' },
+    { value: 'High Angle', label: '俯拍' },
+    { value: 'Overhead', label: '顶视' },
+    { value: 'Dutch Angle', label: '斜角' },
+    { value: 'Over the Shoulder', label: '过肩' },
+    { value: 'POV', label: 'POV 主观视角' },
+  ],
+  movement: [
+    { value: 'Static Shot', label: '固定镜头' },
+    { value: 'Push In', label: '推近' },
+    { value: 'Pull Out', label: '拉远' },
+    { value: 'Zoom In', label: '变焦推近' },
+    { value: 'Zoom Out', label: '变焦拉远' },
+    { value: 'Pan Left', label: '左摇' },
+    { value: 'Pan Right', label: '右摇' },
+    { value: 'Truck Left', label: '左移' },
+    { value: 'Truck Right', label: '右移' },
+    { value: 'Tilt Up', label: '仰摇' },
+    { value: 'Tilt Down', label: '俯摇' },
+    { value: 'Pedestal Up', label: '立柱升起' },
+    { value: 'Pedestal Down', label: '立柱降落' },
+    { value: 'Arc Shot', label: '环绕运镜' },
+    { value: 'Tracking Shot', label: '跟拍' },
+    { value: 'Roll Clockwise', label: '顺时针翻转' },
+    { value: 'Roll Counterclockwise', label: '逆时针翻转' },
+  ],
+  speed: [
+    { value: 'Slow', label: '慢速' },
+    { value: 'Normal', label: '常速' },
+    { value: 'Fast', label: '快速' },
+  ],
+  stabilization: [
+    { value: 'Handheld', label: '手持' },
+    { value: 'Tripod', label: '三脚架' },
+    { value: 'Gimbal', label: '稳定器' },
+    { value: 'Steadicam', label: '斯坦尼康' },
+  ],
+  amplitude: [
+    { value: 'Small', label: '小幅' },
+    { value: 'Medium', label: '中幅' },
+    { value: 'Large', label: '大幅' },
+  ],
+}
+// Storage/prompt layer only: the six historical English value lists, in their
+// original byte order. Kept derived from cameraOptions so the pairs can never
+// drift apart.
+export const cameraOptionValues: Record<keyof typeof cameraOptions, string[]> = {
+  shotSize: cameraOptions.shotSize.map(option => option.value),
+  angle: cameraOptions.angle.map(option => option.value),
+  movement: cameraOptions.movement.map(option => option.value),
+  speed: cameraOptions.speed.map(option => option.value),
+  stabilization: cameraOptions.stabilization.map(option => option.value),
+  amplitude: cameraOptions.amplitude.map(option => option.value),
+}
+/** Resolve UI-provided camera text to its storage value: an exact English
+ * value passes through unchanged, a Chinese display label maps to its value,
+ * and anything else (legacy stored values, free-form text) is passed through
+ * as-is so existing data never round-trips into a different string. */
+export function cameraValueFor(field: keyof typeof cameraOptions, text: string): string {
+  if (cameraOptionValues[field].includes(text)) return text
+  return cameraOptions[field].find(option => option.label === text)?.value ?? text
 }
 export function suggestScene(scene: string): ScenePromptState['inferred'] {
   const suggestions: ScenePromptState['inferred'] = []
   for (const field of ['shotSize', 'angle', 'movement'] as const) {
-    const found = [...cameraOptions[field]].sort((a, b) => b.length - a.length).find(option => new RegExp(`\\b${option.replaceAll('-', '[- ]')}\\b`, 'i').test(scene))
+    const found = [...cameraOptionValues[field]].sort((a, b) => b.length - a.length).find(option => new RegExp(`\\b${option.replaceAll('-', '[- ]')}\\b`, 'i').test(scene))
     if (found) suggestions.push({ field, value: found, evidence: found })
   }
   if (/camera (?:backs|moves|pulls) (?:away|back|backward)/i.test(scene)) suggestions.push({ field: 'movement', value: 'Pull Out', evidence: 'camera backs away' })
@@ -182,17 +258,20 @@ export function resizeScene(state: ScenePromptState, duration: number): ScenePro
   return { ...state, duration, shots: state.shots.length === 1 ? [{ ...state.shots[0], end: duration }] : state.shots }
 }
 export function applySceneCommand(state: ScenePromptState, category: string, label: string, instruction = ''): ScenePromptState {
-  const field = ({ camera: 'movement', shot: 'shotSize', angle: 'angle', movement: 'speed' } as Record<string, keyof Camera>)[category]
-  if (field) return { ...state, camera: { ...state.camera, [field]: value(label) } }
+  const field = ({ camera: 'movement', shot: 'shotSize', angle: 'angle', movement: 'speed' } as Record<string, keyof typeof cameraOptions>)[category]
+  if (field) return { ...state, camera: { ...state.camera, [field]: value(cameraValueFor(field, label)) } }
   if (category === 'style') return { ...state, styles: [...state.styles.filter(item => item.value !== label), value(label)] }
   if (category === 'sound' || category === 'audio') return { ...state, soundscape: value(instruction || label) }
   if (category === 'location') return { ...state, environment: value(label) }
   if (category === 'lighting') return { ...state, lighting: value(instruction || label) }
   if (category === 'preserve') {
+    // Display-layer guidance; the embedded example stays in the English
+    // //preserve command syntax because it is a prompt-layer command format.
+    const specifyReference = '请指明参考：//preserve Picture 3 wardrobe, environment, lighting'
     const target = label.match(/^Picture\s+(\d+)\s+(.+)$/i)
     const pictures = state.references.filter(ref => ref.file.kind === 'image')
     const selected = target ? pictures[Number(target[1]) - 1] : pictures.length === 1 ? pictures[0] : undefined
-    if (!selected) return { ...state, conflicts: [{ code: 'command-target', severity: 'warning', message: 'Specify the reference: //preserve Picture 3 wardrobe, environment, lighting' }] }
+    if (!selected) return { ...state, conflicts: [{ code: 'command-target', severity: 'warning', message: specifyReference }] }
     const attributes = (target?.[2] || label).split(/[,·]/).map(item => item.trim().toLowerCase()).filter((item): item is Attribute => preserveAttributes.includes(item as Attribute))
     return { ...state, references: state.references.map(ref => ref.id === selected.id ? { ...ref, preserve: attributes } : ref), conflicts: [] }
   }
