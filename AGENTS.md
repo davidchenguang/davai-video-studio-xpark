@@ -33,6 +33,8 @@ For UI changes, also exercise the affected screen in the Electron app at its sma
 - TODO(media-preview): add cached poster-frame extraction for large libraries; complete when media cards show stable thumbnails without each card opening a decoder.
 - TODO(testing): add renderer interaction tests for playback boundary advance, buffering/error feedback, modal focus trapping, and reduced-motion behavior.
 - TODO(accessibility): complete a keyboard and screen-reader pass on the dense editor/studio screens and document the supported shortcut map in-product.
+- TODO(image-models): decide whether the H3 图片 workspace replaces Z-Image as the default still-image generator. The H3-Image workspace is additive for now — Z-Image keeps its sidebar entry and still owns the scratchpad's "生成静帧" handoff; complete when H3-Image's Chinese text rendering and 4K output are validated on customer hardware, and the scratchpad handoff plus the Z-Image entry point are either switched or explicitly kept.
+- TODO(h3-image-edit): the local H3-Image dedicated DiT renders T2I stills correctly but produced garbled frames in reference-edit mode; complete when a verified local edit path exists (FL2VA plus the p-h3-image LoRA, or a documented cloud-only route) and the H3 图片 workspace can expose it.
 
 <comet-ambient-resume>
 <!-- Managed by Comet. Edits inside this block may be replaced by comet init/update. -->

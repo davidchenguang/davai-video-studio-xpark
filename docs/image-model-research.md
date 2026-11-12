@@ -161,6 +161,21 @@
 5. 视频回归：升级后必须验证 H3 视频全流程——**尤其 `comfy kitchen attention` 配置会触发 rope 设备错位崩溃**（见 bench5 运维发现 2）。
 6. 可选双模式：Turbo 6 步默认；若上 30-50 步 base 档注意耗时；4K 作为"印刷质量"选项而非默认。
 
+### 第一阶段已落地（2026-11-12，`image-model-switch` 分支）
+
+按"先不改其他模块"的约定，H3-Image 以**独立工作区**的形式上线，Z-Image 保持原样：
+
+- **新增 builder** `src/lib/h3Image.ts`：两个档位共用同一入口。
+  - `dedicated`（默认）：专用图像 DiT + 图像 VAE，`MiniMaxH3ImageConditioning` → `ConditioningZeroOut` → `KSampler(6 步, cfg=1, euler/simple)`；需要 ComfyUI ≥ 0.45 的 `MiniMaxH3ImageConditioning` 节点，缺节点时前端直接禁用并提示升级。
+  - `fl2va`（零新增下载）：H3 视频 DiT + Turbo 8 LoRA，`EmptyLatentImage` → `SamplerCustomAdvanced(res_multistep)` → `LTXVSeparateAVLatent` → `VAEDecode`；已装 H3 视频的客户不需要再下模型。
+  - 两个档位都**不挂 `ModelAttentionBackend`**（0.45.2 上 kitchen attention 会打崩引擎）。
+- **新增工作区** `src/components/H3ImageWorkspace.tsx`：档位选择、画幅（16:9 / 1:1 / 9:16，最高 4096×4096）、仅步数（无 CFG、无反向提示词）、模型组件下拉、实时预览、本地提示词润色、取消与错误提示。
+- **导航与交接**：左侧导航「H3 图片」置于「H3 视频」之上；生成结果可「发送到 MiniMax I2V」或「发送到 LTX 2.5」。静帧进视频前用 `snapResolutionString` 归一到 H3 合法分辨率档位（同时修掉 Z-Image 旧交接会塞入 `1536x864` 等非法尺寸的问题）。
+- **自检与设置**：设置新增「图片模型 · H3-Image」分区，列出两个档位所需文件、许可与署名说明、安装文档链接。
+- **许可署名**：工作区页头常驻显示 "由 MiniMax-H3-Image 生成"（§IV.2 强制项）。
+- **测试**：`scripts/test-h3-image.cjs`（图结构、档位检测、模型自检、分辨率归一），已接入 `pnpm test`。
+- **未做（第二阶段待定）**：Z-Image 是否降级为"快速草稿"、草稿本的「生成静帧」是否改指 H3 图片、H3-Image 本地编辑路线（bench5 实测专用 DiT 编辑失败）。
+
 ### 换 MOSS 的落点（若选它）
 
 1. T2I builder：`UNETLoader + CLIPLoader(type:'moss_image') + EmptyFlux2LatentImage + SkipLayerGuidanceDiTSimple(layers '22', 0.5) + KSampler(25步, cfg 2.5, er_sde)`。
