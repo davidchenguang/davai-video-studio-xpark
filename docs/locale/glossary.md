@@ -37,6 +37,9 @@
 | image | 图片 | data | 通用名词；英文形式常见于文件名（`z_image_*.safetensors`）与引擎侧编号（`Image 1–5`），不做漏译判定 |
 | latent | 潜空间 | data | LTX 2.5 的放大选项；英文形式常见于文件名（`latent_upscale_models`），不做漏译判定 |
 | VRAM | 显存 | translate | 通用硬件名词，不属品牌/型号，不按 keep 处理 |
+| identity survey | 身份巡检 | translate | Ref2VA 身份巡检的正式名，与 turntable→巡检、angle survey→角度巡检配套；曾漂成「形象巡检」 |
+| isolated | 独立 | translate | 配饰/服装工作室的单品参考图语境，不译「隔离」 |
+| workflow sections | 工作流分区 | translate | WorkspaceSectionTabs 的 aria-label（H3 与角色工作区共用），防再译成「工作区」 |
 
 ### 摄影枚举取值
 
@@ -149,8 +152,27 @@
 | desktop app | 桌面应用 | translate | |
 | local ai | 本地 AI | translate | |
 | turntable | 巡检 | translate | Ref2VA 身份 / 角度巡检；与 `App.tsx`、`CharacterStudio` 既有「巡检」口径一致。注意与 `turnaround`（角色全身转面）区分 |
+| angle survey | 角度巡检 | translate | Ref2VA 角度巡检选项 |
+| dismiss | 忽略 | translate | 建议/提示条的操作按钮；「关闭」留给 close |
+| replace | 替换 | translate | 替换已选内容；「更换」留给 change（如 Change source→更换来源） |
+| use suggestion | 使用建议 | translate | 本地建议卡的主操作按钮 |
+| reference only | 仅参考 | translate | 场景参考的引导模式（SceneComposer 复选框、LibraryView「仅参考 · 重新取景」、MovieEditor「仅参考引导」同名）；复数派生词均以此为定语 |
+| character detail references | 角色细节参考图 | translate | 设置开关与角色工作室区块同名（区块 aria/id 为 character-detail-references） |
+| chunk | 分块 | translate | LTX Ripple 长视频分块（Chunk length→分块长度）；报错文案曾误作「分段」 |
+| refine（提示词润色语境） | 润色 | translate | 本地 LLM 润色提示词/音乐方向；与图像精修动作「精修」区分（refine 行仍指图像精修） |
+| generation defaults | 生成默认值 | translate | 设置页区块名 / 侧栏 / App 提示三处统一 |
+| browser profile | 浏览器配置文件 | translate | 迁移恢复文案；应用内 profile 统一「配置文件」 |
+| runtime capability gate | 运行时能力门槛 | translate | GPU 路由面板；不译「闸口」 |
+| opening frame（口语说明语境） | 开场画面 | translate | 「让一张开场画面动起来」等口语语境；报错文案的帧锚定语境仍用「开场帧」 |
 | walkthrough | 漫游 | translate | 地点漫游视频；仅自然地形变体另用「勘景」 |
 | still frame | 静帧 | translate | 与 `App.tsx` 既有「静帧」一致；「定格」留给 Settle at End 的「结尾定格」 |
+| assembly & canonical sources | 保留属性与归属 | translate | SceneComposer 角色属性来源区块，SceneIssues 帮助文案按此名称引用 |
+| assigned reference set | 已指派的参考图组 | translate | SceneComposer 参考卡下拉；SceneIssues 提示引用同一名称 |
+
+### 全局排版规则补充（zh-locale-revision 轮定）
+
+- 省略号统一为单字符 `…`，不用全角双写 `……`。
+- 建议卡操作按钮统一「忽略 / 使用建议」；替换类按钮统一「替换」，变更类保留「更换」。
 
 ### 影片剪辑 / 片段工坊 / 音乐工作区（批次 7 定）
 

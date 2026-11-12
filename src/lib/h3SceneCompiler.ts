@@ -12,7 +12,7 @@ export const promptMarkupLegend = [
   { tag: '##scene', description: '主要视觉动作、构图与机位方向。' },
   { tag: '##music', description: '画外配乐；会编入 non_diegetic_music。' },
   { tag: '##soundscape', description: '画面内的环境声、音效与世界中的声响。' },
-  { tag: '##style', description: '用逗号分隔的视觉风格处理。' },
+  { tag: '##style', description: '用逗号分隔的视觉风格。' },
   { tag: '##location', description: '环境与固定的地理设定。' },
   { tag: '##lighting', description: '光线方向、色彩与氛围。' },
 ] as const

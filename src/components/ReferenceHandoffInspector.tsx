@@ -86,6 +86,6 @@ export function ReferenceHandoffInspector({ files, labels, resolution }: { files
   return <div className="reference-handoff-inspector">
     <div className={`reference-handoff-status ${warnings ? 'warning' : 'ready'}`}>{warnings ? <AlertTriangle size={15} /> : <Check size={15} />}<span><strong>{warnings ? `${warnings} 项交接警告` : '参考图交接就绪'}</strong><small>这里是即将上传的画面比例准备与槽位分配的最终形态。</small></span></div>
     <div className="reference-handoff-grid">{files.map((file, index) => <ReferenceHandoffCard key={`${file.path}-${index}`} file={file} label={labels[index] ?? file.name} index={index} width={width} height={height} onInspection={updateInspection} />)}</div>
-    {duplicates > 0 && <p className="reference-handoff-duplicate"><AlertTriangle size={13} />检测到 {duplicates} 个重复图片槽位。重复项会占用九张图片的配额，却不增加任何覆盖面。</p>}
+    {duplicates > 0 && <p className="reference-handoff-duplicate"><AlertTriangle size={13} />检测到 {duplicates} 个重复图片槽位。重复项会占用 9 张图片的配额，却不增加任何覆盖面。</p>}
   </div>
 }

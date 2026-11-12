@@ -17,7 +17,7 @@ export function JobExecutionChips({ job, expanded = false }: { job: GenerationJo
     execution.sampler && { label: `${execution.sampler} + ${execution.scheduler ?? '调度器'}` },
     execution.preview && { label: `预览：${execution.preview}` },
     execution.upscale && execution.upscale !== 'Off' && { label: execution.upscale },
-    execution.referenceCount !== undefined && { label: `${execution.referenceCount} 个参考` },
+    execution.referenceCount !== undefined && { label: `${execution.referenceCount} 个参考图` },
     ...(execution.adapters?.map((adapter) => ({ label: adapter })) ?? []),
     ...(expanded ? [
       execution.diffusionModel && { label: `模型：${modelLabel(execution.diffusionModel)}`, detail: execution.diffusionModel },

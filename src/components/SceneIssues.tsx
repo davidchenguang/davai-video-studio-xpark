@@ -18,8 +18,8 @@ const help: Record<string, [string, string]> = {
   'missing-opening': ['参考图', '在「来源」中选择一张图片作为首帧。它将是 0.00 秒处的确切画面状态。'],
   'missing-ending': ['参考图', '在「来源」中选择一张图片作为尾帧。在「首尾帧端点」模式下，开场图片是可选的。'],
   'visual-required': ['参考图', '用「添加参考图」至少附加一张图片或一段视频。'],
-  'reference-limit': ['参考图', '打开「角色素材库与媒体」并移除多余的参考：最多 9 张图片、3 段视频与 3 路音频输入（含已启用的视频音轨）。'],
-  'duplicate-reference': ['参考图', '打开「角色素材库与媒体」并移除重复的来源。'],
+  'reference-limit': ['参考图', '打开「参考输入」并移除多余的参考：最多 9 张图片、3 段视频与 3 路音频输入（含已启用的视频音轨）。'],
+  'duplicate-reference': ['参考图', '打开「参考输入」并移除重复的来源。'],
   'anchor-kind': ['参考图', '只有静帧图片可以作为首帧或尾帧。请先从源视频中提取一帧。'],
   'anchor-review': ['参考图', '展开此卡片，设置观察到的「帧景别」与「帧机位角度」，再把图片与你的指令对照检查。只有实际目视核对之后，才勾选「我已核对该帧」。'],
   'anchor-conflict': ['帧 0 引导', '要保留原生「帧 0 锚定」，请修改请求的镜头景别。想重新生成开场画面时，可以关闭该引导，并把这张图保留为仅参考。'],
@@ -37,7 +37,7 @@ const help: Record<string, [string, string]> = {
   'full-audio-conflict': ['声音与音乐', '完整复制的原声与额外的对白或音频相冲突。删除多余的音频指令，或把来源的「音频关系」改为「仅参考」或「部分复制」。'],
   'legacy-format': ['场景', '电影化的镜头语言请写在「场景」中。要直接编辑现有的 H3 提示词，请选择「手动覆盖」并粘贴到那里。'],
   'empty-manual': ['手动覆盖', '请在「手动覆盖」中输入你的 H3 提示词，或返回场景编辑器使用自动编译。'],
-  'manual-reference': ['手动覆盖', '以手动提示词中的标签为准，核对「H3 调试」中的参考映射。附加缺失的媒体，或更新标签。'],
+  'manual-reference': ['手动覆盖', '以手动提示词中的标签为准，核对「H3 调试 / 映射检查器」中的参考映射。附加缺失的媒体，或更新标签。'],
   'manual-timing': ['手动覆盖', '把这次剪切移动到所选片段结束之前，或加长「片段时长」。'],
   'command-target': ['场景', '在命令中写明图片名称，例如：//preserve Picture 3 wardrobe, environment, lighting'],
 }
@@ -57,7 +57,7 @@ export function SceneIssues({ conflicts, state, onChange, onReferences }: { conf
   return <section className={`scene-issues ${errors ? 'has-errors' : ''}`} aria-label="场景就绪度">
     <header>{errors ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}<div><strong>{errors ? `渲染前需要修改 ${errors} 处` : '场景检查已通过'}</strong><p>{errors ? '下面每一项都说明了问题所在以及修改位置。' : conflicts.length ? '查看下方的建议。它们不会阻塞渲染。' : '你的场景、参考图与时间设置相互一致。'}</p></div></header>
     {conflicts.map((conflict, index) => {
-      const [section, guidance] = help[conflict.code] || ['参考图', '请在「参考图」中检查此来源的指派，并在「H3 调试」中核对映射。']
+      const [section, guidance] = help[conflict.code] || ['参考图', '请在「参考图」中检查此来源的指派，并在「H3 调试 / 映射检查器」中核对映射。']
       return <article key={`${conflict.code}-${conflict.referenceId}-${index}`}><div className="scene-issue-title"><span>{conflict.severity === 'error' ? '必须处理' : '建议'}</span><strong>{conflict.message}</strong></div><p>{guidance}</p><div className="scene-issue-actions">
         {conflict.code === 'continuation-anchor' && <button type="button" onClick={() => onChange({ ...state, continuity: { ...state.continuity, exactFrame: false, scene: true } })}>改用场景连贯性</button>}
         {conflict.code === 'speech-disabled' && <button type="button" onClick={() => onChange({ ...state, noDialogue: false })}>启用对白</button>}

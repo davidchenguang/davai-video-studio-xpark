@@ -141,10 +141,10 @@ export const SmartPromptEditor = forwardRef<SmartPromptEditorHandle, { id: strin
   return (
     <div className={`smart-prompt-editor ${className}`} onKeyDown={(event) => { if (open && event.key === 'Escape') { event.stopPropagation(); closePalette() } }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false) }}>
       <textarea ref={inputRef} id={id} aria-label={ariaLabel} value={value} placeholder={placeholder} disabled={disabled} rows={rows} onChange={(event) => { onChange(event.target.value); updateCommand(event.currentTarget) }} onClick={(event) => updateCommand(event.currentTarget)} onKeyDown={handlePaletteKey} />
-      {open && <section className="smart-insert-menu" aria-label="生产提示词命令面板">
-        <header><Search size={15} /><input ref={searchRef} aria-label="搜索制作指令" aria-controls={`${id}-commands`} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handlePaletteKey} placeholder="搜索镜头、连贯性、声音…" /><span role="status">{results.length} 个匹配</span><button type="button" className="icon-button" aria-label="关闭命令面板" onClick={closePalette}><X size={16} /></button></header>
+      {open && <section className="smart-insert-menu" aria-label="制作指令面板">
+        <header><Search size={15} /><input ref={searchRef} aria-label="搜索制作指令" aria-controls={`${id}-commands`} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handlePaletteKey} placeholder="搜索镜头、连贯性、声音…" /><span role="status">{results.length} 个匹配</span><button type="button" className="icon-button" aria-label="关闭制作指令面板" onClick={closePalette}><X size={16} /></button></header>
         <div className="smart-insert-toolbar">
-          <div className="smart-insert-filters" aria-label="命令筛选">
+          <div className="smart-insert-filters" aria-label="指令筛选">
             <button type="button" className={filter === 'all' ? 'active' : ''} aria-pressed={filter === 'all'} onMouseDown={(event) => event.preventDefault()} onClick={() => setFilter('all')}>全部</button>
             <button type="button" className={filter === 'favorites' ? 'active' : ''} aria-pressed={filter === 'favorites'} onMouseDown={(event) => event.preventDefault()} onClick={() => setFilter('favorites')}><Star size={12} />收藏 <small>{favorites.length}</small></button>
             <button type="button" className={filter === 'recent' ? 'active' : ''} aria-pressed={filter === 'recent'} onMouseDown={(event) => event.preventDefault()} onClick={() => setFilter('recent')}><Clock3 size={12} />最近 <small>{recent.length}</small></button>
@@ -152,7 +152,7 @@ export const SmartPromptEditor = forwardRef<SmartPromptEditorHandle, { id: strin
           <label className="smart-insert-sort"><span>排序</span><select value={sort} onChange={(event) => setSort(event.target.value as SortMode)}><option value="suggested">推荐</option><option value="az">A–Z</option></select></label>
         </div>
         <label className="smart-command-category"><span>分类</span><select value={category ?? ''} onChange={(event) => { setSelectedCategory(event.target.value as PromptPresetCategory || undefined); setQuery('') }}><option value="">全部分类 · {allItems.length}</option>{promptPresetCategories.map((item) => <option key={item.id} value={item.id}>{item.label} · {categoryCounts.get(item.id) ?? 0}</option>)}</select></label>
-        <div id={`${id}-commands`} ref={resultsRef} className="smart-insert-results" role="list" aria-label="匹配的命令">
+        <div id={`${id}-commands`} ref={resultsRef} className="smart-insert-results" role="list" aria-label="匹配的制作指令">
           {results.length ? results.map((item, index) => {
             const Icon = categoryIcons[item.category] ?? Sparkles
             const favorite = favoriteSet.has(item.id)
@@ -164,12 +164,12 @@ export const SmartPromptEditor = forwardRef<SmartPromptEditorHandle, { id: strin
               </button>
               <button type="button" className={favorite ? 'favorite active' : 'favorite'} aria-pressed={favorite} aria-label={favorite ? `把「${item.label}」移出收藏` : `把「${item.label}」加入收藏`} onMouseDown={(event) => event.preventDefault()} onClick={() => toggleFavorite(item)}><Star size={14} fill={favorite ? 'currentColor' : 'none'} /></button>
             </div>
-          }) : <div className="smart-insert-empty"><Search size={18} /><strong>没有匹配的命令</strong><span>换个关键词，选择一个分类，或回到「全部」。</span></div>}
+          }) : <div className="smart-insert-empty"><Search size={18} /><strong>没有匹配的制作指令</strong><span>换个关键词，选择一个分类，或回到「全部」。</span></div>}
         </div>
         {results[active] && <div className="smart-command-preview"><strong>{onCommand ? '将插入并应用' : '将插入'} · {results[active].label}</strong><p>{results[active].insertion}</p></div>}
         <footer><span>↑↓ 浏览 · 回车插入 · Esc 关闭</span><span>Tab 在控件之间移动</span></footer>
       </section>}
-      <div className="smart-prompt-footer"><button type="button" disabled={disabled} onClick={openPalette}><Plus size={13} />插入命令</button><span>输入 <code>//</code> 搜索 {allItems.length} 条制作指令</span></div>
+      <div className="smart-prompt-footer"><button type="button" disabled={disabled} onClick={openPalette}><Plus size={13} />插入指令</button><span>输入 <code>//</code> 搜索 {allItems.length} 条制作指令</span></div>
     </div>
   )
 })

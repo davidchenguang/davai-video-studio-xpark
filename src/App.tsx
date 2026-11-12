@@ -1337,7 +1337,7 @@ function App() {
     const location = locationProjects.find((project) => project.id === locationId)
     if (!location) return
     const sources = locationReferences(location)
-    if (!sources.length) { setNotice({ tone: 'error', text: `${location.name} 需要先确认一张参考图片。` }); return }
+    if (!sources.length) { setNotice({ tone: 'error', text: `${location.name} 需要先有一张已确认的参考图。` }); return }
     const selectedIds = selectedReferenceLocationIds.includes(locationId) ? selectedReferenceLocationIds.filter((id) => id !== locationId) : [...selectedReferenceLocationIds, locationId]
     setSelectedReferenceLocationIds(selectedIds); setMode('reference')
     const bindings = workspaceBindingsFor(selectedReferenceCharacterIds, selectedIds)
@@ -1367,7 +1367,7 @@ function App() {
     const wardrobe = wardrobeProjects.find((project) => project.id === wardrobeId)
     if (!wardrobe) return
     const approved = wardrobeReferences(wardrobe).slice(0, 9).map((file) => ({ ...fitWholeCharacter(file), referenceRole: 'wardrobe' as const, referenceRetention: 'preserve' as const }))
-    if (!approved.length) { setNotice({ tone: 'error', text: `${wardrobe.name} 还没有确认过的服装图片。` }); return }
+    if (!approved.length) { setNotice({ tone: 'error', text: `${wardrobe.name} 还没有已确认的服装图片。` }); return }
     const images = await Promise.all(approved.map(async (file) => { if (file.preview) return file; try { return { ...file, preview: await window.minimax.fileDataUrl(file.path) } } catch { return file } }))
     // Choosing an approved outfit from the library is an explicit wardrobe
     // request. Make that intent authoritative so an older Underwear or
@@ -1506,7 +1506,7 @@ function App() {
   }
 
   const generateCharacterDialogue = async (draft: CharacterDialogueDraft) => {
-    if (!settings) throw new Error('工作区设置仍在加载。')
+    if (!settings) throw new Error('Studio 设置仍在加载。')
     const llm = resolveLlmConnection(settings)
     if (!llm.model || ollamaModels.length === 0) throw new Error(`没有可用的本地 ${llm.label} 文本模型。请在设置中检查本地 AI 服务。`)
     setDialogueGenerating(true)
@@ -1676,7 +1676,7 @@ function App() {
   const loadReferenceAccessory = async (accessoryId: string) => {
     const accessory = loadAccessoryProjects().find((item) => item.id === accessoryId)
     if (!accessory?.referenceImage) {
-      setNotice({ tone: 'error', text: '这个道具或配饰需要先确认一张参考图片。' })
+      setNotice({ tone: 'error', text: '这个道具或配饰需要先有一张已确认的参考图。' })
       return
     }
     const selected = referenceImages.some((file) => file.path === accessory.referenceImage!.path)
@@ -1723,7 +1723,7 @@ function App() {
       setReferenceImages([...bindings.map((binding) => binding.file), frame])
       if (target === 'h3-reference-first') setSceneState(current => ({ ...current, continuity: { ...current.continuity, exactFrame: true } }))
       setMode('reference')
-      setNotice({ tone: 'success', text: `${file.name} 已添加为 H3 图像 ${pictureNumber}${target === 'h3-reference-first' ? '，并带有匹配首帧的指令' : ''}。` })
+      setNotice({ tone: 'success', text: `${file.name} 已添加为 H3 图片 ${pictureNumber}${target === 'h3-reference-first' ? '，并带有匹配首帧的指令' : ''}。` })
     } else {
       if (target === 'h3-last') setLastFrame(file)
       else setFirstFrame(file)
@@ -1774,7 +1774,7 @@ function App() {
   }
 
   const generateCharacterIdentitySurvey = async (project: CharacterProject, options: CharacterSurveyRenderOptions): Promise<string | null> => {
-    if (!settings) return '工作区设置仍在加载。'
+    if (!settings) return 'Studio 设置仍在加载。'
     if (!status.connected) {
       const message = '请启动 ComfyUI，并在设置中确认服务器连接。'
       setNotice({ tone: 'error', text: message })
@@ -1896,7 +1896,7 @@ function App() {
   }
 
   const generateLtx = async (options: Ltx25GenerationOptions, input: MediaFile | null, handoff?: { characterProjectId?: string; locationProjectId?: string }) => {
-    if (!settings) return '工作区设置仍在加载。'
+    if (!settings) return 'Studio 设置仍在加载。'
     if (!status.connected) {
       const message = '请启动 ComfyUI，并在设置中确认服务器连接。'
       setNotice({ tone: 'error', text: message })
@@ -1978,7 +1978,7 @@ function App() {
   }
 
   const generateLtxRipple = async (options: LtxRippleOptions, source: MediaFile, editedFrame: MediaFile): Promise<string | null> => {
-    if (!settings) return '工作区设置仍在加载。'
+    if (!settings) return 'Studio 设置仍在加载。'
     if (!status.connected) return '请启动 ComfyUI，并在设置中确认服务器连接。'
     const missingNodes = LTX_RIPPLE_REQUIRED_NODES.filter(node => !info[node])
     if (missingNodes.length) return `Ripple 需要这些 ComfyUI 节点：${missingNodes.join('、')}。请更新 ComfyUI 及其 LTX 节点，然后刷新引擎。`
@@ -2031,7 +2031,7 @@ function App() {
   }
 
   const generateLtxRippleLong = async (options: LtxRippleOptions, source: MediaFile, editedFrame: MediaFile, chunkSeconds: number, overlapSeconds: number, blend: boolean): Promise<string | null> => {
-    if (!settings) return '工作区设置仍在加载。'
+    if (!settings) return 'Studio 设置仍在加载。'
     if (rippleBatchControl.current) return '请先完成或取消当前的 Ripple 批处理。'
     if (!status.connected) return '请启动 ComfyUI，并在设置中确认服务器连接。'
     const missingNodes = LTX_RIPPLE_REQUIRED_NODES.filter(node => !info[node])
@@ -2183,7 +2183,7 @@ function App() {
   const generateMusic3 = async (options: Music3GenerationOptions) => {
     if (!settings) return
     if (!status.connected) { setNotice({ tone: 'error', text: '请启动 ComfyUI，并在设置中确认服务器连接。' }); return }
-    if (!music3Selection.diffusion || !music3Selection.textEncoder || !music3Selection.vae) { setNotice({ tone: 'error', text: 'Music 3 需要它的扩散模型、文本编码器与音频 VAE。请安装后重新扫描模型。' }); return }
+    if (!music3Selection.diffusion || !music3Selection.textEncoder || !music3Selection.vae) { setNotice({ tone: 'error', text: 'Music 3 需要配套的扩散模型、文本编码器与音频 VAE。请安装后重新扫描模型。' }); return }
     const missing = MUSIC3_REQUIRED_NODES.filter((node) => !info[node])
     if (missing.length) { setNotice({ tone: 'error', text: `使用 Music 3 前请先更新 ComfyUI。缺少核心节点：${missing.join('、')}。` }); return }
     const localId = createId()
@@ -2505,7 +2505,7 @@ function App() {
     if (sourceJob && resolvedOutput && sourceJob.localOutputPath !== resolvedOutput) {
       setJobs(current => current.map(job => job.id === sourceJob.id ? { ...job, localOutputPath: resolvedOutput } : job))
     }
-    if (!hardCut && method === 'motion' && (!continuationNodesReady || !sourceJob?.latentFile)) throw new Error('这个来源没有兼容的已保存 H3 音画 latent。请选择「尾帧」或「选择帧」。')
+    if (!hardCut && method === 'motion' && (!continuationNodesReady || !sourceJob?.latentFile)) throw new Error('这个来源没有兼容的已保存 H3 音画潜空间。请选择「尾帧」或「选择帧」。')
     const previousState = sourceJob ? continuationSourceState(sourceJob) : script.mode === 'reference' ? sceneState : createSceneState('', beat.duration, 'text')
     const inheritedNoDialogue = sourceJob?.renderSettings?.noDialogue ?? sourceJob?.noDialogue ?? previousState.noDialogue
     const effectiveNoDialogue = script.continuity.dialogueMode === 'none' || (script.continuity.dialogueMode !== 'allow' && inheritedNoDialogue)
@@ -2754,8 +2754,8 @@ function App() {
 
   const runH3Benchmark = async () => {
     if (!settings || benchmarkRunning) return
-    if (!status.connected) return setNotice({ tone: 'error', text: '运行注意力基准前请先连接 ComfyUI。' })
-    if (pendingJobs.length) return setNotice({ tone: 'error', text: '进行基准测试前请先完成或取消进行中的渲染，保证计时对比公平。' })
+    if (!status.connected) return setNotice({ tone: 'error', text: '运行注意力基准前，请连接 ComfyUI。' })
+    if (pendingJobs.length) return setNotice({ tone: 'error', text: '进行基准测试前，请完成或取消进行中的渲染，保证计时对比公平。' })
     const selection = inferSelections(models, '8', textEncoderPreference, settings.h3DiffusionPrecision)
     if (![selection.fl2va, selection.textEncoder, selection.videoVae, selection.audioVae, selection.fl2vLora].every(Boolean)) {
       return setNotice({ tone: 'error', text: '基准测试需要 FL2VA 基础组件与官方 8 步 Turbo LoRA。' })
@@ -2775,7 +2775,7 @@ function App() {
       error: item.ready ? undefined : item.backend === 'sol' ? '未检测到 SolAttnH3。' : `${item.label} 未被 ComfyUI 报告。`,
     }))
     setBenchmarkResults(finalResults)
-    if (!available.some((item) => item.ready)) return setNotice({ tone: 'error', text: 'ComfyUI 中没有任何请求的注意力后端可用。' })
+    if (!available.some((item) => item.ready)) return setNotice({ tone: 'error', text: '所请求的注意力后端在 ComfyUI 中均不可用。' })
     setBenchmarkRunning(true)
     const [width, height] = benchmarkConfig.resolution.split('x').map(Number)
     setNotice({ tone: 'neutral', text: `正在按顺序运行固定的 ${benchmarkConfig.duration} 秒 ${benchmarkConfig.resolution} 文生视频基准。请让 ComfyUI 保持空闲。` })
@@ -2831,7 +2831,7 @@ function App() {
 
   const runH3Diagnostics = async () => {
     if (!settings || diagnosticRunning) return
-    if (!status.connected) return setNotice({ tone: 'error', text: '运行 H3 诊断前请先连接 ComfyUI。' })
+    if (!status.connected) return setNotice({ tone: 'error', text: '运行 H3 诊断前，请连接 ComfyUI。' })
     const qualityModels = inferSelections(models, 'off', textEncoderPreference, settings.h3DiffusionPrecision)
     const turboModels = inferSelections(models, '8', textEncoderPreference, settings.h3DiffusionPrecision)
     if (![qualityModels.fl2va, qualityModels.textEncoder, qualityModels.videoVae, qualityModels.audioVae, turboModels.fl2vLora].every(Boolean)) {
@@ -2863,7 +2863,7 @@ function App() {
     }
     setDiagnosticRunning(false)
     setNotice(queuedCount === 2
-      ? { tone: 'success', text: 'H3 诊断对已用相同的提示词、种子、分辨率、时长与官方采样排队。' }
+      ? { tone: 'success', text: 'H3 诊断对已按相同的提示词、种子、分辨率、时长与官方采样排队。' }
       : { tone: 'error', text: queuedCount ? '只有一个诊断渲染成功排队。请检查队列中失败的一项。' : '诊断渲染无法排队。请检查 ComfyUI 后重试。' })
     setView('queue')
   }
@@ -3030,7 +3030,7 @@ function App() {
         {view !== 'create' && <StudioTopBar view={view} musicEngine={musicEngine} projectName={workspaceProjects.find(project => project.id === activeWorkspaceProjectId && project.scope === workspaceProjectScope(view, musicEngine))?.name ?? '当前工作区'} connected={status.connected} onOpenProjects={() => setProjectManagerOpen(true)} onFindSettings={openWorkspaceSearch} onOpenSettings={() => setView('settings')} onOpenCompare={() => setCompareOpen(true)} compareOpen={compareOpen} />}
         <button className="titlebar-mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="打开工作区菜单"><Menu size={18} /></button>
         <div className="titlebar-brand"><span className="brand-mark"><Film size={18} /></span><span><strong>Oyama AI Video Studio</strong><small>创作&nbsp;&nbsp;•&nbsp;&nbsp;可视化&nbsp;&nbsp;•&nbsp;&nbsp;讲故事</small></span></div>
-        <button className="titlebar-search" type="button" onClick={openWorkspaceSearch} title={`在${workspaceTips[view].title}中搜索设置`} aria-haspopup="dialog" aria-expanded={workspaceSearchOpen} aria-keyshortcuts="Control+F Meta+F"><Search size={15} /><span>在{workspaceTips[view].title}中查找设置…</span><kbd>Ctrl-F</kbd></button>
+        <button className="titlebar-search" type="button" onClick={openWorkspaceSearch} title={`在${workspaceTips[view].title}中搜索设置`} aria-haspopup="dialog" aria-expanded={workspaceSearchOpen} aria-keyshortcuts="Control+F Meta+F"><Search size={15} /><span>在{workspaceTips[view].title}中查找设置…</span><kbd>Ctrl+F</kbd></button>
         {view === 'create' && <div className="titlebar-mode-widget" role="tablist" aria-label="视频输入模式">{modeInfo.map((item) => <button key={item.id} type="button" role="tab" aria-selected={mode === item.id} className={mode === item.id ? 'selected' : ''} title={`${item.label} · ${item.note}`} onClick={() => setMode(item.id)}><item.icon size={15} /><span>{item.label}</span></button>)}</div>}
         <div className="titlebar-drag" />
         {view === 'create' && <div className="titlebar-generation-actions" aria-label="视频生成操作">
@@ -3306,7 +3306,7 @@ function App() {
         {view === 'wardrobes' && <WardrobeStudio settings={settings} info={info} connected={status.connected} onNotice={(tone, text) => setNotice({ tone, text })} />}
         {view === 'accessories' && <AccessoryStudio settings={settings} info={info} connected={status.connected} onNotice={(tone, text) => setNotice({ tone, text })} />}
         {view === 'locations' && <LocationStudio settings={settings} info={info} connected={status.connected} ollamaAvailable={ollamaModels.length > 0} automationJobs={jobs.filter((job) => job.locationProjectId)} onNotice={(tone, text) => setNotice({ tone, text })} onCreateWalkthrough={(project: LocationProject, options?: { duration: number; cameraLanguage: string }) => {
-          if (!project.baseImage) return Promise.resolve('请先确认一张地点基础图，再渲染走查。')
+          if (!project.baseImage) return Promise.resolve('请先确认一张地点主图，再渲染漫游。')
           const firstFrame = project.baseImage
           const walkthroughDirection = project.environmentMode === 'nature'
             ? `Comprehensive cinematic natural-landscape survey of ${project.name}. Begin with a wide establishing view, then move slowly through the terrain in one continuous stabilized path. Deliberately reveal landforms, vegetation zones, water features, rock formations, horizon lines, and their spatial relationships. Preserve the exact terrain, ecology, vegetation placement, lighting, weather, and geography from the first frame. Untouched nature only: no buildings, cabins, houses, ruins, roads, streets, bridges, fences, signs, vehicles, power lines, utility poles, constructed paths, or other human-made objects.`
@@ -3340,7 +3340,7 @@ function App() {
         {view === 'create' && <span className="status-bar-render-estimate" title={plannedRenderEstimate ? `根据这块 GPU 上 ${plannedRenderEstimate.sampleCount} 次已完成的 H3 渲染估算。不含队列等待。` : '这个估算会从该 GPU 上已完成的 H3 视频渲染中学习。'}><Clock3 size={13} />{plannedRenderEstimate ? `预计渲染 ~${formatRuntime(plannedRenderEstimate.milliseconds)}` : '预计渲染 · 学习中'}</span>}
         <button type="button" className={`working-seed ${view === 'create' && mode === 'reference' || seed === ref2vaSeed ? 'matching' : 'mismatch'}`} onClick={() => { setSeed(ref2vaSeed); setSeedLocked(true); setNotice({ tone: 'success', text: `工作种子已同步到 Ref2VA 种子 ${ref2vaSeed}。` }) }} title={view === 'create' && mode === 'reference' ? `Ref2VA 工作种子 ${ref2vaSeed} 是权威值。` : seed === ref2vaSeed ? `工作种子 ${seed} 与 Ref2VA 种子一致。` : `当前工作区种子 ${seed} 与 Ref2VA 种子 ${ref2vaSeed} 不同。点击以同步。`} aria-label={view === 'create' && mode === 'reference' ? `Ref2VA 工作种子 ${ref2vaSeed}` : seed === ref2vaSeed ? `工作种子 ${seed}，与 Ref2VA 一致` : `工作种子 ${seed}，点击使用 Ref2VA 种子 ${ref2vaSeed}`}><Dices size={13} /><span>工作种子</span><strong>{view === 'create' && mode === 'reference' ? ref2vaSeed : seed}</strong>{view !== 'create' || mode !== 'reference' ? seed !== ref2vaSeed && <small>· Ref2VA {ref2vaSeed}</small> : <small>· 来源</small>}</button>
         <span className="status-bar-spacer" />
-        {h3ProReview && pendingH3ProJob && <button type="button" className="status-bar-continue-upscale" disabled={submitting} onClick={() => { selectActiveJob(pendingH3ProJob.id); setView('create'); void continueH3Pro(pendingH3ProJob) }} title="第一遍 H3 已就绪。请审阅它，然后继续学习型 2× latent 放大与精修。">{submitting ? <LoaderCircle className="spin" size={13} /> : <Sparkles size={13} />}<span>继续放大</span></button>}
+        {h3ProReview && pendingH3ProJob && <button type="button" className="status-bar-continue-upscale" disabled={submitting} onClick={() => { selectActiveJob(pendingH3ProJob.id); setView('create'); void continueH3Pro(pendingH3ProJob) }} title="第一遍 H3 已就绪。请审阅它，然后继续学习型 2× 潜空间放大与精修。">{submitting ? <LoaderCircle className="spin" size={13} /> : <Sparkles size={13} />}<span>继续放大</span></button>}
         <GpuMeter value={gpu} />
         <button className={`connection-chip ${status.connected ? 'online' : ''}`} onClick={() => void checkConnection(settings.comfyUrl)} title="检查 ComfyUI 连接">
           {checking ? <LoaderCircle size={14} className="spin" /> : <span className="status-dot" />}
@@ -3361,9 +3361,9 @@ function LanCompanionDialog({ status, qr, onRotate, onClose }: { status: LanStat
     <section className="lan-dialog" role="dialog" aria-modal="true" aria-labelledby="lan-dialog-title">
       <header><div><QrCode size={20} /><span><strong id="lan-dialog-title">通过局域网共享</strong><small>触控优先的移动创作，或完整的工作室界面</small></span></div><button className="icon-button" onClick={onClose} aria-label="关闭局域网共享"><X size={18} /></button></header>
       {status.running && status.url ? <div className="lan-dialog-body">
-        <div className="lan-instructions"><span className="lan-ready"><Check size={15} />局域网服务器已就绪</span><h2>在另一台设备上打开</h2><p>在连接到同一可信 Wi-Fi 或局域网的手机、平板或电脑上扫描你想使用的体验。</p></div>
+        <div className="lan-instructions"><span className="lan-ready"><Check size={15} />局域网服务器已就绪</span><h2>在另一台设备上打开</h2><p>在连接到同一可信 Wi-Fi 或局域网的手机、平板或电脑上扫码，即可打开你想要的界面。</p></div>
         <div className="lan-share-grid">
-          <article className="lan-share-card"><div className="lan-qr">{qr.mobile ? <img src={qr.mobile} alt="触控优先移动版 MiniMax 工作区的二维码" /> : <LoaderCircle className="spin" aria-label="正在准备移动版二维码" />}</div><div><strong>触控优先的移动创作</strong><small>在手机上快速创建并监视镜头。</small><label>移动端地址<input readOnly value={status.url} onFocus={(event) => event.currentTarget.select()} /></label></div></article>
+          <article className="lan-share-card"><div className="lan-qr">{qr.mobile ? <img src={qr.mobile} alt="触控优先移动版 MiniMax 工作区的二维码" /> : <LoaderCircle className="spin" aria-label="正在准备移动版二维码" />}</div><div><strong>触控优先的移动创作</strong><small>在手机上快速创建并监控镜头。</small><label>移动端地址<input readOnly value={status.url} onFocus={(event) => event.currentTarget.select()} /></label></div></article>
           <article className="lan-share-card"><div className="lan-qr">{qr.desktop ? <img src={qr.desktop} alt="完整 Oyama AI Video Studio 界面的二维码" /> : <LoaderCircle className="spin" aria-label="正在准备工作室二维码" />}</div><div><strong>完整工作室界面</strong><small>面向桌面与平板编辑制作的全功能工作区。</small><label>工作室地址<input readOnly value={desktopUrl} onFocus={(event) => event.currentTarget.select()} /></label></div></article>
         </div>
         <small className="lan-security-note">完整工作室视图共享界面与浏览器本地项目状态。硬件生成与本地文件访问仍由经过鉴权的局域网服务保护。首次使用时 Windows 防火墙可能会请求允许专用网络访问。</small>
@@ -3455,7 +3455,7 @@ const videoModeLabels: Array<[GenerationMode, string]> = [['reference', '参考�
 type H3Section = 'source' | 'prompt' | 'settings' | 'result'
 const h3Sections: readonly WorkspaceSectionTab<H3Section>[] = [
   { id: 'source', label: '来源', description: '模式与媒体' },
-  { id: 'prompt', label: '创作', description: '描述这个镜头' },
+  { id: 'prompt', label: '创作', description: '描述镜头' },
   { id: 'settings', label: '设置', description: '输出与画质' },
   { id: 'result', label: '结果', description: '渲染与后续操作' },
 ]
@@ -3524,7 +3524,7 @@ function AssetRail({ props, onSelect }: { props: VideoShellProps; onSelect(file:
 
 function ModeInputStrip({ props, boundScene, selection, onSelect }: { props: VideoShellProps; boundScene: ScenePromptState; selection: SceneInspectorSelection; onSelect(selection: SceneInspectorSelection): void }) {
   if (props.mode === 'text') return null
-  if (props.mode === 'reference') return <section className="video-input-strip video-reference-strip"><header><strong>参考图</strong><span>{boundScene.references.length} 个已选中</span></header><div className="video-reference-items">{boundScene.references.map((ref, index) => <button type="button" key={ref.id} className={`video-reference-item ${selection.kind === 'reference' && selection.id === ref.id ? 'selected' : ''}`} onClick={() => onSelect({ kind: 'reference', id: ref.id })}>{ref.file.preview && ref.file.kind === 'image' ? <img src={ref.file.preview} alt="" /> : <span className="video-reference-icon"><Film size={22} /></span>}<span><strong>{`图像 ${index + 1}`}</strong><small>{ref.file.referenceRole === 'subject' ? '主体或身份' : ref.file.referenceRole === 'wardrobe' ? '服装' : ref.file.referenceRole === 'prop' ? '道具或产品' : ref.file.referenceRole === 'location' ? '地点或场景' : ref.file.referenceRole === 'composition' ? '构图或姿势' : ref.file.referenceRole === 'lighting-style' ? '光线或视觉风格' : ref.videoRole === 'motion' ? '运动参考' : ref.audio?.layer ? '声音参考' : '参考图'} · {ref.ownerId ? boundScene.characters.find(item => item.id === ref.ownerId)?.name || '角色' : '场景'}</small></span></button>)}<button type="button" className="video-reference-add" onClick={() => void props.chooseReference('image')}><Plus size={18} /><span>添加参考图</span></button></div></section>
+  if (props.mode === 'reference') return <section className="video-input-strip video-reference-strip"><header><strong>参考图</strong><span>{boundScene.references.length} 个已选</span></header><div className="video-reference-items">{boundScene.references.map((ref, index) => <button type="button" key={ref.id} className={`video-reference-item ${selection.kind === 'reference' && selection.id === ref.id ? 'selected' : ''}`} onClick={() => onSelect({ kind: 'reference', id: ref.id })}>{ref.file.preview && ref.file.kind === 'image' ? <img src={ref.file.preview} alt="" /> : <span className="video-reference-icon"><Film size={22} /></span>}<span><strong>{`图片 ${index + 1}`}</strong><small>{ref.file.referenceRole === 'subject' ? '主体或身份' : ref.file.referenceRole === 'wardrobe' ? '服装' : ref.file.referenceRole === 'prop' ? '道具或产品' : ref.file.referenceRole === 'location' ? '地点或场景' : ref.file.referenceRole === 'composition' ? '构图或姿势' : ref.file.referenceRole === 'lighting-style' ? '光线或视觉风格' : ref.videoRole === 'motion' ? '运动参考' : ref.audio?.layer ? '声音参考' : '参考图'} · {ref.ownerId ? boundScene.characters.find(item => item.id === ref.ownerId)?.name || '角色' : '场景'}</small></span></button>)}<button type="button" className="video-reference-add" onClick={() => void props.chooseReference('image')}><Plus size={18} /><span>添加参考图</span></button></div></section>
   const slots: Array<{ label: string; file: MediaFile | null; setter(file: MediaFile | null): void }> = [{ label: props.mode === 'image' ? '起始图片' : '首帧', file: props.firstFrame, setter: props.setFirstFrame }, ...(props.mode === 'frames' ? [{ label: '尾帧', file: props.lastFrame, setter: props.setLastFrame }] : [])]
   return <section className={`video-input-strip video-frame-strip ${props.mode === 'frames' ? 'paired' : ''}`}>{slots.map((slot, index) => <div className="video-frame-slot" key={slot.label}><button type="button" className="video-frame-preview" onClick={() => slot.file ? onSelect({ kind: 'reference', id: `${slot.file.kind}:${slot.file.path}:${index === 0 ? 'opening' : 'ending'}` }) : void props.chooseMedia('image', slot.setter)}>{slot.file?.preview ? <img src={slot.file.preview} alt="" /> : <ImagePlus size={25} />}</button><span><strong>{slot.label}</strong><small>{slot.file?.name || '添加一张图片'}</small></span><button type="button" onClick={() => void props.chooseMedia('image', slot.setter)}>{slot.file ? '替换' : '选择'}</button>{slot.file && <button type="button" className="video-slot-remove" title={`移除${slot.label}`} aria-label={`移除${slot.label}`} onClick={() => { slot.setter(null); onSelect({ kind: 'scene' }) }}><X size={15} /></button>}</div>).reduce<React.ReactNode[]>((items, element, index) => index ? [...items, <span className="video-frame-arrow" key="arrow">→</span>, element] : [element], [])}</section>
 }
@@ -3532,7 +3532,7 @@ function ModeInputStrip({ props, boundScene, selection, onSelect }: { props: Vid
 function PreviewStage({ job, livePreview, liveEnabled, blurSensitive, blocker, onViewQueue, onDetach }: { job?: GenerationJob; livePreview: LivePreview | null; liveEnabled: boolean; blurSensitive: boolean; blocker: string; onViewQueue(): void; onDetach(): void }) {
   const live = job && ['queued', 'running'].includes(job.status) && liveEnabled && livePreview?.promptId === job.promptId ? livePreview : null
   const previewAspect = job?.width && job?.height ? `${job.width} / ${job.height}` : '16 / 9'
-  return <section className="video-preview-stage"><header><strong>预览</strong><button type="button" title="分离预览窗口" aria-label="分离预览窗口" onClick={onDetach}><PanelTopOpen size={16} /></button></header>
+  return <section className="video-preview-stage"><header><strong>预览</strong><button type="button" title="分离预览" aria-label="分离预览" onClick={onDetach}><PanelTopOpen size={16} /></button></header>
     <div className="video-preview-canvas">{job?.outputUrl ? job.mediaType === 'image' ? <img src={job.outputUrl} alt="生成结果" /> : <VideoPlayer src={job.outputUrl} /> : live ? <figure className={blurSensitive && job && hasSensitivePreviewWording(job.prompt) ? 'sensitive-preview' : ''} style={{ aspectRatio: previewAspect }}>{live.mime === 'video/mp4' ? <video src={live.url} autoPlay loop muted playsInline /> : <img src={live.url} alt="实时生成预览" />}<figcaption className="video-live-preview-badge"><i />实时采样预览<small>低分辨率 · 最终画质在渲染完成后出现</small></figcaption></figure> : job && ['queued', 'running'].includes(job.status) ? <div className="video-preview-empty" role="status"><LoaderCircle size={28} className="spin" /><strong>{job.progressLabel || '本地渲染中'}</strong><span>{Math.round(job.progress)}% · {job.width} × {job.height}</span><div className="progress"><i style={{ width: `${job.progress}%` }} /></div></div> : job?.status === 'failed' ? <div className="video-preview-empty video-preview-failed" role="alert"><AlertCircle size={30} /><strong>渲染未完成</strong><span>{job.error || 'ComfyUI 在返回输出前停止了。'}</span><small>{blocker ? `重试之前：${blocker}` : '请查看活动，必要时调整设置，然后再次生成。'}</small><button type="button" onClick={onViewQueue}><Activity size={15} />查看渲染活动</button></div> : <div className="video-preview-empty" role="status"><Film size={32} /><strong>预览</strong><span>生成的视频将显示在这里。</span></div>}</div>
 </section>
 }
@@ -3583,7 +3583,7 @@ function Inspector({ props, boundScene, selection, selectedFile, selectedReferen
   return <aside className="video-inspector" aria-label="视频检查器"><header><strong>{selectedFile ? '素材属性' : '生成设置'}</strong>{selectedFile ? <button type="button" title="返回生成设置" aria-label="返回生成设置" onClick={onClearSelection}><X size={16} /></button> : null}</header>
     <div className="video-inspector-scroll">{selectedFile ? <div className="video-selected-asset">
       <div className="video-selected-preview">{selectedFile.preview && selectedFile.kind === 'image' ? <img src={selectedFile.preview} alt="" /> : <Film size={30} />}</div><strong>{selectedFile.name}</strong><small>{selectedFile.kind === 'image' ? '图片' : selectedFile.kind === 'video' ? '视频' : '音频'}来源</small>
-      {selectedReference && props.mode === 'reference' && <><label>参考图角色<select value={selectedFile.referenceRole ?? 'composition'} onChange={event => onUpdateFile({ ...selectedFile, referenceRole: event.target.value as NonNullable<MediaFile['referenceRole']> })}>{[['subject', '主体 / 身份'], ['wardrobe', '服装'], ['prop', '道具 / 产品'], ['location', '地点 / 场景'], ['composition', '构图 / 姿势'], ['lighting-style', '光线 / 风格']].map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><SceneSelectionInspector state={boundScene} selection={selection} onChange={onUpdateScene} /></>}
+      {selectedReference && props.mode === 'reference' && <><label>参考图角色<select value={selectedFile.referenceRole ?? 'composition'} onChange={event => onUpdateFile({ ...selectedFile, referenceRole: event.target.value as NonNullable<MediaFile['referenceRole']> })}>{[['subject', '主体或身份'], ['wardrobe', '服装'], ['prop', '道具或产品'], ['location', '地点或场景'], ['composition', '构图或姿势'], ['lighting-style', '光线或视觉风格']].map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><SceneSelectionInspector state={boundScene} selection={selection} onChange={onUpdateScene} /></>}
       {selectedFile.kind === 'image' && <ImageCrop label={selectedFile.name} file={selectedFile} resolution={props.resolution} onChange={onUpdateFile} />}
       {selectedReference && props.mode === 'reference' && selectedFile.kind === 'video' && <button type="button" className="video-inline-action" onClick={() => { const i = props.referenceVideos.findIndex(item => item.path === selectedFile.path); if (i >= 0) props.editVideoReference(i) }}><Scissors size={15} />修剪参考片段</button>}
       {selectedReference && props.mode === 'reference' && <button type="button" className="video-inline-action video-remove-action" onClick={() => { const index = (selectedFile.kind === 'image' ? props.referenceImages : selectedFile.kind === 'video' ? props.referenceVideos : props.referenceAudios).findIndex(item => item.path === selectedFile.path); if (index >= 0) props.removeReference(selectedFile.kind, index); onClearSelection() }}><Trash2 size={15} />从场景移除</button>}
@@ -3808,8 +3808,8 @@ export function LegacyCreateView(props: CreateViewProps) {
     const wardrobeCount = projectedBindings.filter((binding) => binding.characterId === character.id && binding.purpose === 'wardrobe').length
     return { id: `character.${character.id}`, category: 'character' as const, label: character.name, description: wardrobeCount ? `${character.description || '角色工作室身份'} · 服装独立` : character.description || '角色工作室身份', insertion: `Character: ${character.name}.`, thumbnail: characterReferences(character, characterDetailReferencesEnabled)[0]?.preview, meta: `已分配 ${projectedBindings.filter((binding) => binding.characterId === character.id).length} 个参考`, onSelect: (nextPrompt: string) => { setPrompt(nextPrompt); loadCharacter(character.id) } }
   })
-  const smartWardrobeOptions = wardrobes.filter((wardrobe) => wardrobeReferences(wardrobe).length > 0).map((wardrobe) => { const files = wardrobeReferences(wardrobe).slice(0, 9); const tags = files.map((_, index) => `<Picture ${index + 1}>`).join(', ').replace(/, ([^,]+)$/, ' and $1'); return { id: `wardrobe.${wardrobe.id}`, category: 'wardrobe' as const, label: wardrobe.name, description: wardrobe.description || '已审核的服装工作室搭配', insertion: `Wardrobe: apply the approved ${wardrobe.name} outfit from ${tags}; preserve its garments, materials, colors, fit, and accessories.`, thumbnail: files[0]?.preview, meta: `${files.length} 个已通过`, onSelect: (nextPrompt: string) => { setPrompt(nextPrompt); loadWardrobe(wardrobe.id) } } })
-  const smartLocationOptions = locations.filter((location) => locationReferences(location).length > 0).map((location) => { const files = locationReferences(location); const projected = selectedLocationIds.includes(location.id) ? selectedLocations : [...selectedLocations, location]; const projectedBindings = allocateWorkspaceReferences(selectedCharacters.map((character) => ({ id: character.id, name: character.name, identity: characterReferences(character), detailReferences: characterDetailReferencesEnabled ? character.detailReferences : [], hairStyleIds: character.hairStyleIds, wardrobeIds: character.wardrobeIds, accessoryIds: character.accessoryIds })), wardrobes, projected.map((item) => ({ id: item.id, name: item.name, images: locationReferences(item), environmentMode: item.environmentMode, locationContext: item.locationContext, accuracyDetails: item.accuracyDetails }))); return { id: `location.${location.id}`, category: 'location' as const, label: location.name, description: location.description || '已审核的地点工作室环境', insertion: `Location: ${location.name}.`, thumbnail: files[0]?.preview, meta: `已分配 ${projectedBindings.filter((binding) => binding.locationId === location.id).length} 个视角`, onSelect: (nextPrompt: string) => { setPrompt(nextPrompt); loadLocation(location.id) } } })
+  const smartWardrobeOptions = wardrobes.filter((wardrobe) => wardrobeReferences(wardrobe).length > 0).map((wardrobe) => { const files = wardrobeReferences(wardrobe).slice(0, 9); const tags = files.map((_, index) => `<Picture ${index + 1}>`).join(', ').replace(/, ([^,]+)$/, ' and $1'); return { id: `wardrobe.${wardrobe.id}`, category: 'wardrobe' as const, label: wardrobe.name, description: wardrobe.description || '已确认的服装工作室搭配', insertion: `Wardrobe: apply the approved ${wardrobe.name} outfit from ${tags}; preserve its garments, materials, colors, fit, and accessories.`, thumbnail: files[0]?.preview, meta: `${files.length} 个已通过`, onSelect: (nextPrompt: string) => { setPrompt(nextPrompt); loadWardrobe(wardrobe.id) } } })
+  const smartLocationOptions = locations.filter((location) => locationReferences(location).length > 0).map((location) => { const files = locationReferences(location); const projected = selectedLocationIds.includes(location.id) ? selectedLocations : [...selectedLocations, location]; const projectedBindings = allocateWorkspaceReferences(selectedCharacters.map((character) => ({ id: character.id, name: character.name, identity: characterReferences(character), detailReferences: characterDetailReferencesEnabled ? character.detailReferences : [], hairStyleIds: character.hairStyleIds, wardrobeIds: character.wardrobeIds, accessoryIds: character.accessoryIds })), wardrobes, projected.map((item) => ({ id: item.id, name: item.name, images: locationReferences(item), environmentMode: item.environmentMode, locationContext: item.locationContext, accuracyDetails: item.accuracyDetails }))); return { id: `location.${location.id}`, category: 'location' as const, label: location.name, description: location.description || '已确认的地点工作室环境', insertion: `Location: ${location.name}.`, thumbnail: files[0]?.preview, meta: `已分配 ${projectedBindings.filter((binding) => binding.locationId === location.id).length} 个视角`, onSelect: (nextPrompt: string) => { setPrompt(nextPrompt); loadLocation(location.id) } } })
   const applyCreatePreset = (preset: 'quality' | 'turbo' | 'preview') => {
     const [width, height] = resolution.split('x').map(Number)
     const portrait = height > width
@@ -3866,7 +3866,7 @@ export function LegacyCreateView(props: CreateViewProps) {
               <div className="assistant-result" role="status">
                 <div className="assistant-result-heading"><span><Sparkles size={14} />本地建议</span><small>替换提示词前请先审阅</small></div>
                 <textarea aria-label={`${llmProviderLabel} 提示词建议`} value={promptSuggestion} readOnly />
-                <div className="assistant-actions"><button type="button" className="secondary-button" onClick={onDismissSuggestion}>忽略</button><button type="button" className="primary-button" onClick={onUseSuggestion}><Check size={14} />采用建议</button></div>
+                <div className="assistant-actions"><button type="button" className="secondary-button" onClick={onDismissSuggestion}>忽略</button><button type="button" className="primary-button" onClick={onUseSuggestion}><Check size={14} />使用建议</button></div>
               </div>
             )}
           </div>
@@ -3893,7 +3893,7 @@ export function LegacyCreateView(props: CreateViewProps) {
                   <div className="source-media-header-actions"><em>已载入 {sourceMediaCount} 项</em><button ref={sourceMediaCloseRef} type="button" aria-label="关闭素材来源" onClick={closeSourceMedia}><X size={18} /></button></div>
                 </header>
                 <div className="source-media-modal-body">
-                  <section className="source-media-modal-section"><div className="source-media-section-title"><span>01</span><div><strong>素材库</strong><small>选择可复用的角色、环境、道具与配饰，它们已审核的图片共用 9 张图片的额度。</small></div></div><div className="reference-groups source-media-library-groups"><CharacterReferencePicker characters={characters} wardrobes={wardrobes} values={selectedCharacterIds} onChange={loadCharacter} /><LocationReferencePicker locations={locations} values={selectedLocationIds} onChange={loadLocation} /><AccessoryReferencePicker accessories={accessories} selectedPaths={referenceImages.map((file) => file.path)} onChange={loadAccessory} /></div>{selectedBindings.length > 0 && <details className="source-media-auto-prompt"><summary><Sparkles size={14} /><span><strong>自动参考描述</strong><small>渲染时会自动发送 {selectedBindings.length} 个编号图片分配</small></span><ChevronDown size={14} /></summary><ol>{sceneCompilation.subjects.map((subject) => <li key={subject.label}>{subject.name}: {subject.attributes.join("; ")}</li>)}</ol></details>}</section>
+                  <section className="source-media-modal-section"><div className="source-media-section-title"><span>01</span><div><strong>素材库</strong><small>选择可复用的角色、环境、道具与配饰，它们已确认的图片共用 9 张图片的额度。</small></div></div><div className="reference-groups source-media-library-groups"><CharacterReferencePicker characters={characters} wardrobes={wardrobes} values={selectedCharacterIds} onChange={loadCharacter} /><LocationReferencePicker locations={locations} values={selectedLocationIds} onChange={loadLocation} /><AccessoryReferencePicker accessories={accessories} selectedPaths={referenceImages.map((file) => file.path)} onChange={loadAccessory} /></div>{selectedBindings.length > 0 && <details className="source-media-auto-prompt"><summary><Sparkles size={14} /><span><strong>自动参考描述</strong><small>渲染时会自动发送 {selectedBindings.length} 个编号图片分配</small></span><ChevronDown size={14} /></summary><ol>{sceneCompilation.subjects.map((subject) => <li key={subject.label}>{subject.name}: {subject.attributes.join("; ")}</li>)}</ol></details>}</section>
                   <section className="source-media-modal-section"><div className="source-media-section-title"><span>02</span><div><strong>服装行为</strong><small>决定以指定服装还是身份照片中的服装为准。</small></div></div><div className="reference-groups source-media-policy-groups"><fieldset className="reference-fidelity clothing-policy"><legend><Shirt size={15} /><span><strong>服装意图</strong><small>控制以身份照片的服装还是指定服装为准。</small></span></legend><div><label className={clothingPolicy === 'wardrobe' ? 'selected' : ''}><input type="radio" name="clothing-policy" checked={clothingPolicy === 'wardrobe'} onChange={() => setClothingPolicy('wardrobe')} /><span><strong>指定服装</strong><small>完全由服装工作室的图片决定服装，身份照片中的衣着会被忽略。</small></span></label><label className={clothingPolicy === 'underwear' ? 'selected' : ''}><input type="radio" name="clothing-policy" checked={clothingPolicy === 'underwear'} onChange={() => setClothingPolicy('underwear')} /><span><strong>内衣</strong><small>每位成年角色仅使用其自身的身份参考，不附加外层服装。</small></span></label><label className={clothingPolicy === 'unrestricted' ? 'selected' : ''}><input type="radio" name="clothing-policy" checked={clothingPolicy === 'unrestricted'} onChange={() => setClothingPolicy('unrestricted')} /><span><strong>不受限</strong><small>遵循场景提示词中明确的成年虚构服装或裸露描述。</small></span></label></div></fieldset></div></section>
                   <section className="source-media-modal-section"><div className="source-media-section-title"><span>03</span><div><strong>文件与准备</strong><small>添加独立图片、指定其角色与保留方式，并在渲染前选择适应或填充。</small></div></div><div className="reference-groups source-media-file-groups"><ReferenceRow icon={ImageIcon} label="图片" limit="总计最多 9 张" kind="image" files={referenceImages} onAdd={() => void chooseReference('image')} onRemove={(index) => removeReference('image', index)} />{referenceImages.length > 0 && <div className="reference-crops">{referenceImages.map((file, i) => <article className="reference-crop-item" key={file.path}><header><span><strong>{file.name}</strong><small>{file.referenceRole ? referenceRoleDisplayLabels[file.referenceRole] : '参考图'} · 输出构图</small></span><div className="reference-fit-toggle" role="group" aria-label={`${file.name} 裁剪方式`}><button type="button" className={(file.crop?.fit ?? 'contain') === 'contain' ? 'selected' : ''} onClick={() => updateReference(i, { ...file, crop: { fit: 'contain', x: file.crop?.x ?? .5, y: file.crop?.y ?? .5, zoom: file.crop?.zoom ?? 1 } })}>适应</button><button type="button" className={file.crop?.fit === 'crop' ? 'selected' : ''} onClick={() => updateReference(i, { ...file, crop: { fit: 'crop', x: file.crop?.x ?? .5, y: file.crop?.y ?? .5, zoom: file.crop?.zoom ?? 1 } })}>填充</button></div></header><details><summary>精细裁剪与参考角色</summary><ImageCrop handoff label={file.name} file={file} resolution={resolution} onChange={(next) => updateReference(i, next)} /></details></article>)}</div>}<ReferenceRow icon={Film} label="视频" limit="最多 3 个 · 请把较长素材裁剪为 2–15 秒" kind="video" files={referenceVideos} onAdd={() => void chooseReference('video')} onEdit={editVideoReference} onRemove={(index) => removeReference('video', index)} /><ReferenceRow icon={Volume2} label="音频" limit="最多 3 个" kind="audio" files={referenceAudios} onAdd={() => void chooseReference('audio')} onRemove={(index) => removeReference('audio', index)} /></div></section>
                   <section className="source-media-modal-section"><div className="source-media-section-title"><span>04</span><div><strong>最终交付检查</strong><small>入队前请核对准备好的画布、编号槽位、角色、保留方式与源素材质量。</small></div></div><ReferenceHandoffInspector files={builderReferenceImages} labels={renderBindings.map((binding) => binding.label)} resolution={resolution} /></section>
@@ -3945,7 +3945,7 @@ export function LegacyCreateView(props: CreateViewProps) {
           <header className="render-workspace-heading"><div><small>04 · 生产</small><strong id="workspace-render-setup-title">渲染设置工作区</strong><p>生成前检查硬件、输出、引导条件、采样、适配器、预览与收尾设置。</p></div><span><b>{resolution.replace('x', ' × ')}</b><small>{duration}s · {turbo === 'off' ? '原生画质' : turbo === 'fast' ? 'FastVideo FastH3 · 8 步' : `Turbo ${turbo}`}</small></span></header>
           <div className="render-workspace-body">
           <div className="render-policy-card">
-            <div><small>场景行为</small><strong>表现保障</strong><p>这些指令会被编入渲染提示词，不会改动你写好的场景描述。</p></div>
+            <div><small>场景行为</small><strong>表现保障</strong><p>这些指令会被编入渲染提示词，不会改动你写好的场景指令。</p></div>
             <div className="prompt-policy-toggles" aria-label="提示词保障">
               <label className="no-dialogue-toggle" title={`阻止台词、旁白、歌唱、口型同步、字幕与文字叠加${mode === 'reference' ? '（本次参考渲染）' : ''}。`}><input type="checkbox" checked={noDialogue} onChange={(event) => setNoDialogue(event.target.checked)} /><span><strong>无对白</strong><small>{noDialogue ? '仅保留环境声' : '允许对白与口型同步'}</small></span></label>
               <label className="no-dialogue-toggle natural-movement-toggle" title="加入克制的呼吸、眨眼、眼神移动与姿态调整，不改变已指定的动作、姿势、镜头、身份、服装或场景。"><input type="checkbox" checked={naturalMovement} onChange={(event) => setNaturalMovement(event.target.checked)} /><span><strong>自然运动</strong><small>{naturalMovement ? '细微的主体运动' : '不添加运动描述'}</small></span></label>
@@ -3972,7 +3972,7 @@ export function LegacyCreateView(props: CreateViewProps) {
              {mode === 'reference' && <section className={`frame-zero-guide-setting ${frameZeroGuide ? 'active' : ''}`} aria-labelledby="frame-zero-guide-title">
                <div className="frame-zero-guide-heading"><span><Aperture size={17} /></span><div><small>续接控制</small><strong id="frame-zero-guide-title">首帧 0 引导</strong><p>选择一张图片，在原生 <code>frame_idx 0</code> 处做 VAE 锚定。</p></div><em>{frameZeroGuide ? '已锚定 0.00s' : '关闭'}</em></div>
                <label><span>明确的开场素材</span><select aria-label="首帧 0 引导来源" value={frameZeroGuide?.id || ''} disabled={!frameZeroCandidates.length} onChange={(event) => setSceneState(setFrameZeroGuide(boundScene, event.target.value || undefined))}><option value="">关闭 · 参考图不会锁定开场</option>{frameZeroCandidates.map((ref) => { const label = sceneCompilation.references.find(item => item.id === ref.id)?.label.replace(/[<>]/g, '') || '图片'; return <option key={ref.id} value={ref.id}>{label} · {ref.name}</option> })}</select></label>
-               <div className="frame-zero-guide-meaning"><span><strong>帧 0 锚定</strong><small>原生 Add Guide 引导条件会把该图片固定为 0.00s 的开场视觉状态。</small></span><span><strong>仅作参考</strong><small>只用于引导身份、服装、场景、运动或风格，不固定第一帧生成结果。</small></span></div>
+               <div className="frame-zero-guide-meaning"><span><strong>帧 0 锚定</strong><small>原生 Add Guide 引导条件会把该图片固定为 0.00s 的开场视觉状态。</small></span><span><strong>仅参考</strong><small>只用于引导身份、服装、场景、运动或风格，不固定第一帧生成结果。</small></span></div>
                {!frameZeroCandidates.length && <p className="field-help">至少在「素材来源」中添加一张图片，才能启用首帧 0 引导。</p>}
                {frameZeroGuide && !info.MiniMaxH3AddGuide && <p className="field-help upscale-warning">当前 ComfyUI 安装未报告 MiniMaxH3AddGuide。请更新 ComfyUI 或关闭首帧 0 引导。</p>}
              </section>}
@@ -4092,12 +4092,12 @@ function ReferenceRow({ icon: Icon, label, limit, kind, files, onAdd, onEdit, on
 }
 
 function CharacterReferencePicker({ characters, wardrobes, values, onChange }: { characters: CharacterProject[]; wardrobes: WardrobeProject[]; values: string[]; onChange(value: string): void }) {
-  return <fieldset className="character-reference-picker multi-character-picker"><legend>本次渲染中的角色</legend><div><span><Users size={17} /></span><span><strong>角色库</strong><small>可选择多位角色。他们的身份、指定发型、服装与配饰会在 9 张图片的限制内一并导入。</small></span></div><div className="character-reference-choices">{characters.map((character) => { const references = characterReferences(character); const selected = values.includes(character.id); const wardrobe = wardrobes.find((item) => item.id === character.wardrobeIds[0]); const wardrobeCount = wardrobe ? wardrobeReferences(wardrobe).length : 0; const hair = loadHairStyleProjects().find((item) => item.id === character.hairStyleIds[0]); return <label className={selected ? 'selected' : ''} key={character.id}><input type="checkbox" checked={selected} disabled={!references.length} onChange={() => onChange(character.id)} />{references[0]?.preview ? <img className="reference-choice-thumbnail" src={references[0].preview} alt="" /> : <span className="reference-choice-placeholder"><Users size={18} /></span>}<span><strong>{character.name}</strong><small>{references.length ? `${references.length} 张身份图` : '没有已审核的身份图'}</small><em>{hair?.referenceImage ? `发型 · ${hair.name}` : character.hairStyleIds.length ? '发型缺少已审核的图片' : '未指定发型'} · {wardrobeCount ? `服装 · ${wardrobe?.name}` : character.wardrobeIds.length ? '服装缺少已审核的图片' : '未指定服装'}</em></span>{wardrobeCount > 0 && wardrobeReferences(wardrobe!)[0]?.preview && <img className="reference-choice-asset" src={wardrobeReferences(wardrobe!)[0].preview} alt={`${wardrobe!.name} 指定的服装`} />}</label> })}</div>{values.length > 0 && <button type="button" className="secondary-button" onClick={() => onChange('')}>清空角色阵容</button>}</fieldset>
+  return <fieldset className="character-reference-picker multi-character-picker"><legend>本次渲染中的角色</legend><div><span><Users size={17} /></span><span><strong>角色库</strong><small>可选择多位角色。他们的身份、指定发型、服装与配饰会在 9 张图片的限制内一并导入。</small></span></div><div className="character-reference-choices">{characters.map((character) => { const references = characterReferences(character); const selected = values.includes(character.id); const wardrobe = wardrobes.find((item) => item.id === character.wardrobeIds[0]); const wardrobeCount = wardrobe ? wardrobeReferences(wardrobe).length : 0; const hair = loadHairStyleProjects().find((item) => item.id === character.hairStyleIds[0]); return <label className={selected ? 'selected' : ''} key={character.id}><input type="checkbox" checked={selected} disabled={!references.length} onChange={() => onChange(character.id)} />{references[0]?.preview ? <img className="reference-choice-thumbnail" src={references[0].preview} alt="" /> : <span className="reference-choice-placeholder"><Users size={18} /></span>}<span><strong>{character.name}</strong><small>{references.length ? `${references.length} 张身份图片` : '没有已确认的身份图片'}</small><em>{hair?.referenceImage ? `发型 · ${hair.name}` : character.hairStyleIds.length ? '发型缺少已确认的图片' : '未指定发型'} · {wardrobeCount ? `服装 · ${wardrobe?.name}` : character.wardrobeIds.length ? '服装缺少已确认的图片' : '未指定服装'}</em></span>{wardrobeCount > 0 && wardrobeReferences(wardrobe!)[0]?.preview && <img className="reference-choice-asset" src={wardrobeReferences(wardrobe!)[0].preview} alt={`${wardrobe!.name} 指定服装`} />}</label> })}</div>{values.length > 0 && <button type="button" className="secondary-button" onClick={() => onChange('')}>清空角色阵容</button>}</fieldset>
 }
 
 function LocationReferencePicker({ locations, values, onChange }: { locations: LocationProject[]; values: string[]; onChange(value: string): void }) {
   if (!locations.length) return null
-  return <fieldset className="character-reference-picker multi-character-picker location-reference-picker"><legend>本次渲染中的地点</legend><div><span><MapPin size={17} /></span><span><strong>地点库</strong><small>在角色阵容之外添加环境。所有已选素材共用 9 张图片的限制。</small></span></div><div className="character-reference-choices">{locations.map((location) => { const references = locationReferences(location); const selected = values.includes(location.id); return <label className={selected ? 'selected' : ''} key={location.id}><input type="checkbox" checked={selected} disabled={!references.length} onChange={() => onChange(location.id)} />{references[0]?.preview ? <img className="reference-choice-thumbnail location" src={references[0].preview} alt="" /> : <span className="reference-choice-placeholder"><MapPin size={18} /></span>}<span><strong>{location.name}</strong><small>{references.length ? `${location.environmentMode === 'nature' ? '仅自然 · ' : ''}${references.length} 个已审核视角` : '没有已审核的地点视角'}</small></span></label> })}</div>{values.length > 0 && <button type="button" className="secondary-button" onClick={() => onChange('')}>清空地点</button>}</fieldset>
+  return <fieldset className="character-reference-picker multi-character-picker location-reference-picker"><legend>本次渲染中的地点</legend><div><span><MapPin size={17} /></span><span><strong>地点库</strong><small>在角色阵容之外添加环境。所有已选素材共用 9 张图片的限制。</small></span></div><div className="character-reference-choices">{locations.map((location) => { const references = locationReferences(location); const selected = values.includes(location.id); return <label className={selected ? 'selected' : ''} key={location.id}><input type="checkbox" checked={selected} disabled={!references.length} onChange={() => onChange(location.id)} />{references[0]?.preview ? <img className="reference-choice-thumbnail location" src={references[0].preview} alt="" /> : <span className="reference-choice-placeholder"><MapPin size={18} /></span>}<span><strong>{location.name}</strong><small>{references.length ? `${location.environmentMode === 'nature' ? '仅自然 · ' : ''}${references.length} 个已确认视图` : '没有已确认的地点视图'}</small></span></label> })}</div>{values.length > 0 && <button type="button" className="secondary-button" onClick={() => onChange('')}>清空地点</button>}</fieldset>
 }
 
 function PipelineItem({ ready, label, value }: { ready: boolean; label: string; value: string }) {
@@ -4106,7 +4106,7 @@ function PipelineItem({ ready, label, value }: { ready: boolean; label: string; 
 function AccessoryReferencePicker({ accessories, selectedPaths, onChange }: { accessories: AccessoryProject[]; selectedPaths: string[]; onChange(accessoryId: string): void }) {
   const usable = accessories.filter((accessory) => accessory.referenceImage?.path)
   if (!usable.length) return null
-  return <fieldset className="character-reference-picker multi-character-picker accessory-reference-picker"><legend>本次渲染中的道具与配饰</legend><div><span><Watch size={17} /></span><span><strong>道具库</strong><small>选择已审核的道具、首饰、包袋、眼镜与可穿戴细节。它们共用 9 张图片的限制。</small></span></div><div className="character-reference-choices">{usable.map((accessory) => { const image = accessory.referenceImage!; const selected = selectedPaths.includes(image.path); return <label className={selected ? 'selected' : ''} key={accessory.id}><input type="checkbox" checked={selected} onChange={() => onChange(accessory.id)} />{image.preview ? <img className="reference-choice-thumbnail" src={image.preview} alt="" /> : <span className="reference-choice-placeholder"><Watch size={18} /></span>}<span><strong>{accessory.name}</strong><small>{accessory.category === 'prop' ? '道具' : accessory.category} · 已审核参考</small><em>{accessory.materials || accessory.description || '可复用的物件参考'}</em></span></label> })}</div></fieldset>
+  return <fieldset className="character-reference-picker multi-character-picker accessory-reference-picker"><legend>本次渲染中的道具与配饰</legend><div><span><Watch size={17} /></span><span><strong>道具库</strong><small>选择已确认的道具、首饰、包袋、眼镜与可穿戴细节。它们共用 9 张图片的限制。</small></span></div><div className="character-reference-choices">{usable.map((accessory) => { const image = accessory.referenceImage!; const selected = selectedPaths.includes(image.path); return <label className={selected ? 'selected' : ''} key={accessory.id}><input type="checkbox" checked={selected} onChange={() => onChange(accessory.id)} />{image.preview ? <img className="reference-choice-thumbnail" src={image.preview} alt="" /> : <span className="reference-choice-placeholder"><Watch size={18} /></span>}<span><strong>{accessory.name}</strong><small>{accessory.category === 'prop' ? '道具' : accessory.category} · 已确认参考</small><em>{accessory.materials || accessory.description || '可复用的物件参考'}</em></span></label> })}</div></fieldset>
 }
 
 export default App

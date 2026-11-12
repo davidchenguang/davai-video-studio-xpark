@@ -143,6 +143,11 @@
 - `src/App.tsx:content=Simple · 8 steps` — 同上，LTX Ripple 链路的调度器名。
 - `src/App.tsx:content=Licon MSR` — LTX 放大 LoRA 型号名。
 
+## 中文修订轮（zh-locale-revision）新增登记
+
+- `src/App.tsx:content=Ctrl+F` — 标题栏搜索按钮的键盘快捷键标识（`<kbd>`），与 3471 行 aria/title 的 `Ctrl+F` 写法一致。`Ctrl` 与 `F` 是两个拉丁词，漏译判定会命中，按快捷键标识豁免。
+- `src/components/Ltx25Workspace.tsx:content=采样器 Euler ancestral · CFG 1` 等含「采样器 / 调度器」中文前缀的写法 — ComfyUI 采样器 / 调度器标识符，与批次 12 的 `src/App.tsx:content=Euler ancestral`、`Official 8 + 3 sigmas` 同族；中文前缀使其含 CJK、通过漏译判定，无需单独豁免，登记备查以免被误改回中文译名。
+
 ## 批次 12b：Music 3 提示词层
 
 批次 12 的走查（`scripts/locale-walkthrough.cjs`）发现 Music 3 工作区里，界面上的芯片按钮与下拉建议

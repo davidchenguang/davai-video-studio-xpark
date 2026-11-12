@@ -14,12 +14,12 @@ const fieldInstructions: Record<ReferenceAnalysisKind, string> = {
 
 export async function analyzeReferenceImage(settings: AppSettings, imagePath: string, kind: ReferenceAnalysisKind) {
   const llm = resolveLlmConnection(settings)
-  if (!llm.model.trim()) throw new Error(`Choose a local vision-capable ${llm.label} model in Settings to analyze existing images.`)
+  if (!llm.model.trim()) throw new Error(`请在「设置」中选择支持视觉的本地 ${llm.label} 模型，用于分析现有图片。`)
   const prompt = `Analyze this existing ${kind} reference for Oyama AI Video Studio. ${fieldInstructions[kind]} Return one strict JSON object only. Every value must be a concise plain string; use an empty string when a field cannot be determined. Do not use Markdown, commentary, arrays, or extra keys.`
   const response = await window.minimax.generateWithOllamaVision(llm.url, llm.model, prompt, [imagePath], llm.provider)
   const start = response.indexOf('{')
   const end = response.lastIndexOf('}')
-  if (start < 0 || end <= start) throw new Error(`${llm.label} inspected the image but did not return usable field data.`)
+  if (start < 0 || end <= start) throw new Error(`${llm.label} 已查看图片，但没有返回可用的字段数据。`)
   const raw = JSON.parse(response.slice(start, end + 1)) as Record<string, unknown>
   return Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, 2000) : ''])) as Record<string, string>
 }

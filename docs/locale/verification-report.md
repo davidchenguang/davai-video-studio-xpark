@@ -209,3 +209,49 @@ H3 分辨率下拉用的是「横屏 / 竖屏」，而 `RenderSize.tsx` 与 `Ltx
 | `node scripts/locale-structure-check.cjs` | 44 个文件，逐条归类见 `docs/locale/structure-changes.md` |
 | `node scripts/locale-walkthrough.cjs` | 22 个外壳全部命中、19 个 needle 0 命中、0 处溢出；可见英文 13 条（12 条 keep-english + 1 条用户数据） |
 
+
+## 中文修订轮（zh-locale-revision，2026-11-12）
+
+本地化合入后的译文精修轮，分支 `zh-locale-revision`（基线 `a41e5c5`，中心口径提交 `e652a86` + 本轮代理修订）。
+七组并行评审（App 壳层 / 导航与手机端 / 设置与 Electron / 角色工作室 / 场景与提示词 / 续接与影片剪辑 / 生成工作区）
+对照英文基线逐条复核全部 4165 条界面文案，只改显示层中文。
+
+### 修订内容
+
+- **语义修正**（误译/漏译/直译腔）：`Studio settings` 误译「工作区设置」（指整个应用）、「identity survey」漂成
+  「形象巡检」（App 同句为「身份巡检」）、`better encoding` 误译「画质更好」、"Assigned reference set" 译成
+  界面上不存在的「角色素材库与媒体」（SceneIssues 提示同步指名悬空）、`referenceAnalysis.ts` 两处 new Error 英文漏译、
+  「对于…来说过长」等直译腔、「isolated」误译「隔离」、Music 3 预设五处错译（Progressive→渐进、Cloud rap 漏字等）。
+- **术语统一**：「已审核」→「已确认」（App.tsx 独有变体 30+ 处归零）、「图像」→「图片」（electron/main.ts 8 处）、
+  「分段/分块」、「生产命令/生产提示词命令」→「制作指令」、「生成来源」→「生成的素材」、「更换」→「替换」（Replace）。
+- **跨组裁断**（负责人统一）：省略号全树统一单 `…`（69 处 `……` 归零）；「采用建议」→「使用建议」（3:1）；
+  「个已选中」→「个已选」；`Ctrl-F`→`Ctrl+F`（keep-english 登记 content 豁免）；「仅作参考」→「仅参考」（11:2，
+  为复合词定语）、「角色细节参考」→「角色细节参考图」（与角色工作室区块同名）。
+- **术语表**：新增 identity survey、isolated、workflow sections、angle survey、dismiss、replace、use suggestion、
+  reference only、character detail references、chunk、润色语境 refine、generation defaults、browser profile、
+  runtime capability gate、opening frame 口语语境、assembly & canonical sources、assigned reference set 等条目；
+  keep-english 登记 `Ctrl+F` 与 Ltx25Workspace 采样器/调度器中文前缀写法。
+- **promptPresets / referenceAnalysis 等提示词层、存储值、标识符、文件名、CLI、节点类名零改动**（越界检测器逐文件
+  多重集比对通过）。
+
+### 门禁结果
+
+| 检查 | 结果 |
+| --- | --- |
+| `node scripts/locale-audit.cjs` | 0 处问题（4165 条界面文案 / 738 条提示词位） |
+| `node scripts/test-prompt-parity.cjs` | PASS（16 段与 `1a7ea28` 逐字节一致） |
+| 越界检测（`/tmp/locale-packet/check-prompt-layer.cjs`，多重集比对非显示字面量） | PASS（41 个改动文件提示词层/存储层与 HEAD 逐字节一致） |
+| `node scripts/locale-structure-check.cjs` | 44 个文件（较上轮 45 少 1：`CreatePromptPanel.tsx` 的 JSX 空格修正使骨架恢复与英文基线一致，属改善，见 structure-changes.md） |
+| 术语漂移复测（对照英文基线重新配对） | 同英多译组 83 → 56，剩余逐条核为配对噪声 / 元组 value 半区 / data 行例外 / 量词差异 |
+| `pnpm typecheck` | 通过 |
+| `pnpm lint` | 通过，0 警告 |
+| `pnpm test` | 22 套全过 |
+| `pnpm build:web` | 通过 |
+| `node scripts/locale-walkthrough.cjs --out /tmp/locale-packet/walkthrough-final` | 22 个外壳全部命中、0 处横向溢出、0 处侧栏丢失、回归 needle 0 命中；残留英文全部为 keep-english 登记的品牌/型号/硬件名与用户数据透出 |
+
+### 遗留登记（超出「只改字符串」边界，未在本轮处理）
+
+- `App.tsx` 的 `turbo8Profile`、`JobsView.tsx` 的 `jobStatusLabels[status] ?? status` 等枚举兜底会裸露英文值
+  （stable / euler-beta 等）；修复需加值→标签映射，属代码结构变更。
+- `main.ts:1561` 的 `需要受支持的 ${kind} 文件`，`${kind}` 是存储值会透出英文；建议渲染层映射中文标签。
+- `Character ${index}` 默认项目名中文化需同步改守卫正则（参照其余四个库的双语守卫做法）。
