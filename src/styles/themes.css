@@ -29,11 +29,14 @@
   --preview-bg: rgb(0 0 0 / 12%);
   --preview-panel: #0a0f0c;
   --preview-line: #1d2721;
+  /* Ink on the dark preview surfaces — constant across themes (D7). */
+  --preview-ink: #c9d4cd;
 
   /* Shell accents (D15): green chrome gradients that follow the theme's action hue. */
   --nav-active-from: #334a2b;
   --nav-active-to: #263629;
   --nav-active-line: #6b8d4a;
+  --nav-active-ink: #f0f5ef;
   --sidebar-glow-from: #19221b;
   --sidebar-glow-to: #141b16;
   --page-glow: rgb(91 134 65 / 11%);
@@ -83,6 +86,7 @@ html[data-theme="blue"] {
   --nav-active-from: #1d3d5c;
   --nav-active-to: #16293c;
   --nav-active-line: #3a7fb5;
+  --nav-active-ink: #e9f0f6;
   --sidebar-glow-from: #131c24;
   --sidebar-glow-to: #0f151b;
   --page-glow: rgb(58 127 181 / 12%);
@@ -127,6 +131,7 @@ html[data-theme="comfy"] {
   --nav-active-from: #463754;
   --nav-active-to: #34283f;
   --nav-active-line: #8a7b3a;
+  --nav-active-ink: #f1eff3;
   --sidebar-glow-from: #251c2c;
   --sidebar-glow-to: #1d1623;
   --page-glow: rgb(242 255 89 / 7%);
@@ -135,9 +140,57 @@ html[data-theme="comfy"] {
   color-scheme: dark;
 }
 
-/* Light — pale gray ground + white raised panels + deep green accent per D5. */
-[data-theme="light"] {
+/* Light — pale gray ground + white raised panels + deep green accent per D5.
+   Media color-judging surfaces are pinned back to dark values (D7): preview
+   panels keep their near-black ground in every theme. */
+html[data-theme="light"],
+html[data-theme="light"] .app-shell,
+html[data-theme="light"] .app-shell.studio-shell-active,
+html[data-theme="light"] .app-shell.video-shell-active,
+html[data-theme="light"] .video-workspace-shell,
+html[data-theme="light"] .minimax-workspace {
+  --bg: #f4f6f8 !important;
+  --surface: #ffffff !important;
+  --surface-1: #f7f9fa !important;
+  --surface-2: #eef1f3 !important;
+  --surface-3: #e3e8eb !important;
+  --surface-raised: #ffffff !important;
+  --line: #d5dde2 !important;
+  --line-strong: #b9c4cb !important;
+  --text: #1f2a24 !important;
+  --muted: #5c6b62 !important;
+  --muted-2: #64756b !important;
+  --accent: #3e7a1e !important;
+  --accent-soft: rgb(62 122 30 / 10%) !important;
+  --accent-ink: #f4f6f8 !important;
+  --titlebar-surface: #ffffff !important;
+  /* D7 anchor: the media preview family never goes light. */
+  --preview-bg: rgb(0 0 0 / 12%);
+  --preview-panel: #0a0f0c;
+  --preview-line: #1d2721;
+}
+
+html[data-theme="light"] {
+  --action-from: #3e7a1e;
+  --action-to: #2f6317;
+  --action-soft: rgb(62 122 30 / 10%);
+  --info-accent: #2f6317;
+  --info-accent-soft: rgb(62 122 30 / 9%);
+  --check-tint: rgb(62 122 30 / 12%);
+  --accent-ink: #f4f6f8;
+  /* Semantic hues darken for the pale ground; pass AA-normal on white. */
+  --warning: #8a6116;
+  --danger: #b3383e;
+  --success: #0e7a5c;
+  --nav-active-from: #2f5320;
+  --nav-active-to: #24431a;
+  --nav-active-line: #7aa85e;
+  --nav-active-ink: #f4f6f8;
+  --nav-active-svg: #a5d17e;
+  --sidebar-glow-from: #fbfcfd;
+  --sidebar-glow-to: #eef1f3;
+  --page-glow: rgb(62 122 30 / 7%);
+  --panel-glow-from: #ffffff;
+  --panel-glow-to: #f2f5f7;
   color-scheme: light;
-  /* Palette override block: light ground family, deep-green action family,
-     preview family pinned back to dark (D7). */
 }

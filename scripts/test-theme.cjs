@@ -134,3 +134,20 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   const readme = readSource('src/styles/README.md')
   assert.ok(readme.includes('themes.css'), 'styles README documents themes.css')
 }
+
+// ---- Light theme block: media surfaces stay dark (D7) ----
+{
+  const themes = readSource('src/styles/themes.css')
+  const lightStart = themes.indexOf('[data-theme="light"]')
+  assert.ok(lightStart > -1, 'light block exists')
+  const lightEnd = themes.indexOf('}', themes.indexOf('--preview-line', lightStart))
+  const lightBody = themes.slice(themes.lastIndexOf('{', themes.indexOf('--preview-bg', lightStart)), lightEnd > -1 ? lightEnd : undefined)
+  const previewBg = lightBody.match(/--preview-bg:\s*([^;]+);/)?.[1]?.trim()
+  assert.ok(previewBg, 'light block defines --preview-bg')
+  assert.ok(!/^#[ef]/i.test(previewBg) && !/^rgb\(\s*(2[0-9]|1[4-9])\d?\b/.test(previewBg), `light keeps --preview-bg dark (D7), got ${previewBg}`)
+  const previewPanel = lightBody.match(/--preview-panel:\s*([^;]+);/)?.[1]?.trim()
+  assert.ok(previewPanel && /^#[0-6]/i.test(previewPanel), `light keeps --preview-panel dark (D7), got ${previewPanel}`)
+  assert.ok(/color-scheme:\s*light/.test(themes.slice(lightStart)), 'light block declares color-scheme: light')
+  const accentInk = themes.slice(lightStart).match(/--accent-ink:\s*([^;]+);/)?.[1]?.trim()
+  assert.ok(accentInk, 'light block defines --accent-ink (deep green actions need light ink)')
+}

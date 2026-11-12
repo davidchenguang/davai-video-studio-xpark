@@ -457,8 +457,8 @@ textarea::placeholder, input::placeholder { color: var(--line-strong); }
 @keyframes construction-pulse { 0% { opacity: .65; transform: scale(1); } 70%,100% { opacity: 0; transform: scale(1.28); } }
 @keyframes construct-block { 0%,100% { height: 7px; opacity: .25; } 50% { height: 22px; opacity: .92; } }
 @keyframes progress-sheen { from { transform: translateX(-160%); } to { transform: translateX(340%); } }
-.empty-preview strong, .render-state strong { margin-bottom: 5px; font-size: 12px; }
-.empty-preview span, .render-state span { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.empty-preview strong, .render-state strong { margin-bottom: 5px; font-size: 12px; color: var(--preview-ink); }
+.empty-preview span, .render-state span { color: var(--preview-ink); font-size: 10px; line-height: 1.5; opacity: .8; }
 .render-state small { margin-top: 9px; color: var(--muted-2); font-size: 9px; }
 .render-status-kicker { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 7px; color: var(--muted-2); font-size: 8px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .render-status-kicker i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 rgba(198,255,99,.48); animation: render-status-pulse 2.2s ease-out infinite; }

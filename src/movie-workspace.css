@@ -31,7 +31,7 @@
 .movie-editor .movie-program-stage { container-type: size; min-height: 180px; overflow: hidden; contain: layout paint; }
 .movie-editor .movie-program-viewport { position: relative; display: grid; inline-size: min(100%, calc(100cqh * 16 / 9)); aspect-ratio: 16 / 9; place-items: center; overflow: hidden; border: 1px solid rgb(255 255 255 / 8%); border-radius: 4px; background: var(--preview-panel); box-shadow: 0 8px 30px rgb(0 0 0 / 28%); }
 .movie-editor .movie-program-viewport > video { position: absolute; inset: 0; display: block; inline-size: 100% !important; block-size: 100% !important; max-inline-size: none !important; max-block-size: none !important; object-fit: contain !important; object-position: center; background: var(--preview-panel); }
-.movie-editor .movie-program-empty { display: grid; justify-items: center; gap: 8px; padding: 20px; color: var(--muted); text-align: center; font-size: 11px; }
+.movie-editor .movie-program-empty { display: grid; justify-items: center; gap: 8px; padding: 20px; color: var(--preview-ink); text-align: center; font-size: 11px; }
 .movie-editor .movie-program-transport { display: grid; grid-template-columns: minmax(170px, 1fr) auto minmax(112px, 1fr); align-items: center; gap: 5px 10px; min-height: 62px; padding: 5px 10px 7px; border-top: 1px solid var(--line-strong); background: var(--surface); }
 .movie-editor .movie-program-transport > div { display: flex; align-items: center; gap: 5px; }
 .movie-editor .movie-program-transport button { display: inline-grid; width: 29px; height: 29px; padding: 0; place-items: center; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface-2); color: var(--text); cursor: pointer; }
