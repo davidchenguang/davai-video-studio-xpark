@@ -3,7 +3,7 @@ import { NumberField, SelectField } from "./FormFields"
 import { LegacyMigrationControl } from './LegacyMigrationControl'
 import { createId } from "../lib/createId"
 import { resolveLlmConnection } from "../lib/llmProvider"
-import { formatBenchmarkDuration, h3StackReport, type H3BenchmarkConfig, type H3BenchmarkResult } from "../lib/h3Diagnostics"
+import { formatBenchmarkDuration, h3ImageStackReport, h3StackReport, type H3BenchmarkConfig, type H3BenchmarkResult } from "../lib/h3Diagnostics"
 import { MINIMAX_VIDEO_RESOLUTIONS } from "../lib/videoResolutions"
 import type { AppSettings, ComfyStatus, GenerationJob, GpuTelemetry, ModelFile, ModelKind, OllamaModel, LocalLlmStatus, LegacyMigrationStatus, RenderSettingsPreset } from "../types"
 import { Activity, AlertCircle, Aperture, Check, ChevronDown, Clock3, Download, ExternalLink, Folder, FolderOpen, Gauge, HardDrive, Image as ImageIcon, LoaderCircle, Minus, Pencil, Plus, RefreshCw, RotateCcw, Save, SlidersHorizontal, Sparkles, Trash2, X } from 'lucide-react'
@@ -38,6 +38,7 @@ type SettingsViewProps = {
   jobs: GenerationJob[]
   gpu: GpuTelemetry | null
   h3Report: ReturnType<typeof h3StackReport>
+  h3ImageReport: ReturnType<typeof h3ImageStackReport>
   scanning: boolean
   status: ComfyStatus
   checking: boolean
@@ -62,7 +63,7 @@ type SettingsViewProps = {
   onFactoryReset(): void
 }
 
-export function SettingsView({ settings, setSettings, info, models, jobs, gpu, h3Report, scanning, status, checking, diagnosticRunning, benchmarkRunning, benchmarkConfig, setBenchmarkConfig, benchmarkResults, ollamaModels, localLlmStatus, localLlmChecking, legacyMigration, legacyMigrationRunning, onRefreshOllama, onScan, onCheck, onSave, onApplyDefaults, onRunDiagnostics, onRunBenchmark, onRunLegacyMigration, onFactoryReset }: SettingsViewProps) {
+export function SettingsView({ settings, setSettings, info, models, jobs, gpu, h3Report, h3ImageReport, scanning, status, checking, diagnosticRunning, benchmarkRunning, benchmarkConfig, setBenchmarkConfig, benchmarkResults, ollamaModels, localLlmStatus, localLlmChecking, legacyMigration, legacyMigrationRunning, onRefreshOllama, onScan, onCheck, onSave, onApplyDefaults, onRunDiagnostics, onRunBenchmark, onRunLegacyMigration, onFactoryReset }: SettingsViewProps) {
   const pathRows: Array<{ kind: ModelKind; label: string; note: string }> = [
     { kind: 'diffusion_models', label: '扩散模型', note: 'FL2VA 与 Ref2VA 检查点' },
     { kind: 'text_encoders', label: '文本编码器', note: 'Qwen3-VL MiniMax 编码器' },
@@ -99,6 +100,7 @@ export function SettingsView({ settings, setSettings, info, models, jobs, gpu, h
     ['routing', 'GPU 路由'],
     ['workflows', '工作流导出'],
     ['h3', 'H3 引擎栈'],
+    ['h3-image', '图片模型 · H3-Image'],
     ['defaults', '渲染默认值'],
     ['assistant', '本地 AI'],
     ['models', '模型位置'],
@@ -282,6 +284,12 @@ export function SettingsView({ settings, setSettings, info, models, jobs, gpu, h
       <div className="h3-stack-list">{h3Report.rows.map((row) => <div key={row.label} className={row.validated ? 'validated' : row.optional && !row.selected ? 'optional' : 'custom'}><span>{row.validated ? <Check size={14} /> : row.optional && !row.selected ? <Minus size={14} /> : <AlertCircle size={14} />}</span><div><strong>{row.label}</strong><small title={row.selected || row.expected}>{row.selected || `${row.optional ? '可选' : '缺失'} · 期望 ${row.expected}`}</small></div><em>{row.validated ? '推荐' : row.selected ? '非标准' : row.optional ? '可选' : '缺失'}</em></div>)}</div>
       {!h3Report.validated && <p className="settings-warning"><AlertCircle size={15} />部分组件与已验证的 H3 栈不同。生成仍然可用，但输出质量可能有差异。</p>}
       <div className="diagnostic-action"><span><strong>固定画质对比</strong><small>以 1344 × 768、5 秒、种子 12345、无放大排队原生画质与 Turbo 8。</small></span><button className="secondary-button" disabled={!status.connected || diagnosticRunning || !h3Report.ready} onClick={onRunDiagnostics}>{diagnosticRunning ? <LoaderCircle className="spin" size={15} /> : <Activity size={15} />}{diagnosticRunning ? '正在排队测试…' : '运行 H3 画质测试'}</button></div>
+    </section>
+    <section className="settings-section h3-stack-section" id="settings-h3-image">
+      <div className="settings-heading"><div><ImageIcon size={19} /><span><strong>图片模型 · H3-Image</strong><small>对比已安装的 H3-Image 文件与官方栈。「专用模型」画质最好，「视频同款」零新增下载。</small></span></div><span className={`health-pill ${h3ImageReport.dedicatedReady ? 'online' : ''}`}>{h3ImageReport.dedicatedReady ? '专用模型就绪' : h3ImageReport.fl2vaReady ? '零下载档就绪' : '未完整'}</span></div>
+      <div className="h3-stack-list">{h3ImageReport.rows.map((row) => <div key={row.label} className={row.validated ? 'validated' : !row.required && !row.selected ? 'optional' : 'custom'}><span>{row.validated ? <Check size={14} /> : !row.required && !row.selected ? <Minus size={14} /> : <AlertCircle size={14} />}</span><div><strong>{row.label}</strong><small title={row.selected || row.expected}>{row.selected || `${row.required ? '缺失' : '可选'} · 期望 ${row.expected}`}</small></div><em>{row.validated ? '推荐' : row.selected ? '非标准' : row.required ? '缺失' : '可选'}</em></div>)}</div>
+      <div className="settings-note"><strong>许可与署名</strong><p>MiniMax H3-Image 采用社区许可：年营收超过 100 万美元、或面向美国、欧盟、英国与韩国市场时，需要另行取得授权。本应用在图片工作区标注「MiniMax-H3-Image」以满足署名要求。</p></div>
+      <div className="settings-note nvfp4-download-panel"><strong>安装</strong><p>ComfyUI 0.45 及以上原生支持 H3-Image，官方文档提供文生图与多参考编辑两套模板：6 步、CFG 1、无反向提示词。</p><small>把 DiT 放到 <code>ComfyUI/models/diffusion_models</code>，图像 VAE 放到 <code>ComfyUI/models/vae</code>；文本编码器与 H3 视频共用（<code>ComfyUI/models/text_encoders</code>）。之后重启 ComfyUI 或重新扫描模型。</small><div><a className="secondary-button" href="https://docs.comfy.org/tutorials/image/minimax/minimax-h3-image" target="_blank" rel="noreferrer"><Download size={14} />官方安装文档</a><a className="secondary-button" href="https://huggingface.co/Comfy-Org/MiniMax-H3-Image" target="_blank" rel="noreferrer"><Download size={14} />Comfy-Org 权重仓库</a></div></div>
     </section>
     <section className="settings-section generation-defaults-section" id="settings-defaults">
       <div className="settings-heading"><div><SlidersHorizontal size={19} /><span><strong>生成默认值</strong><small>选择主创作工作区的起始值。</small></span></div><button className="secondary-button" onClick={onApplyDefaults}>应用到创作</button></div>

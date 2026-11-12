@@ -5,6 +5,7 @@ export type WorkspaceDestination = { view: View; engine?: MusicEngine; label: st
 
 export const workspaceDestinations: WorkspaceDestination[] = [
   { view: 'scratchpad', label: '草稿本', description: '在正式生成前规划场景、打磨提示词。', group: '创作' },
+  { view: 'h3image', label: '图片 · H3-Image', description: '使用 MiniMax H3-Image 生成静态图片，中文排版精准，可直接发往 H3 与 LTX 视频。', group: '创作' },
   { view: 'create', label: '视频 · MiniMax H3', description: '用文字、图片或参考图生成视频，支持 T2V、I2V、Ref2VA。', group: '创作' },
   { view: 'continue', label: '续接视频', description: '在已有视频之后续写下一个场景或节拍。', group: '创作' },
   { view: 'ltx25', label: '视频 · LTX 2.5', description: '使用 LTX 引擎生成视频。', group: '创作' },
@@ -42,14 +43,14 @@ export function findWorkspaces(query: string): WorkspaceDestination[] {
     .sort((a, b) => rank(a) - rank(b))
 }
 
-export type WorkspaceProjectScope = 'create' | 'ltx25' | 'ltxripple' | 'zimage' | 'music' | 'music3'
+export type WorkspaceProjectScope = 'create' | 'ltx25' | 'ltxripple' | 'zimage' | 'h3image' | 'music' | 'music3'
 export function workspaceProjectScope(view: View, engine: MusicEngine = 'acestep'): WorkspaceProjectScope | null {
   if (view === 'music') return engine === 'music3' ? 'music3' : 'music'
-  return view === 'create' || view === 'ltx25' || view === 'ltxripple' || view === 'zimage' ? view : null
+  return view === 'create' || view === 'ltx25' || view === 'ltxripple' || view === 'zimage' || view === 'h3image' ? view : null
 }
 export function workspaceProjectLabel(scope: WorkspaceProjectScope): string {
   return scope === 'music3' ? '音乐 · Music 3' : workspaceLabel(scope, 'acestep')
 }
 export function workspaceStorageKey(scope: Exclude<WorkspaceProjectScope, 'create'>): string {
-  return { ltx25: 'ltx25.workspace', ltxripple: 'ltx-ripple.workspace.v1', zimage: 'minimax.zimage-workspace', music: 'acestep.workspace', music3: 'minimax.music3-workspace' }[scope]
+  return { ltx25: 'ltx25.workspace', ltxripple: 'ltx-ripple.workspace.v1', zimage: 'minimax.zimage-workspace', h3image: 'minimax.h3image-workspace', music: 'acestep.workspace', music3: 'minimax.music3-workspace' }[scope]
 }

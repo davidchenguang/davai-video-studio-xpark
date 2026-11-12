@@ -16,7 +16,7 @@ import { WORKSPACE_PROJECTS_KEY, loadWorkspaceProjects, type WorkspaceProject } 
 import { jobStatusLabels, modelPrecisionLabel, shortPrompt } from './lib/jobPresentation'
 import { comfyTerminalState, mayApplyHistoryUpdate, queuePromptPosition, queuePromptState } from './lib/comfyJobState'
 import { playableOutputUrl, readSavedJobs } from './lib/jobPersistence'
-import { H3_BENCHMARK_CONFIG_STORAGE_KEY, H3_BENCHMARK_STORAGE_KEY, benchmarkResultPatch, formatBenchmarkDuration, h3BenchmarkBackends, h3StackReport, loadH3BenchmarkConfig, loadH3BenchmarkResults, type H3BenchmarkConfig, type H3BenchmarkResult } from './lib/h3Diagnostics'
+import { H3_BENCHMARK_CONFIG_STORAGE_KEY, H3_BENCHMARK_STORAGE_KEY, benchmarkResultPatch, formatBenchmarkDuration, h3BenchmarkBackends, h3ImageStackReport, h3StackReport, loadH3BenchmarkConfig, loadH3BenchmarkResults, type H3BenchmarkConfig, type H3BenchmarkResult } from './lib/h3Diagnostics'
 import { findH3ParallelAttentionNode, findH3PreviewOverrideNode, findSolAttentionNode, findSolCompatibleCacheNode } from './lib/h3NodeDetection'
 import { engineModelFiles, mergeModelFiles } from './lib/modelInventory'
 import { workspaceTips } from './lib/workspaceTips'
@@ -102,7 +102,7 @@ import { fitWholeCharacter, prepareImage } from './lib/imageCrop'
 import { hasTurbo4Lora, inferLtx25Selections, inferSelections } from './lib/modelSelection'
 import { choices, type ObjectInfo } from './lib/comfyInfo'
 import { estimatedComponentBytes, resolveGpuRouting, routingGpus, type RoutingComponent } from './lib/gpuRouting'
-import { MINIMAX_VIDEO_RESOLUTIONS, MINIMAX_VIDEO_RESOLUTION_GROUPS, videoResolutionLabel } from './lib/videoResolutions'
+import { MINIMAX_VIDEO_RESOLUTIONS, MINIMAX_VIDEO_RESOLUTION_GROUPS, snapResolutionString, videoResolutionLabel } from './lib/videoResolutions'
 import { benchmarkFromJob, estimateRenderMs, renderHardware, type RenderBenchmark } from './lib/renderBenchmarks'
 import { useLivePreview, type LivePreview, type LiveProgress } from './lib/useLivePreview'
 import { nodeTimingUpdate, samplerProgressSummary, samplerTimingUpdate } from './lib/renderProgress'
@@ -123,6 +123,7 @@ import { RenderSize } from './components/RenderSize'
 import { ImageCrop } from './components/ImageCrop'
 import { ReferenceHandoffInspector } from './components/ReferenceHandoffInspector'
 import { ZImageWorkspace } from './components/ZImageWorkspace'
+import { H3ImageWorkspace } from './components/H3ImageWorkspace'
 import { ClipMasterBeta } from './components/ClipMasterBeta'
 import { Ltx25Workspace } from './components/Ltx25Workspace'
 import { LtxRippleWorkspace } from './components/LtxRippleWorkspace'
@@ -517,6 +518,7 @@ function App() {
   const [ltxResetKey, setLtxResetKey] = useState(0)
   const [ltxRippleResetKey, setLtxRippleResetKey] = useState(0)
   const [zImageResetKey, setZImageResetKey] = useState(0)
+  const [h3ImageResetKey, setH3ImageResetKey] = useState(0)
   const [aceResetKey, setAceResetKey] = useState(0)
   const [music3ResetKey, setMusic3ResetKey] = useState(0)
   const [ltxResetAt, setLtxResetAt] = useState(0)
@@ -590,6 +592,7 @@ function App() {
   const userLoraChoices = useMemo(() => models.filter((model) => model.kind === 'loras' && !/^minimax_h3_(?:fl2v|ref2v)_turbo_/i.test(model.name) && !/^minimax_h3_turbo_/i.test(model.name)).map((model) => model.name).sort((a, b) => a.localeCompare(b)), [models])
   const turbo4Available = useMemo(() => hasTurbo4Lora(models), [models])
   const h3Report = useMemo(() => h3StackReport(models), [models])
+  const h3ImageReport = useMemo(() => h3ImageStackReport(models), [models])
   const ltxSelection = useMemo(() => inferLtx25Selections(models, choices(info, 'LatentUpscaleModelLoader', 'model_name')), [models, info])
   const aceSelection = useMemo(() => inferAceStepSelections(models), [models])
   const music3Selection = useMemo(() => inferMusic3Selection(models), [models])
@@ -1580,6 +1583,7 @@ function App() {
       if (project.scope === 'ltx25') { setLtxResetAt(Date.now()); setLtxResetKey((value) => value + 1) }
       if (project.scope === 'ltxripple') { setLtxRippleResetAt(Date.now()); setLtxRippleResetKey(value => value + 1) }
       if (project.scope === 'zimage') setZImageResetKey((value) => value + 1)
+      if (project.scope === 'h3image') setH3ImageResetKey((value) => value + 1)
       if (project.scope === 'music') { setAceResetKey((value) => value + 1); setMusicEngine('acestep') }
       if (project.scope === 'music3') { setMusic3ResetKey((value) => value + 1); setMusicEngine('music3') }
       setView(project.scope === 'music3' ? 'music' : project.scope)
@@ -1625,6 +1629,12 @@ function App() {
       localStorage.removeItem('minimax.zimage-workspace')
       setZImageResetKey((value) => value + 1)
       setNotice({ tone: 'success', text: '生成图片已重置。它的提示词、选项、选中项与当前预览已清空。' })
+      return
+    }
+    if (view === 'h3image') {
+      localStorage.removeItem('minimax.h3image-workspace')
+      setH3ImageResetKey((value) => value + 1)
+      setNotice({ tone: 'success', text: 'H3 图片已重置。它的提示词、模型档位、选项与当前预览已清空。' })
     }
   }
 
@@ -3039,14 +3049,14 @@ function App() {
           <label className="titlebar-render-anyway" title="忽略场景冲突仍提交。引擎、模型与媒体仍必须可用。"><input type="checkbox" checked={renderAnyway} onChange={(event) => setRenderAnyway(event.target.checked)} />仍然渲染</label>
           {mode === 'reference' && <button className="titlebar-action titlebar-generate-image" type="button" onClick={() => void generateRef.current?.('image')} disabled={stillSubmitting}><ImagePlus size={14} />{stillSubmitting ? '生成中…' : '生成图片'}</button>}
         </div>}
-        {(view === 'create' || view === 'ltx25' || view === 'ltxripple' || view === 'zimage') && <button className="titlebar-action titlebar-reset" onClick={resetCurrentWorkspace} title={view === 'create' ? '清空 H3 提示词与素材；保留渲染设置' : '重置此工作区的提示词、选项、媒体、选中项与当前预览'}><RotateCcw size={14} />{view === 'create' ? '清空提示词与素材' : '重置工作区'}</button>}
+        {(view === 'create' || view === 'ltx25' || view === 'ltxripple' || view === 'zimage' || view === 'h3image') && <button className="titlebar-action titlebar-reset" onClick={resetCurrentWorkspace} title={view === 'create' ? '清空 H3 提示词与素材；保留渲染设置' : '重置此工作区的提示词、选项、媒体、选中项与当前预览'}><RotateCcw size={14} />{view === 'create' ? '清空提示词与素材' : '重置工作区'}</button>}
         {workspaceProjectScope(view, musicEngine) && <button className="titlebar-action titlebar-projects" onClick={() => setProjectManagerOpen(true)} title="保存、打开并管理完整的工作区项目"><FolderOpen size={14} /><span>项目：当前工作区</span><ChevronDown size={13} /></button>}
         <button className="titlebar-action titlebar-help" onClick={() => setHelpOpen(true)} title="显示此工作区的提示" aria-label="显示工作区提示"><HelpCircle size={15} />提示</button>
         <button className="titlebar-action" onClick={() => { setLanOpen(true); void window.minimax.getLanStatus().then(setLanStatus) }} title="在局域网内共享 DavAi Video Studio"><QrCode size={14} />局域网</button>
       </header>
 
       {failedKeys.length > 0 && <section className="storage-failure" role="alert"><strong>部分更改尚未保存</strong><p>本地存储已满或不可用。保持此窗口打开以保留当前工作，释放存储空间后重试。</p><button type="button" className="secondary-button" onClick={retryLocalSave}>重试保存</button></section>}
-      <WorkspaceNavigator open={navigatorOpen} onOpenChange={setNavigatorOpen} view={view} engine={musicEngine} onNavigate={(next, engine) => { if (engine) setMusicEngine(engine); setView(next) }} onProjects={() => setProjectManagerOpen(true)} onTips={() => setHelpOpen(true)} onFind={openWorkspaceSearch} onReset={['create', 'ltx25', 'ltxripple', 'zimage'].includes(view) ? resetCurrentWorkspace : undefined} />
+      <WorkspaceNavigator open={navigatorOpen} onOpenChange={setNavigatorOpen} view={view} engine={musicEngine} onNavigate={(next, engine) => { if (engine) setMusicEngine(engine); setView(next) }} onProjects={() => setProjectManagerOpen(true)} onTips={() => setHelpOpen(true)} onFind={openWorkspaceSearch} onReset={['create', 'ltx25', 'ltxripple', 'zimage', 'h3image'].includes(view) ? resetCurrentWorkspace : undefined} />
       {workspaceSearchOpen && <div className="workspace-search-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setWorkspaceSearchOpen(false) }}>
         <section className="workspace-search-dialog" role="dialog" aria-modal="true" aria-labelledby="workspace-search-title">
           <div className="workspace-search-input-wrap"><Search size={17} /><input ref={workspaceSearchInputRef} type="search" value={workspaceSearchQuery} onChange={(event) => setWorkspaceSearchQuery(event.target.value)} onKeyDown={handleWorkspaceSearchKeyDown} placeholder={`搜索${workspaceTips[view].title}设置`} autoComplete="off" spellCheck={false} aria-labelledby="workspace-search-title" /><kbd>Esc</kbd></div>
@@ -3294,7 +3304,10 @@ function App() {
           onSelectAceStep={() => setMusicEngine('acestep')}
         />}
         <div hidden={view !== 'zimage'}><ZImageWorkspace key={`first-frame-${zImageResetKey}`} url={settings.comfyUrl} info={info} connected={status.connected} ollamaAvailable={ollamaModels.length > 0} llmProvider={llmConnection.provider} ollamaUrl={llmConnection.url} ollamaModel={llmConnection.model} outputDirectory={settings.outputDirectory} attentionBackend={resolvedH3AttentionBackend} gpuRouting={h3GpuRouting?.workflow} onUse={(file, frameResolution) => {
-          setFirstFrame(file); setResolution(frameResolution); setMode('image'); setActiveJobId(null); setView('create'); setNotice({ tone: 'success', text: 'Z-Image 帧已载入 MiniMax I2V 工作区。' })
+          setFirstFrame(file); setResolution(snapResolutionString(frameResolution)); setMode('image'); setActiveJobId(null); setView('create'); setNotice({ tone: 'success', text: 'Z-Image 帧已载入 MiniMax I2V 工作区。' })
+        }} onUseLtx={(file) => void sendGeneratedStillToLtx(file)} /></div>
+        <div hidden={view !== 'h3image'}><H3ImageWorkspace key={`h3-image-${h3ImageResetKey}`} url={settings.comfyUrl} info={info} connected={status.connected} ollamaAvailable={ollamaModels.length > 0} llmProvider={llmConnection.provider} ollamaUrl={llmConnection.url} ollamaModel={llmConnection.model} outputDirectory={settings.outputDirectory} gpuRouting={h3GpuRouting?.workflow} onUse={(file, frameResolution) => {
+          setFirstFrame(file); setResolution(snapResolutionString(frameResolution)); setMode('image'); setActiveJobId(null); setView('create'); setNotice({ tone: 'success', text: 'H3-Image 帧已载入 MiniMax I2V 工作区。' })
         }} onUseLtx={(file) => void sendGeneratedStillToLtx(file)} /></div>
         {view === 'referenceprep' && <ReferencePrepStudio settings={settings} info={info} connected={status.connected} onUseCutout={(file) => {
           setReferenceImages((current) => current.some((item) => item.path === file.path) ? current : [...current, file].slice(0, 9))
@@ -3321,7 +3334,7 @@ function App() {
         {(view === 'movie' || (view === 'clipmaster' && clipMasterFromMovie)) && <div className="movie-integrated" hidden={view !== 'movie'}><div className="movie-workspace-heading"><div><h1>DavAi 影片剪辑</h1><p>组装渲染成果、精修片段，并把帧发送到 H3 或 LTX。</p></div><button className="secondary-button" onClick={() => void window.minimax.openMovieEditor()}><ExternalLink size={15} />打开独立窗口</button></div><MovieEditor settings={settings} jobs={jobs} onCreate={(kind) => setView(kind === 'music' ? 'music' : 'ltx25')} onNotice={(tone, text) => setNotice({ tone, text })} onOpenClipMaster={clip => { setClipMasterClip(clip); setClipMasterFromMovie(true); setView('clipmaster') }} onUseFrame={receiveMovieFrame} /></div>}
         {view === 'library'  && <LibraryView jobs={jobs.filter((job) => job.status === 'completed')} settings={settings} onEdit={() => setView('movie')} onCreate={() => setView('create')} onUseLtx={loadStartFrameInLtx} onUseLastFrameReference={addVideoLastFrameAsReference} onNotice={(tone, text) => setNotice({ tone, text })} />}
         {view === 'clipmaster' && <ClipMasterBeta onUseFrame={receiveMovieFrame} clip={clipMasterClip ?? undefined} jobs={jobs} settings={settings} onClose={() => { setClipMasterClip(null); setView(clipMasterFromMovie ? 'movie' : 'library') }} onNotice={(tone, text) => setNotice({ tone, text })} onExportClip={clipMasterFromMovie ? clip => window.dispatchEvent(new CustomEvent('davai-movie-add-media', { detail: clip })) : undefined} />}
-        {view === 'settings' && <SettingsView settings={settings} setSettings={setSettings} info={info} models={models} jobs={jobs} gpu={gpu} h3Report={h3Report} scanning={scanning} status={status} checking={checking} diagnosticRunning={diagnosticRunning} benchmarkRunning={benchmarkRunning} benchmarkConfig={benchmarkConfig} setBenchmarkConfig={setBenchmarkConfig} benchmarkResults={benchmarkResults} ollamaModels={ollamaModels} localLlmStatus={localLlmStatus} localLlmChecking={localLlmChecking} legacyMigration={legacyMigration} legacyMigrationRunning={legacyMigrationRunning} onRefreshOllama={() => void refreshOllama(settings, true)} onScan={() => void scanModels(settings)} onCheck={() => void checkConnection(settings.comfyUrl)} onSave={() => void saveAppSettings()} onApplyDefaults={applyGenerationDefaults} onRunDiagnostics={() => void runH3Diagnostics()} onRunBenchmark={() => void runH3Benchmark()} onRunLegacyMigration={() => void runLegacyMigration()} onFactoryReset={() => void factoryResetWorkspace()} />}
+        {view === 'settings' && <SettingsView settings={settings} setSettings={setSettings} info={info} models={models} jobs={jobs} gpu={gpu} h3Report={h3Report} h3ImageReport={h3ImageReport} scanning={scanning} status={status} checking={checking} diagnosticRunning={diagnosticRunning} benchmarkRunning={benchmarkRunning} benchmarkConfig={benchmarkConfig} setBenchmarkConfig={setBenchmarkConfig} benchmarkResults={benchmarkResults} ollamaModels={ollamaModels} localLlmStatus={localLlmStatus} localLlmChecking={localLlmChecking} legacyMigration={legacyMigration} legacyMigrationRunning={legacyMigrationRunning} onRefreshOllama={() => void refreshOllama(settings, true)} onScan={() => void scanModels(settings)} onCheck={() => void checkConnection(settings.comfyUrl)} onSave={() => void saveAppSettings()} onApplyDefaults={applyGenerationDefaults} onRunDiagnostics={() => void runH3Diagnostics()} onRunBenchmark={() => void runH3Benchmark()} onRunLegacyMigration={() => void runLegacyMigration()} onFactoryReset={() => void factoryResetWorkspace()} />}
       </main>
       <footer className="status-bar" aria-label="应用状态栏">
         <span className="status-bar-context"><Film size={14} /><strong>{workspaceLabel(view, musicEngine)}</strong></span>
