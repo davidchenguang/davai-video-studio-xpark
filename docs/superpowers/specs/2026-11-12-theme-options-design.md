@@ -124,3 +124,39 @@
 2. **清理**：遗留文件硬编码色 → `var()` 机械替换 + 豁免注释 + D12 墨绿化。
 3. **三主题**：蓝（upstream 字面值保留，D16）→ Comfy 黄 → 亮色（工作量最大）。
 4. **验证**：验收清单执行 + 截图对比记录。
+
+## 验收记录（2026-11-12，Build 完成后）
+
+### 全量命令（真实输出）
+
+- `pnpm typecheck` → exit 0（tsc --noEmit + tsconfig.electron.json 双目标）。
+- `pnpm lint` → exit 0（--max-warnings 0）。
+- `pnpm test` → exit 0，23/23 套件 PASS（含 test-theme 的主题域 + light D7 断言 + D17 外壳值表断言）。
+- `pnpm build:web` → ✓ built in ~1.3s；`pnpm build:electron` → exit 0。
+
+### 墨绿回归对拍（Task 12 重拍，/tmp/oyama-theme-final vs Task 8 后 cleanupB）
+
+1480×940 强制视口，18 屏（h3-video/continue/scratchpad/zimage/referenceprep/ltx25/ltxripple/photoedit/characters/hair/wardrobes/accessories/locations/library/queue/movie/clipmaster/settings）全部 visible 差异 <0.04%（亚像素渲染噪声），即**除 D12 清单外无可辨差异**。D12 例外清单（清理前蓝 → 现墨绿）终版：
+
+- H3/续接 全部 tab 下划线、eyebrow、H3 分区提示、底部节点头像图标（video-workspace.css 278 处蓝映射）。
+- scene-composer 全套面板/按钮/selected 态（181 处蓝映射）。
+- production-workspace `--accent:#69a8ff` 全链（生产工作区按钮/勾选/焦点）。
+- ui.css 勾选色 + primary 渐变；feature-workspaces hair/wardrobes/locations tab 下划线与删除按钮描边。
+- workstation 导航 active 白字与 nav 按钮（Task 7）；studio-refresh 侧栏渐变/nav 渐变/页面光晕/面板渐变（Task 9 var 化，值不变）。
+- D17 原生外壳：绿主题窗口背景 #0c100e（原 Electron 默认深灰）。
+
+### 四主题走查（CDP 驱动真实 Electron 渲染进程，1480×940）
+
+- **计算变量探针**：四主题 `--bg/--accent/--accent-ink/color-scheme` 全部按设计解析；`--preview-panel` 四主题恒为 `#0a0f0c`（D7 锚点）；nav active 墨色四主题均为浅色（可读）。
+- **下拉即时生效**：设置页「界面主题」select 切 comfy → `data-theme` 即时 comfy、localStorage mirror 即时 comfy、`--bg` 立即解析 #211927；切回 green 同样即时。走查截图 `/tmp/oyama-theme-walkthrough/`（4 主题 × h3-video/characters/settings/library）。
+- **亮色预览仍深**：H3 预览列、剪辑台节目监视器、生成图片 stage 在 light 下保持深色，空态文字用 `--preview-ink` 浅色可读（Task 11 修复）。
+- **原生控件 color-scheme**：light 声明 `color-scheme: light`（select/滚动条跟随），其余 dark。
+- **D17 外壳值表**：NATIVE_SHELL 四主题 backgroundColor/titleBarOverlay 与设计一致；preview monitor shell 恒深色（test-theme 断言）。
+- **最小布局 760px 与典型 1440px**：light 主题两档截图正常（窄侧栏折叠、设置分区换行、白面板）。
+- **LAN `?desktop=1` 与手机页**：页面可加载（dev server 200）；该环境 saveSettings 为内存态、切换不持久（设计既有行为）。
+- **五态抽查**：空态（视频库/H3 预览/角色无主图）、离线失败态（引擎离线 banner/离线 chip 橙点）、禁用态（生成按钮 disabled）在走查截图中核验；加载/成功态需活引擎，留待需求方接通 GB10 后抽查。
+
+### 遗留
+
+- 需求方逐屏验收（D9）：四主题全屏走查材料在 `/tmp/oyama-theme-walkthrough/`（16 张）+ `/tmp/oyama-theme-blue/`（blue/comfy/light/green-regress 各视图）。
+- 加载/成功两态与实时预览需活引擎（ComfyUI），本轮引擎离线未覆盖。
