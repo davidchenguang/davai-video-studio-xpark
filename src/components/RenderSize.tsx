@@ -68,12 +68,12 @@ export function RenderSize({ value, onChange, provider = 'minimax' }: { value: s
 
 function imageRatioLabel(ratio: string) {
   if (ratio === '16:9') return '宽屏 · 16:9'
-  if (ratio === '3:2') return '照片横向 · 3:2'
+  if (ratio === '3:2') return '图片横向 · 3:2'
   if (ratio === '4:3') return '传统横向 · 4:3'
   if (ratio === '1:1') return '方形 · 1:1'
   if (ratio === '4:5') return '竖幅 · 4:5'
   if (ratio === '3:4') return '传统竖幅 · 3:4'
-  if (ratio === '2:3') return '照片竖幅 · 2:3'
+  if (ratio === '2:3') return '图片竖幅 · 2:3'
   return '竖屏 · 9:16'
 }
 

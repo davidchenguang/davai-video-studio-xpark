@@ -85,7 +85,7 @@
 | wardrobe | 服装 | translate | 工作区语境 |
 | accessories | 配饰 | translate | 工作区语境 |
 | create image | 生成图片 | translate | 工作区名「生成图片 · Z-Image」；不写「创建图片」 |
-| photo edit | 图片编辑 | translate | 工作区名「图片编辑 · FireRed」（2026-11-12 由「照片编辑」更名，与 image→图片 口径一致）；文案内指代源素材的「照片」一词保留 |
+| photo edit | 图片编辑 | translate | 工作区名「图片编辑 · FireRed」（2026-11-12 由「照片编辑」更名，与 image→图片 口径一致）；文案内「照片」一词也已统一为「图片」（源图片 / 图片横向 · 3:2 等） |
 
 ### 提示词预设分类（`src/lib/promptPresets.ts` 的 `promptPresetCategories`）
 
@@ -318,7 +318,7 @@
 | square | 方形 | 同上 |
 
 Z-Image 的**图片**画幅是另一套词表（`RenderSize.tsx` 的 `imageRatioLabel`），因为它描述的是相片比例而不是视频方向：
-宽屏 · 16:9 / 照片横向 · 3:2 / 传统横向 · 4:3 / 方形 · 1:1 / 竖幅 · 4:5 / 传统竖幅 · 3:4 / 照片竖幅 · 2:3 / 竖屏 · 9:16。
+宽屏 · 16:9 / 图片横向 · 3:2 / 传统横向 · 4:3 / 方形 · 1:1 / 竖幅 · 4:5 / 传统竖幅 · 3:4 / 图片竖幅 · 2:3 / 竖屏 · 9:16。
 
 ### 音乐术语（音乐引擎显示层）
 
