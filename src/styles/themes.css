@@ -90,10 +90,49 @@ html[data-theme="blue"] {
   --panel-glow-to: #131a21;
   color-scheme: dark;
 }
-/* Comfy yellow — #211927 ground + #F2FF59 accent per D4. Values filled by the comfy task. */
-[data-theme="comfy"] {
+/* Comfy yellow — #211927 ground + #F2FF59 accent per D4 (comfy.org palette).
+   Purple-gray ladder derived from the pinned bg hue; yellow actions carry the
+   purple-ground ink. Status hues keep :root values (all pass AA on this ground). */
+html[data-theme="comfy"],
+html[data-theme="comfy"] .app-shell,
+html[data-theme="comfy"] .app-shell.studio-shell-active,
+html[data-theme="comfy"] .app-shell.video-shell-active,
+html[data-theme="comfy"] .video-workspace-shell,
+html[data-theme="comfy"] .minimax-workspace {
+  --bg: #211927 !important;
+  --surface: #2b2133 !important;
+  --surface-1: #32263b !important;
+  --surface-2: #3b2d46 !important;
+  --surface-3: #473654 !important;
+  --surface-raised: #372a41 !important;
+  --line: #533f62 !important;
+  --line-strong: #6e5483 !important;
+  --text: #f1eff3 !important;
+  --muted: #bdb1c6 !important;
+  --muted-2: #a08fae !important;
+  --accent: #f2ff59 !important;
+  --accent-soft: rgb(242 255 89 / 13%) !important;
+  --accent-ink: #211927 !important;
+  --titlebar-surface: #271d2e !important;
+}
+
+html[data-theme="comfy"] {
+  --action-from: #f2ff59;
+  --action-to: #d8e13e;
+  --action-soft: rgb(242 255 89 / 14%);
+  --info-accent: #e8f06a;
+  --info-accent-soft: rgb(232 240 106 / 13%);
+  --check-tint: rgb(242 255 89 / 17%);
+  --accent-ink: #211927;
+  --nav-active-from: #463754;
+  --nav-active-to: #34283f;
+  --nav-active-line: #8a7b3a;
+  --sidebar-glow-from: #251c2c;
+  --sidebar-glow-to: #1d1623;
+  --page-glow: rgb(242 255 89 / 7%);
+  --panel-glow-from: #322640;
+  --panel-glow-to: #261d2f;
   color-scheme: dark;
-  /* Palette override block: purple ground family, yellow action family. */
 }
 
 /* Light — pale gray ground + white raised panels + deep green accent per D5. */
