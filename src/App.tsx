@@ -10,6 +10,7 @@ import { ComfyActivityConsole, JobExecutionChips, JobsView, StatusBadge } from '
 import { WorkspaceNavigator } from './components/WorkspaceNavigator'
 import { WorkspaceSectionTabs, type WorkspaceSectionTab } from './components/WorkspaceSectionTabs'
 import { writeLocalJson } from './lib/localPersistence'
+import { applyTheme, writeThemeMirror } from './lib/theme'
 import { collectWorkspaceSearchEntries, compactSearchText, highlightWorkspaceSearchText, type WorkspaceSearchEntry } from './lib/workspaceSearch'
 import { H3_PREVIEW_FPS, compactJob, compactSceneState, randomH3Seed, readWorkspace, withoutPreview, workspaceDefaults, type PersistedWorkspace } from './lib/workspacePersistence'
 import { WORKSPACE_PROJECTS_KEY, loadWorkspaceProjects, type WorkspaceProject } from './lib/workspaceProjects'
@@ -736,6 +737,9 @@ function App() {
       activeLlmProvider.current = loaded.llmProvider
       activeLlmUrl.current = resolveLlmConnection(loaded).url
       loadedSettingsSnapshot.current = JSON.stringify(loaded)
+      // The settings file is authoritative: correct a stale first-paint mirror.
+      writeThemeMirror(loaded.theme)
+      applyTheme(document.documentElement, loaded.theme)
       setSettings(loaded)
       void Promise.all([scanModels(loaded), checkConnection(loaded.comfyUrl), refreshOllama(loaded)])
     }).catch((error: unknown) => {
@@ -753,6 +757,14 @@ function App() {
     }, 250)
     return () => window.clearTimeout(timer)
   }, [queueSettingsSave, settings])
+
+  // Theme changes apply immediately (like uiScale); the debounced autosave above persists them.
+  useEffect(() => {
+    if (!settings) return
+    applyTheme(document.documentElement, settings.theme)
+    writeThemeMirror(settings.theme)
+    void window.minimax.setNativeTheme?.(settings.theme)
+  }, [settings])
 
   useEffect(() => {
     void window.minimax.getLegacyMigrationStatus().then(setLegacyMigration).catch(() => setLegacyMigration({ available: false, migrated: false, needsBrowserStorageRepair: false }))

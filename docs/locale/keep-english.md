@@ -127,8 +127,8 @@
 
 标识符与确认令牌：
 
-- `src/components/SettingsView.tsx:106` — `settingsSections` 数组的 id 半区 `'reset'`：DOM 锚点 / 滚动定位键（存储标识符，非界面文案；译文半区是「恢复出厂设置」）。
-- `src/components/SettingsView.tsx:340` — 恢复出厂设置确认词 `Reset`：必须与 `electron/main.ts` 的 `confirmation !== 'Reset'` 逐字匹配，用户需输入英文单词（与已有的 `electron/main.ts:435` 登记同一 token）。
+- `src/components/SettingsView.tsx:107` — `settingsSections` 数组的 id 半区 `'reset'`：DOM 锚点 / 滚动定位键（存储标识符，非界面文案；译文半区是「恢复出厂设置」）。
+- `src/components/SettingsView.tsx:341` — 恢复出厂设置确认词 `Reset`：必须与 `electron/main.ts` 的 `confirmation !== 'Reset'` 逐字匹配，用户需输入英文单词（与已有的 `electron/main.ts:435` 登记同一 token）。
 
 ## 批次 12：扫描器补强后的新登记
 

@@ -47,3 +47,24 @@ storage.getItem = () => null
 assert.equal(readThemeMirror(storage), 'green', 'absent mirror reads as green')
 
 console.log('PASS: theme domain (themes, labels, normalize, apply, mirror)')
+
+// ---- Renderer application points (structural assertions) ----
+const readSource = (path) => fs.readFileSync(path, 'utf8')
+
+{
+  const main = readSource('src/main.tsx')
+  const themesImport = main.indexOf("import './styles/themes.css'")
+  const refreshImport = main.indexOf("import './styles/studio-refresh.css'")
+  assert.ok(themesImport > -1, 'main.tsx imports themes.css')
+  assert.ok(refreshImport > -1 && themesImport > refreshImport, 'themes.css imports after studio-refresh.css')
+  assert.ok(/applyTheme\(document\.documentElement,\s*readThemeMirror\(\)\)/.test(main), 'main.tsx applies the theme mirror before render')
+
+  const app = readSource('src/App.tsx')
+  assert.ok(/getSettings\(\)\.then/.test(app), 'sanity: App loads settings')
+  const thenBody = app.slice(app.indexOf('getSettings().then'))
+  assert.ok(thenBody.includes('writeThemeMirror'), 'settings load overwrites the mirror (settings JSON is authoritative)')
+
+  const settingsView = readSource('src/components/SettingsView.tsx')
+  assert.ok(settingsView.includes('label="界面主题"'), 'settings has the theme dropdown')
+  assert.ok(settingsView.includes('THEME_LABELS'), 'theme options come from THEME_LABELS')
+}
