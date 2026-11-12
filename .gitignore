@@ -33,3 +33,4 @@ Thumbs.db
 .comet-state.lock
 .comet-state-transaction.json
 # <<< Comet managed project state <<<
+.superpowers/
