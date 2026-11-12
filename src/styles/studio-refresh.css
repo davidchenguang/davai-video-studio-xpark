@@ -43,10 +43,10 @@
 .app-shell .nav-button.active {
   border-color: var(--nav-active-line) !important;
   background: linear-gradient(90deg, var(--nav-active-from), var(--nav-active-to)) !important;
-  color: var(--text) !important;
+  color: var(--nav-active-ink) !important;
   box-shadow: inset 3px 0 var(--accent) !important;
 }
-.app-shell .nav-button.active svg { color: var(--accent) !important; }
+.app-shell .nav-button.active svg { color: var(--nav-active-svg, var(--accent)) !important; }
 .app-shell .nav-section-label { color: var(--muted-2) !important; }
 .app-shell .sidebar-status-current,
 .app-shell .model-health { background: var(--surface-2); border-color: var(--line); }
