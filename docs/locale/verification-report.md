@@ -247,7 +247,7 @@ H3 分辨率下拉用的是「横屏 / 竖屏」，而 `RenderSize.tsx` 与 `Ltx
 | `pnpm lint` | 通过，0 警告 |
 | `pnpm test` | 22 套全过 |
 | `pnpm build:web` | 通过 |
-| `node scripts/locale-walkthrough.cjs --out /tmp/locale-packet/walkthrough-final` | 22 个外壳全部命中、0 处横向溢出、0 处侧栏丢失、回归 needle 0 命中；残留英文全部为 keep-english 登记的品牌/型号/硬件名与用户数据透出 |
+| `node scripts/locale-walkthrough.cjs --out docs/locale/evidence/walkthrough-revision` | 22 个外壳全部命中、0 处横向溢出、0 处侧栏丢失、回归 needle 0 命中；残留英文全部为 keep-english 登记的品牌/型号/硬件名与用户数据透出 |
 
 ### 遗留登记（超出「只改字符串」边界，未在本轮处理）
 
