@@ -7,7 +7,7 @@
 | 需求 | 现状 | 建议 | 关键理由 |
 | --- | --- | --- | --- |
 | 文生图（Z-Image 主工作区 + 角色/服装/地点/发型/配饰工作室 + 移动端） | Z-Image Turbo（Apache-2.0，8 步） | **换成 Qwen-Image-2.1 Turbo**，Z-Image 保留为后备 | 中文长文渲染与多行排版明显更好（实测评见下），7B 权重只有 6.7 GB |
-| 图片编辑（照片编辑工作区，FireRed 1.1） | FireRed-Image-Edit-1.1（Apache-2.0，Turbo 8 步） | **不换。FireRed 就是三者中编辑最强、也是唯一 Apache-2.0 且已调优的** | 用户提的三个候选都不适合替换 FireRed（详下） |
+| 图片编辑（照片编辑工作区，FireRed 1.1） | FireRed-Image-Edit-1.1（Apache-2.0，Turbo 8 步） | **不换。FireRed 的中文编辑不弱反强**（REDEdit CN Text 4.49 领先 2511 的 4.08；实测中文改字/加字三模型全对，见 bench4） | 用户提的三个候选都不适合替换 FireRed（详下） |
 | 抠图（BiRefNet） | BiRefNet | 不换 | 与生图模型无关，保持现状 |
 
 三个候选模型并不是同一个赛道的替代品：
@@ -78,11 +78,35 @@
 > 备注1：Qwen-Edit-2511 的 330s 是因为同批其他大模型挤占 128G 统一内存导致模型交换；纯加载后 4 步应远快于此。2511 编辑质量稳定，且 **Apache-2.0**。
 > 备注2：服务器已装 2511 的 Lightning 4 步 / 8 步两版 LoRA（各 810MB），替换 FireRed 时优先用 8 步版本对照现状。
 
+### 编辑专项：中文文字改写与新增（bench4，正面回答"FireRed 中文编辑是否更弱"）
+
+用 Z-Image 生成的「山泉食府」海报（含标题+副标题+地址三段中文）为源图，三模型各跑两个最考验中文编辑的任务：
+
+- **文字改写**：「把顶部大标题「山泉食府」改成「山泉酒府」，副标题、地址、画面与其他所有内容保持不变」
+- **文字新增**：「保持画面构图和所有文字不变，在底部地址下方加一行居中的小字「营业时间 10:00-22:00」」
+
+| 模型（配置同上表） | 文字改写 | 文字新增 | 耗时（改写/新增，含模型换载） |
+| --- | --- | --- | --- |
+| FireRed 1.1 Turbo 8 步 | ✅ 「食→酒」改对，其余文字/构图全保留 | ✅ 「营业时间 10:00-22:00」正确加在地址下方，原有文字全保留 | 437s（冷）/ 144s |
+| Qwen-2.1 base 25 步 | ✅ 同样全对 | ✅ 同样全对 | 216s / 124s |
+| Qwen-Edit-2511 Lightning 8 步 | ✅ 同样全对 | ✅ 同样全对 | 112s / 116s |
+
+**结论：FireRed 的中文编辑不弱——在这两个最能暴露中文短板的任务上，它与两个 Qwen 编辑模型打平，全部通过。** 耗时差异主要是模型换载（每个任务切换一次 7B/39GB 级模型），热缓存后同为个位数秒级。
+
+榜单佐证（FireRed 官方技术报告，REDEdit-Bench 1673 对中英双语编辑对、15 类指令）：
+
+- **中文文字编辑（CN Text）类目：FireRed 4.49 vs Qwen-Image-Edit-2511 4.08**——+0.41，是全榜单分差最大的类目之一，且是对中文编辑最相关的类目；
+- GEdit-Bench 中文子集：FireRed 7.887 vs 2511 7.819，FireRed 仍领先；
+- 英文侧两者接近（FireRed 的设计重心本来就是中文场景）。
+
+> 即"FireRed 中文编辑弱"这个假设在榜单和实测两个方向上都站不住：它是当前开源模型里中文编辑的最强档，实测中也无短板。
+
 ### 中文渲染结论
 
 - **短文本（≤2 行）**：三者 + Z-Image 都能全对。客户如果只需要标题类海报，Z-Image 够用。
 - **长文本（≥3 行信息排版）**：**Qwen-2.1 Turbo 明显最稳**；MOSS 理论分最高（LLTB 96.3）但实测海报场景反而不如 Qwen-2.1 的版式控制；Z-Image 密集文字会崩。
 - **编辑后文字保持**：FireRed / Qwen-2.1 / Qwen-Edit-2511 三者都保住了全部中文文字，MOSS（LoRA）未测（未装）。
+- **中文文字改写/新增（编辑里最难的两类）**：三模型全对，FireRed 不落下风（REDEdit-Bench 的 CN Text 类目 FireRed 反而领先 2511 +0.41）。
 
 ## 三、与代码库的对照（替换成本）
 
@@ -133,9 +157,9 @@
 
 ## 附：实测产物与可复现脚本
 
-- 服务器：`dawo@192.168.20.80:~/bench-image-models/bench.py|bench2.py|bench3.py`
-- 服务器输出：`~/comfyui/output/bench/`（zimage_turbo / moss / qwen21_simple / moss_long / zimage_long / firered_edit / qwen21_edit / qwen_edit_2511 共 8 组）
-- 本地镜像：本 worktree `bench-results/` 目录（8 张 PNG）
+- 服务器：`dawo@192.168.20.80:~/bench-image-models/bench.py|bench2.py|bench3.py|bench4.py`
+- 服务器输出：`~/comfyui/output/bench/`（zimage_turbo / moss / qwen21_simple / moss_long / zimage_long / firered_edit / qwen21_edit / qwen_edit_2511 共 8 组，另有 bench4 的 fr_textedit / qw21_textedit / qw2511_textedit / fr_textadd / qw21_textadd / qw2511_textadd 共 6 张）
+- 本地镜像：本 worktree `bench-results/` 目录（14 张 PNG）
 - 图表节点 schema 快照：`/tmp/oi.json`（服务器 `/object_info`，2026-11-12 10:30 左右）
 
 ### 来源（主要外部资料）
