@@ -1,6 +1,6 @@
 'use strict'
 // Generates scripts/fixtures/prompt-parity-baseline.json from the baseline ref.
-// The baseline is pinned to 1a7ea28 (recorded in the brief). Generation refuses
+// The baseline is pinned to e5859df (the DavAi rename; originally 1a7ea28). Generation refuses
 // to run when src/ or electron/ differ from that ref unless --allow-dirty is
 // passed explicitly — after localization batches start, the fixture must never
 // be silently regenerated.
@@ -16,7 +16,7 @@ const readFlag = name => {
   const index = args.indexOf(name)
   return index >= 0 ? args[index + 1] : null
 }
-const baseline = readFlag('--baseline') || '1a7ea28'
+const baseline = readFlag('--baseline') || 'e5859df0058324807bdfcb671c3998385f410445'
 const root = process.cwd()
 const fixturePath = path.join(root, 'scripts', 'fixtures', 'prompt-parity-baseline.json')
 

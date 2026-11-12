@@ -5,7 +5,7 @@
 //   compileScene / present, composeReferenceInstructions / buildPromptAssistantRequest,
 //   applySceneCommand / suggestScene / value, autoTagPrompt, vision prompts
 //   (referenceAnalysis), every *Workflow.ts graph builder, English preset search ranking.
-// The capture script pins this to baseline ref 1a7ea28; the test re-runs it
+// The capture script pins this to the baseline ref; the test re-runs it
 // against the current tree and demands byte-identical output.
 const path = require('node:path')
 
