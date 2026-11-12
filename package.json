@@ -107,7 +107,7 @@
     }
   },
   "build": {
-    "appId": "com.james.oyamaaivideostudio",
+    "appId": "com.davai.videostudio",
     "productName": "DavAi Video Studio",
     "asar": true,
     "directories": {

@@ -13,7 +13,7 @@ import threading
 import comfy.model_management as model_management
 
 
-_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="oyama-h3-preload")
+_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="davai-h3-preload")
 _submit_lock = threading.Lock()
 
 
@@ -34,7 +34,7 @@ class DavAiH3PreloadStart:
     def INPUT_TYPES(cls):
         return {"required": {"model": ("MODEL",)}}
 
-    RETURN_TYPES = ("MODEL", "OYAMA_H3_PRELOAD")
+    RETURN_TYPES = ("MODEL", "DAVAI_H3_PRELOAD")
     RETURN_NAMES = ("model", "preload")
     FUNCTION = "start"
     CATEGORY = "DavAi/GPU Routing"
@@ -59,7 +59,7 @@ class DavAiH3PreloadAwait:
         return {"required": {
             "model": ("MODEL",),
             "conditioning": ("CONDITIONING",),
-            "preload": ("OYAMA_H3_PRELOAD",),
+            "preload": ("DAVAI_H3_PRELOAD",),
         }}
 
     RETURN_TYPES = ("MODEL", "CONDITIONING")
