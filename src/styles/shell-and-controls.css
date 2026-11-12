@@ -96,6 +96,8 @@
 .zimage-content p { overflow-wrap: anywhere; font-size: 12px; }
 .zimage-models { display: grid; gap: 10px; }
 .zimage-workspace { max-width: 1500px; }
+.h3image-workspace { max-width: 1500px; }
+.h3image-attribution { display: inline-flex; align-items: center; gap: 6px; margin: 6px 0 0; color: var(--muted-2); font-size: 9px; letter-spacing: .02em; }
 .zimage-workspace-grid { display: grid; grid-template-columns: minmax(480px, 1.05fr) minmax(380px, .95fr); gap: 16px; align-items: start; }
 .zimage-composer, .zimage-preview-panel { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .zimage-composer { padding: 20px; }
