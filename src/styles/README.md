@@ -11,5 +11,6 @@
 | `workstation.css` | Shared desktop layout and accessibility refinements. |
 | `feature-workspaces.css` | Movie editor, reference prep, settings, queue, library, and music workspace rules. |
 | `studio-refresh.css` | Final shared palette, shell rhythm, panel treatment, and responsive H3 layout. |
+| `themes.css` | Theme variable vocabulary (action/identity/preview families) and the blue/comfy/light `[data-theme]` override blocks; imported after `studio-refresh.css` in `main.tsx`. |
 
 New workspace rules should live beside their feature, while shared colors and shell rules belong in `studio-refresh.css`. Keep the ordered imports in `styles.css` until the remaining legacy rules have been moved by feature; changing their order changes the cascade.

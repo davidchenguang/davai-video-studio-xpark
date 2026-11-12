@@ -1,2 +1,47 @@
 /* Theme variable vocabulary and per-theme override blocks.
-   Skeleton only; filled by the theme work (see docs/superpowers/specs/2026-11-12-theme-options-design.md). */
+   Architecture: docs/superpowers/specs/2026-11-12-theme-options-design.md (option A).
+   The base cascade is the green theme — studio-refresh.css already redefines the
+   shared variables and legacy files reference them. This file adds:
+     1. a :root vocabulary for colors that are still hardcoded in legacy files
+        (action blues, identity accents, preview darks) so themes.css can retheme them;
+     2. one [data-theme] override block per non-green theme, imported after
+        studio-refresh.css so same-specificity later rules win. */
+
+:root {
+  /* Action family (D15): currently-rendering blues greenified to the brand lime. */
+  --action-from: #b6ef68;
+  --action-to: #93d63c;
+  --action-soft: rgb(196 248 120 / 14%);
+  --info-accent: #8fd35a;
+  --info-accent-soft: rgb(143 211 90 / 12%);
+  --check-tint: rgb(196 248 120 / 18%);
+
+  /* Identity family (D15): functional accents that keep their hue in every theme. */
+  --identity-movie: #a879ff;
+  --playhead: #f4c85d;
+
+  /* Preview family (D7): color-judging surfaces stay dark in every theme. */
+  --preview-bg: rgb(0 0 0 / 12%);
+  --preview-panel: #0a0f0c;
+  --preview-line: #1d2721;
+}
+
+/* Blue (classic) — upstream look per D16. Values filled by the blue theme task. */
+[data-theme="blue"] {
+  color-scheme: dark;
+  /* Palette override block: bg/surfaces/lines/text from the upstream tokens,
+     action family restored to the upstream blues. */
+}
+
+/* Comfy yellow — #211927 ground + #F2FF59 accent per D4. Values filled by the comfy task. */
+[data-theme="comfy"] {
+  color-scheme: dark;
+  /* Palette override block: purple ground family, yellow action family. */
+}
+
+/* Light — pale gray ground + white raised panels + deep green accent per D5. */
+[data-theme="light"] {
+  color-scheme: light;
+  /* Palette override block: light ground family, deep-green action family,
+     preview family pinned back to dark (D7). */
+}

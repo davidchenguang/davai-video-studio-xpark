@@ -118,3 +118,19 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   const app = readSource('src/App.tsx')
   assert.ok(/\/api\/lan\/appearance/.test(app), 'App fetches appearance in LAN browser context')
 }
+
+// ---- themes.css variable vocabulary skeleton ----
+{
+  const themes = readSource('src/styles/themes.css')
+  assert.ok(/:root\s*\{/.test(themes), 'themes.css defines the :root base block')
+  const themeBlocks = ['blue', 'comfy', 'light'].map((name) => `[data-theme="${name}"]`)
+  for (const block of themeBlocks) assert.ok(themes.includes(block), `themes.css has a ${block} override block`)
+  assert.ok((themes.match(/color-scheme/g) ?? []).length >= 3, 'each theme declares color-scheme')
+  assert.ok(!themes.includes('[data-theme="green"]'), 'green keeps no override block (the base cascade is green)')
+  for (const variable of ['--action-from', '--action-to', '--action-soft', '--info-accent', '--info-accent-soft', '--check-tint', '--preview-bg', '--preview-panel', '--preview-line', '--identity-movie', '--playhead']) {
+    assert.ok(themes.includes(`${variable}:`), `:root defines ${variable}`)
+  }
+
+  const readme = readSource('src/styles/README.md')
+  assert.ok(readme.includes('themes.css'), 'styles README documents themes.css')
+}
