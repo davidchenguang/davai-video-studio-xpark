@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Oyama AI Video Studio is a local-first Electron + React + TypeScript desktop app for ComfyUI. The renderer lives in `src/`, privileged desktop operations live in `electron/`, and ComfyUI graph builders live in `src/lib/`. It also ships a LAN-served mobile companion.
+DavAi Video Studio is a local-first Electron + React + TypeScript desktop app for ComfyUI. The renderer lives in `src/`, privileged desktop operations live in `electron/`, and ComfyUI graph builders live in `src/lib/`. It also ships a LAN-served mobile companion.
 
 `AGENTS.md` holds the contributor rules (scope, working agreement, validation, known follow-up audits) — read it before editing. This file covers commands and architecture only.
 

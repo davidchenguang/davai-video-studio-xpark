@@ -7,7 +7,7 @@ const { createServer } = require('node:http')
 const WebSocket = require('ws')
 
 const port = 9700 + Math.floor(Math.random() * 200)
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'oyama-photo-edit-electron-'))
+const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'davai-photo-edit-electron-'))
 const environment = { ...process.env, APPDATA: profile, LOCALAPPDATA: profile, VITE_DEV_SERVER_URL: 'http://127.0.0.1:5173' }
 delete environment.ELECTRON_RUN_AS_NODE
 const child = spawn(require('electron'), ['.', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`], { cwd: path.join(__dirname, '..'), env: environment, windowsHide: true, stdio: 'ignore' })
@@ -125,7 +125,7 @@ async function main() {
     assert.match(uploaded.name, /^source-[0-9a-f-]+-24fps\.mp4$/, 'Oversized video is converted to a uniquely named MP4 before upload')
     assert.ok(uploadedBody.length <= 1024 * 1024, 'The complete multipart request fits within the advertised ComfyUI cap')
     const fileStart = uploadedBody.indexOf(Buffer.from('\r\n\r\n')) + 4
-    const fileEnd = uploadedBody.indexOf(Buffer.from('\r\n--oyama-'), fileStart)
+    const fileEnd = uploadedBody.indexOf(Buffer.from('\r\n--davai-'), fileStart)
     assert.ok(fileStart > 3 && fileEnd > fileStart, 'The streamed multipart request contains a file')
     const converted = path.join(profile, 'converted-upload.mp4')
     fs.writeFileSync(converted, uploadedBody.subarray(fileStart, fileEnd))

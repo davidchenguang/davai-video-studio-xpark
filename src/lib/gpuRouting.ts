@@ -113,12 +113,12 @@ export function resolveGpuRouting(settings: GpuRoutingSettings, gpus: RoutingGpu
   if (settings.preloadDiffusionDuringTextEncoding) {
     const diffusionDevice = placements.diffusion?.resolved
     const encoderDevice = placements.textEncoder?.resolved
-    const helperReady = Boolean(info.OyamaH3PreloadStart && info.OyamaH3PreloadAwait)
+    const helperReady = Boolean(info.DavAiH3PreloadStart && info.DavAiH3PreloadAwait)
     if (requested.strategy !== 'resident') warnings.push('DiT 预加载需要「保持常驻」；顺序加载照常生效。')
-    else if (!helperReady) warnings.push('未检测到 DiT 预加载辅助节点；在安装 Oyama 辅助节点并重启 ComfyUI 之前，常驻加载照常生效。')
+    else if (!helperReady) warnings.push('未检测到 DiT 预加载辅助节点；在安装 DavAi 辅助节点并重启 ComfyUI 之前，常驻加载照常生效。')
     else if (!diffusionDevice?.startsWith('gpu:') || !encoderDevice?.startsWith('gpu:') || diffusionDevice === encoderDevice) warnings.push('DiT 预加载要求扩散模型与文本编码器位于两块不同的 CUDA GPU 上；常驻加载照常生效。')
     else if (vramWarnings.length) warnings.push('当前常驻放置超出空闲显存估算，已放弃 DiT 预加载；常驻加载照常生效。')
-    else workflow.preloadDiffusion = { startNodeType: 'OyamaH3PreloadStart', awaitNodeType: 'OyamaH3PreloadAwait' }
+    else workflow.preloadDiffusion = { startNodeType: 'DavAiH3PreloadStart', awaitNodeType: 'DavAiH3PreloadAwait' }
   }
   const deviceName = (placement: RoutingPlacement) => placement.resolved === 'auto' ? '自动' : placement.resolved === 'cpu' ? 'CPU' : gpus[Number(placement.resolved.slice(4))]?.name ?? placement.resolved
   const summary = `H3: ${deviceName(placements.diffusion)} | VAE: ${deviceName(placements.videoVae)} | TE: ${deviceName(placements.textEncoder)}${requested.strategy === 'sequential' ? ' 顺序' : ''}${workflow.preloadDiffusion ? ' · 异步预加载' : ''} | Sol: Triton/Sol 节点 | Sage 回退：启动时设置 | ${requested.strategy === 'sequential' ? '顺序卸载' : requested.strategy === 'cpu-fallback' ? 'CPU 回退' : '保持常驻'}`

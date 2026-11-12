@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-echo Building Oyama for Windows and Linux. This can take several minutes.
+echo Building DavAi for Windows and Linux. This can take several minutes.
 call pnpm package:all
 set "BUILD_RESULT=%ERRORLEVEL%"
 if not "%BUILD_RESULT%"=="0" echo Build failed. Review the errors above and platform logs in release.

@@ -68,7 +68,7 @@
 
 | 行 | 断言值 | 处置 | 批次 |
 | --- | --- | --- | --- |
-| 95 | `includes('Oyama AI Video Studio')` | 保持（品牌名） | — |
+| 95 | `includes('DavAi Video Studio')` | 保持（品牌名） | — |
 | 98 | `'Browse workspaces'`、`'Offline · Set up'` | **已译**（浏览工作区、离线 · 去设置） | 批次 8 ✅ |
 | 100 | 按钮 `'Generate'` | **已译**（「生成」） | 批次 8 ✅ |
 | 103 | `'Live preview off'` | **已译**（「实时预览已关闭」） | 批次 8 ✅ |

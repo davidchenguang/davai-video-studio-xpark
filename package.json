@@ -1,5 +1,5 @@
 {
-  "name": "oyama-ai-video-studio",
+  "name": "davai-video-studio",
   "version": "1.0.0-alpha.72",
   "private": true,
   "description": "Local-first AI video studio powered by ComfyUI",
@@ -108,7 +108,7 @@
   },
   "build": {
     "appId": "com.james.oyamaaivideostudio",
-    "productName": "Oyama AI Video Studio",
+    "productName": "DavAi Video Studio",
     "asar": true,
     "directories": {
       "output": "release",
@@ -129,7 +129,7 @@
         }
       ],
       "icon": "build/icon.png",
-      "artifactName": "Oyama-AI-Video-Studio-Setup-${version}.${ext}"
+      "artifactName": "DavAi-Video-Studio-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": true,
@@ -137,7 +137,7 @@
       "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Oyama AI Video Studio",
+      "shortcutName": "DavAi Video Studio",
       "deleteAppDataOnUninstall": false
     },
     "linux": {
@@ -164,8 +164,8 @@
       "category": "Graphics",
       "maintainer": "James Knox <contact@jamesnox.com>",
       "synopsis": "Local-first AI filmmaking workstation",
-      "description": "Oyama AI Video Studio is a local-first AI filmmaking workstation powered by ComfyUI.",
-      "artifactName": "Oyama-AI-Video-Studio-${version}-linux-${arch}.${ext}"
+      "description": "DavAi Video Studio is a local-first AI filmmaking workstation powered by ComfyUI.",
+      "artifactName": "DavAi-Video-Studio-${version}-linux-${arch}.${ext}"
     },
     "mac": {
       "target": [
@@ -178,7 +178,7 @@
         }
       ],
       "category": "public.app-category.graphics-design",
-      "artifactName": "Oyama-AI-Video-Studio-${version}-mac-${arch}.${ext}"
+      "artifactName": "DavAi-Video-Studio-${version}-mac-${arch}.${ext}"
     }
   }
 }

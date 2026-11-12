@@ -211,12 +211,12 @@ export function installBrowserMock() {
     syncMobileCharacters: async (characters) => ({ synced: characters.length }),
     rotateLanToken: async () => ({ running: true, url: `${location.origin}/?mobile=1&token=browser-preview`, desktopUrl: `${location.origin}/?desktop=1&token=browser-preview`, port: Number(location.port) }),
     setWindowAlwaysOnTop: async (enabled) => enabled,
-    openStudio: async () => { if (window.opener && !window.opener.closed) window.opener.focus(); else window.open(location.pathname, 'oyama-studio') },
-    openMovieEditor: async () => { window.open(`${location.pathname}?movieEditor=1`, 'oyama-ai-movie', 'popup=yes,width=1440,height=920,resizable=yes') },
+    openStudio: async () => { if (window.opener && !window.opener.closed) window.opener.focus(); else window.open(location.pathname, 'davai-studio') },
+    openMovieEditor: async () => { window.open(`${location.pathname}?movieEditor=1`, 'davai-ai-movie', 'popup=yes,width=1440,height=920,resizable=yes') },
     exportVideo: async () => { throw new Error('视频导出需要桌面端应用。') },
     prepareContinuationSource: async (sources) => sources[0],
     prepareRippleChunkSource: async (source) => source,
-    assembleRippleChunks: async () => ({ path: 'C:/oyama-ui-e2e/ripple-long.mp4', name: 'ripple-long.mp4' }),
+    assembleRippleChunks: async () => ({ path: 'C:/davai-ui-e2e/ripple-long.mp4', name: 'ripple-long.mp4' }),
   }
   window.minimax = api
 }

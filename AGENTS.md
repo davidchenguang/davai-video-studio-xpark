@@ -1,4 +1,4 @@
-# Oyama AI Video Studio contributor guide
+# DavAi Video Studio contributor guide
 
 ## Scope and architecture
 

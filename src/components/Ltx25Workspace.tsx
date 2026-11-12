@@ -81,8 +81,8 @@ export function Ltx25Workspace({ settings, models, pipelineReady, missingNodes, 
   const set = <K extends keyof WorkspaceState>(key: K, value: WorkspaceState[K]) => setState((current) => ({ ...current, [key]: value }))
   useEffect(() => {
     const loadPrompt = (event: Event) => set('prompt', (event as CustomEvent<string>).detail)
-    window.addEventListener('oyama:load-ltx-prompt', loadPrompt)
-    return () => window.removeEventListener('oyama:load-ltx-prompt', loadPrompt)
+    window.addEventListener('davai:load-ltx-prompt', loadPrompt)
+    return () => window.removeEventListener('davai:load-ltx-prompt', loadPrompt)
   }, [])
   const requiredNodes = 13
   const modelReady = Boolean(models.diffusion && models.textEncoder && models.videoVae && models.audioVae && models.latentUpscaler && pipelineReady)

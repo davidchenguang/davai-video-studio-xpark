@@ -18,7 +18,7 @@ export function restoreLegacyLocalStorage(sourceProfile: string, destinationProf
   const suffix = randomUUID()
   const staged = join(destinationProfile, `.legacy-local-storage-stage-${suffix}`)
   const destination = join(destinationProfile, 'Local Storage')
-  const backup = join(destinationProfile, `Local Storage.oyama-before-restore-${suffix}`)
+  const backup = join(destinationProfile, `Local Storage.davai-before-restore-${suffix}`)
   let movedCurrent = false
   try {
     cpSync(source, staged, { recursive: true, filter: (path) => basename(path) !== 'LOCK' })

@@ -1,4 +1,4 @@
-# Oyama AI Video Studio
+# DavAi Video Studio
 
 > Legal notice: this application is an independent compatibility tool and is
 > not affiliated with, endorsed by, sponsored by, or connected to MiniMax.
@@ -6,7 +6,7 @@
 > models and services. Model weights and third-party components are not covered
 > by this repository's license; use them only under their own applicable terms.
 
-Oyama AI Video Studio is a local-first AI filmmaking workstation for ComfyUI. It brings MiniMax H3 video, LTX 2.5 video, Z-Image stills, ACE-Step music, reusable production assets, and local rendering into one desktop workspace. Models are indexed and used in place: the application never downloads, copies, or reorganizes your model files.
+DavAi Video Studio is a local-first AI filmmaking workstation for ComfyUI. It brings MiniMax H3 video, LTX 2.5 video, Z-Image stills, ACE-Step music, reusable production assets, and local rendering into one desktop workspace. Models are indexed and used in place: the application never downloads, copies, or reorganizes your model files.
 
 > **Privacy by default:** prompts, media, models, output, and optional prompt enhancement remain on your workstation. LAN sharing is opt-in and token-protected.
 
@@ -14,7 +14,7 @@ Oyama AI Video Studio is a local-first AI filmmaking workstation for ComfyUI. It
 
 1. Install **Node.js 20+** and **pnpm 10+**.
 2. Install and start a current local **ComfyUI** instance with the provider nodes you intend to use.
-3. Place the required model files in ComfyUI's model folders (or point Oyama AI Video Studio to your existing folders in **Settings → Model locations**).
+3. Place the required model files in ComfyUI's model folders (or point DavAi Video Studio to your existing folders in **Settings → Model locations**).
 4. Install and run the app:
 
    ```powershell
@@ -87,7 +87,7 @@ Both addresses, every model directory, and the ComfyUI output directory can be c
 
 ## Models and ComfyUI setup
 
-Oyama AI Video Studio indexes the folders configured in **Settings → Model locations**. The default root is `%USERPROFILE%\Documents\ComfyUI\models`; use the table below as the expected layout. Exact filenames are preferred, while compatible provider variants are detected where the UI says so.
+DavAi Video Studio indexes the folders configured in **Settings → Model locations**. The default root is `%USERPROFILE%\Documents\ComfyUI\models`; use the table below as the expected layout. Exact filenames are preferred, while compatible provider variants are detected where the UI says so.
 
 ### MiniMax H3 video (required for Video)
 
@@ -134,7 +134,7 @@ Either XL checkpoint is usable independently. ACE-Step additionally requires cur
 | `models/text_encoders` | `qwen_3_4b.safetensors` | `qwen_3_4b.safetensors` |
 | `models/vae` | `ae.safetensors` | `ae.safetensors` |
 
-Turbo is the fast 8-step option. Original Z-Image is the 40-step detail option. Oyama AI Video Studio discovers installed models through ComfyUI rather than copying files into its own folder; **Settings → Test connection** confirms that the needed Z-Image nodes are exposed.
+Turbo is the fast 8-step option. Original Z-Image is the 40-step detail option. DavAi Video Studio discovers installed models through ComfyUI rather than copying files into its own folder; **Settings → Test connection** confirms that the needed Z-Image nodes are exposed.
 
 ### Optional local AI and acceleration
 
@@ -168,9 +168,9 @@ pnpm build
 pnpm package:win
 ```
 
-For a packaged Windows build with an automatically incremented rolling build number, run `build.bat`. The patch component of the app version is the build number, and the installer is written to `release\Oyama-AI-Video-Studio-Setup-<version>.exe`.
+For a packaged Windows build with an automatically incremented rolling build number, run `build.bat`. The patch component of the app version is the build number, and the installer is written to `release\DavAi-Video-Studio-Setup-<version>.exe`.
 
-When upgrading from the previous MiniMax Studio build, the first Oyama launch automatically migrates the prior local profile (settings, saved intents, browser-backed projects, LAN pairing, and downloaded tools) into the Oyama app-data folder. Existing Oyama files are never overwritten.
+When upgrading from the previous MiniMax Studio build, the first DavAi launch automatically migrates the prior local profile (settings, saved intents, browser-backed projects, LAN pairing, and downloaded tools) into the DavAi app-data folder. Existing DavAi files are never overwritten.
 
 ### Linux
 
@@ -182,7 +182,7 @@ scripts\release-linux.bat
 pnpm package:linux
 ```
 
-This creates `release\Oyama-AI-Video-Studio-<version>-linux-x64.zip`. Build native Linux packages on a Linux machine or CI runner:
+This creates `release\DavAi-Video-Studio-<version>-linux-x64.zip`. Build native Linux packages on a Linux machine or CI runner:
 
 ```bash
 ./scripts/release-linux-deb.sh       # Debian / Ubuntu .deb (requires fpm)

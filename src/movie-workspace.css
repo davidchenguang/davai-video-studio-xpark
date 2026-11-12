@@ -60,8 +60,8 @@
   .movie-inspector-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 1050px), (max-height: 650px) {
-  .oyama-movie-window { overflow: auto; }
-  .oyama-movie-window > .movie-editor { height: auto; min-height: 100%; overflow: visible; grid-template-rows: auto auto auto auto; }
+  .davai-movie-window { overflow: auto; }
+  .davai-movie-window > .movie-editor { height: auto; min-height: 100%; overflow: visible; grid-template-rows: auto auto auto auto; }
   .movie-editor-standalone .movie-editor-workspace { grid-template-columns: minmax(170px, 230px) minmax(0, 1fr); }
   .movie-editor-standalone .movie-inspector { grid-column: 1 / -1; grid-row: auto; }
   .movie-editor-standalone .movie-program-stage { min-height: 230px; }
@@ -89,7 +89,7 @@
 .movie-integrated .movie-workspace-heading h1 { font-size: 13px; }
 .movie-integrated .movie-workspace-heading p { display: none; }
 .movie-integrated .movie-workspace-heading button { min-height: 26px; padding: 3px 8px; font-size: 10px; }
-.movie-integrated > .movie-desktop, .oyama-movie-window > .movie-desktop {
+.movie-integrated > .movie-desktop, .davai-movie-window > .movie-desktop {
   height: 100%; min-height: 0; padding: 6px; gap: 0; overflow: hidden;
   grid-template-rows: 32px minmax(130px, 1fr) 7px minmax(120px, min(var(--movie-timeline-height), 38%)) 30px;
 }

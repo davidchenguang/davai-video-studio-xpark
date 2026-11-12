@@ -335,7 +335,7 @@ ACE-Step 的调性下拉使用同一写法：`src/components/AceStepWorkspace.ts
 
 | 英文 | 中文 | 类别 | 备注 |
 | --- | --- | --- |---|
-| Oyama AI Video Studio | Oyama AI Video Studio | keep | 品牌名，`<title>` 与 manifest name 保留 |
+| DavAi Video Studio | DavAi Video Studio | keep | 品牌名，`<title>` 与 manifest name 保留 |
 | H3 | H3 | keep | |
 | MiniMax | MiniMax | keep | |
 | Ref2VA | Ref2VA | keep | |

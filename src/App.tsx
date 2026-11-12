@@ -2985,19 +2985,19 @@ function App() {
   if (!settings) {
     return bootError
       ? <main className="boot" role="alert"><AlertCircle /><h1>无法打开你的设置</h1><p>{bootError}</p><p>请确认本地设置文件夹可用后重试。</p><button type="button" className="primary-button" onClick={() => setBootAttempt(attempt => attempt + 1)}>重试打开工作室</button></main>
-      : <div className="boot" role="status" aria-live="polite"><LoaderCircle className="spin" /><span>正在打开 Oyama AI Video Studio…</span></div>
+      : <div className="boot" role="status" aria-live="polite"><LoaderCircle className="spin" /><span>正在打开 DavAi Video Studio…</span></div>
   }
 
   const runLegacyMigration = async () => {
     if (legacyMigrationRunning) return
     const replaceBrowserStorage = legacyMigration?.needsBrowserStorageRepair === true
-    if (replaceBrowserStorage && !window.confirm('恢复之前的 MiniMax Studio 项目、角色与工作区状态吗？这会替换 Oyama 当前的浏览器端工作区数据。设置与输出文件不会被移除。之后需要重启 Oyama。')) return
+    if (replaceBrowserStorage && !window.confirm('恢复之前的 MiniMax Studio 项目、角色与工作区状态吗？这会替换 DavAi 当前的浏览器端工作区数据。设置与输出文件不会被移除。之后需要重启 DavAi。')) return
     setLegacyMigrationRunning(true)
     try {
       const result = await window.minimax.migrateLegacyData(replaceBrowserStorage)
       setLegacyMigration(result)
       setNotice(result.migrated
-        ? { tone: 'success', text: '之前的 Studio 数据已安全导入。重启 Oyama 以载入新导入的浏览器端项目与工作区状态。' }
+        ? { tone: 'success', text: '之前的 Studio 数据已安全导入。重启 DavAi 以载入新导入的浏览器端项目与工作区状态。' }
         : { tone: 'neutral', text: '没有找到可导入的 MiniMax Studio 旧档案。' })
     } catch (error) {
       setNotice({ tone: 'error', text: `无法导入之前的 Studio 数据：${error instanceof Error ? error.message : String(error)}` })
@@ -3020,8 +3020,8 @@ function App() {
   const sendScratchpadPrompt = (target: ScratchpadTarget, authored: string, compiled: string) => {
     if (target === 'h3') { setPrompt(authored); setActiveJobId(null); setView('create') }
     else if (target === 'image') { window.dispatchEvent(new CustomEvent('minimax:load-image-prompt', { detail: compiled })); setView('zimage') }
-    else if (target === 'ltx25') { setView('ltx25'); window.setTimeout(() => window.dispatchEvent(new CustomEvent('oyama:load-ltx-prompt', { detail: compiled })), 0) }
-    else { setMusicEngine('acestep'); setView('music'); window.setTimeout(() => window.dispatchEvent(new CustomEvent('oyama:load-music-prompt', { detail: compiled })), 0) }
+    else if (target === 'ltx25') { setView('ltx25'); window.setTimeout(() => window.dispatchEvent(new CustomEvent('davai:load-ltx-prompt', { detail: compiled })), 0) }
+    else { setMusicEngine('acestep'); setView('music'); window.setTimeout(() => window.dispatchEvent(new CustomEvent('davai:load-music-prompt', { detail: compiled })), 0) }
     setNotice({ tone: 'success', text: `草稿本提示词已发送到${target === 'h3' ? ' MiniMax H3' : target === 'ltx25' ? ' LTX 2.5' : target === 'image' ? ' 生成图片' : ' ACE-Step'}。` })
   }
   return (
@@ -3029,7 +3029,7 @@ function App() {
       <header className="titlebar" aria-label="应用标题栏">
         {view !== 'create' && <StudioTopBar view={view} musicEngine={musicEngine} projectName={workspaceProjects.find(project => project.id === activeWorkspaceProjectId && project.scope === workspaceProjectScope(view, musicEngine))?.name ?? '当前工作区'} connected={status.connected} onOpenProjects={() => setProjectManagerOpen(true)} onFindSettings={openWorkspaceSearch} onOpenSettings={() => setView('settings')} onOpenCompare={() => setCompareOpen(true)} compareOpen={compareOpen} />}
         <button className="titlebar-mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="打开工作区菜单"><Menu size={18} /></button>
-        <div className="titlebar-brand"><span className="brand-mark"><Film size={18} /></span><span><strong>Oyama AI Video Studio</strong><small>创作&nbsp;&nbsp;•&nbsp;&nbsp;可视化&nbsp;&nbsp;•&nbsp;&nbsp;讲故事</small></span></div>
+        <div className="titlebar-brand"><span className="brand-mark"><Film size={18} /></span><span><strong>DavAi Video Studio</strong><small>创作&nbsp;&nbsp;•&nbsp;&nbsp;可视化&nbsp;&nbsp;•&nbsp;&nbsp;讲故事</small></span></div>
         <button className="titlebar-search" type="button" onClick={openWorkspaceSearch} title={`在${workspaceTips[view].title}中搜索设置`} aria-haspopup="dialog" aria-expanded={workspaceSearchOpen} aria-keyshortcuts="Control+F Meta+F"><Search size={15} /><span>在{workspaceTips[view].title}中查找设置…</span><kbd>Ctrl-F</kbd></button>
         {view === 'create' && <div className="titlebar-mode-widget" role="tablist" aria-label="视频输入模式">{modeInfo.map((item) => <button key={item.id} type="button" role="tab" aria-selected={mode === item.id} className={mode === item.id ? 'selected' : ''} title={`${item.label} · ${item.note}`} onClick={() => setMode(item.id)}><item.icon size={15} /><span>{item.label}</span></button>)}</div>}
         <div className="titlebar-drag" />
@@ -3042,7 +3042,7 @@ function App() {
         {(view === 'create' || view === 'ltx25' || view === 'ltxripple' || view === 'zimage') && <button className="titlebar-action titlebar-reset" onClick={resetCurrentWorkspace} title={view === 'create' ? '清空 H3 提示词与素材；保留渲染设置' : '重置此工作区的提示词、选项、媒体、选中项与当前预览'}><RotateCcw size={14} />{view === 'create' ? '清空提示词与素材' : '重置工作区'}</button>}
         {workspaceProjectScope(view, musicEngine) && <button className="titlebar-action titlebar-projects" onClick={() => setProjectManagerOpen(true)} title="保存、打开并管理完整的工作区项目"><FolderOpen size={14} /><span>项目：当前工作区</span><ChevronDown size={13} /></button>}
         <button className="titlebar-action titlebar-help" onClick={() => setHelpOpen(true)} title="显示此工作区的提示" aria-label="显示工作区提示"><HelpCircle size={15} />提示</button>
-        <button className="titlebar-action" onClick={() => { setLanOpen(true); void window.minimax.getLanStatus().then(setLanStatus) }} title="在局域网内共享 Oyama AI Video Studio"><QrCode size={14} />局域网</button>
+        <button className="titlebar-action" onClick={() => { setLanOpen(true); void window.minimax.getLanStatus().then(setLanStatus) }} title="在局域网内共享 DavAi Video Studio"><QrCode size={14} />局域网</button>
       </header>
 
       {failedKeys.length > 0 && <section className="storage-failure" role="alert"><strong>部分更改尚未保存</strong><p>本地存储已满或不可用。保持此窗口打开以保留当前工作，释放存储空间后重试。</p><button type="button" className="secondary-button" onClick={retryLocalSave}>重试保存</button></section>}
@@ -3067,7 +3067,7 @@ function App() {
       <WorkspaceSidebar view={view} musicEngine={musicEngine} open={sidebarOpen} connected={status.connected} modelReady={modelReady} modelCount={models.length} pendingCount={pendingJobs.length} workspaceName={workspaceLabel(view, musicEngine)} projectName={workspaceProjects.find(project => project.id === activeWorkspaceProjectId && project.scope === workspaceProjectScope(view, musicEngine))?.name ?? '当前工作区'} onToggle={() => setSidebarOpen(value => !value)} onClose={() => setSidebarOpen(false)} onBrowse={() => setNavigatorOpen(true)} onNavigate={(next, engine) => { if (engine) setMusicEngine(engine); setView(next) }} onVideo={() => { setCharacterHandoff(null); setView('create') }} />
 
       <main className="main-area" ref={mainAreaRef} aria-label={workspaceLabel(view, musicEngine)}>
-        {!legacyMigrationDismissed && legacyMigration && (legacyMigration.available || legacyMigration.migrated) && <section className="legacy-migration-banner" aria-label="之前的 Studio 数据迁移"><div><strong>{legacyMigration.needsBrowserStorageRepair ? '恢复你之前的 Studio 项目与角色' : legacyMigration.migrated ? '之前的 Studio 数据已在 Oyama 中就绪' : '把你之前的 Studio 数据带入 Oyama'}</strong><span>{legacyMigration.needsBrowserStorageRepair ? '设置已导入，但本地角色、项目与工作区状态需要一次修复导入。请打开设置恢复它们。' : legacyMigration.migrated ? '你之前的本地档案已安全复制。如果需要恢复之后新增的文件，可以在设置中重新运行导入。' : '在不替换 Oyama 文件的前提下导入设置、已保存的意图、本地项目、局域网配对与下载的工具。'}</span></div><div className="legacy-migration-banner-actions"><button type="button" className="secondary-button" onClick={() => setView('settings')}>打开设置</button><button type="button" className="icon-button" onClick={dismissLegacyMigrationBanner} aria-label="忽略之前 Studio 迁移提醒" title="忽略"><X size={16} /></button></div></section>}
+        {!legacyMigrationDismissed && legacyMigration && (legacyMigration.available || legacyMigration.migrated) && <section className="legacy-migration-banner" aria-label="之前的 Studio 数据迁移"><div><strong>{legacyMigration.needsBrowserStorageRepair ? '恢复你之前的 Studio 项目与角色' : legacyMigration.migrated ? '之前的 Studio 数据已在 DavAi 中就绪' : '把你之前的 Studio 数据带入 DavAi'}</strong><span>{legacyMigration.needsBrowserStorageRepair ? '设置已导入，但本地角色、项目与工作区状态需要一次修复导入。请打开设置恢复它们。' : legacyMigration.migrated ? '你之前的本地档案已安全复制。如果需要恢复之后新增的文件，可以在设置中重新运行导入。' : '在不替换 DavAi 文件的前提下导入设置、已保存的意图、本地项目、局域网配对与下载的工具。'}</span></div><div className="legacy-migration-banner-actions"><button type="button" className="secondary-button" onClick={() => setView('settings')}>打开设置</button><button type="button" className="icon-button" onClick={dismissLegacyMigrationBanner} aria-label="忽略之前 Studio 迁移提醒" title="忽略"><X size={16} /></button></div></section>}
         {notice && <Notice tone={notice.tone} text={notice.text} onClose={() => setNotice(null)} />}
         <fieldset className="video-workspace-host" disabled={continuationPreparing} hidden={view !== 'create'} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>{continuationPreparing && <p role="status">正在准备续接。节拍入队后视频控件会恢复。</p>}
           <VideoWorkspaceShell onOpenNavigator={() => setNavigatorOpen(true)} key={`create-${createResetKey}`} sceneState={sceneState} setSceneState={setSceneState} onAnalyzeReference={path => analyzeSceneReference(settings, path)}
@@ -3318,9 +3318,9 @@ function App() {
         }} />}
         {view === 'queue' && <JobsView title="队列" note="运行中与最近的本地生成" jobs={jobs} empty="还没有生成任务入队。" cancellingIds={cancellingIds} onCancel={cancelJob} onRemove={removeJobFromHistory} />}
         <div hidden={view !== 'continue'}><ContinueWorkspace openRequest={continuationOpenRequest} jobs={jobs} connected={status.connected} liveConnected={live.connected} motionReady={continuationNodesReady} assemblyReady={continuationAssemblyReady} missingNodes={missingContinuationNodes} livePreview={live.preview} cancellingIds={cancellingIds} onChooseVideo={async () => { const picked = await window.minimax.chooseMedia('video'); return picked ? { ...picked, kind: 'video', preview: await window.minimax.mediaUrl(picked.path) } : null }} onChooseImage={async () => { const picked = await window.minimax.chooseMedia('image'); return picked ? { ...picked, kind: 'image', preview: await window.minimax.mediaUrl(picked.path) } : null }} onGenerate={generateContinuationBeat} onCancel={cancelJob} onResetSource={() => setContinuationOpenRequest(current => ({ ...current, sourceId: null }))} onEditSourcePrompt={editContinuationSourcePrompt} /></div>
-        {(view === 'movie' || (view === 'clipmaster' && clipMasterFromMovie)) && <div className="movie-integrated" hidden={view !== 'movie'}><div className="movie-workspace-heading"><div><h1>Oyama AI 影片剪辑</h1><p>组装渲染成果、精修片段，并把帧发送到 H3 或 LTX。</p></div><button className="secondary-button" onClick={() => void window.minimax.openMovieEditor()}><ExternalLink size={15} />打开独立窗口</button></div><MovieEditor settings={settings} jobs={jobs} onCreate={(kind) => setView(kind === 'music' ? 'music' : 'ltx25')} onNotice={(tone, text) => setNotice({ tone, text })} onOpenClipMaster={clip => { setClipMasterClip(clip); setClipMasterFromMovie(true); setView('clipmaster') }} onUseFrame={receiveMovieFrame} /></div>}
+        {(view === 'movie' || (view === 'clipmaster' && clipMasterFromMovie)) && <div className="movie-integrated" hidden={view !== 'movie'}><div className="movie-workspace-heading"><div><h1>DavAi 影片剪辑</h1><p>组装渲染成果、精修片段，并把帧发送到 H3 或 LTX。</p></div><button className="secondary-button" onClick={() => void window.minimax.openMovieEditor()}><ExternalLink size={15} />打开独立窗口</button></div><MovieEditor settings={settings} jobs={jobs} onCreate={(kind) => setView(kind === 'music' ? 'music' : 'ltx25')} onNotice={(tone, text) => setNotice({ tone, text })} onOpenClipMaster={clip => { setClipMasterClip(clip); setClipMasterFromMovie(true); setView('clipmaster') }} onUseFrame={receiveMovieFrame} /></div>}
         {view === 'library'  && <LibraryView jobs={jobs.filter((job) => job.status === 'completed')} settings={settings} onEdit={() => setView('movie')} onCreate={() => setView('create')} onUseLtx={loadStartFrameInLtx} onUseLastFrameReference={addVideoLastFrameAsReference} onNotice={(tone, text) => setNotice({ tone, text })} />}
-        {view === 'clipmaster' && <ClipMasterBeta onUseFrame={receiveMovieFrame} clip={clipMasterClip ?? undefined} jobs={jobs} settings={settings} onClose={() => { setClipMasterClip(null); setView(clipMasterFromMovie ? 'movie' : 'library') }} onNotice={(tone, text) => setNotice({ tone, text })} onExportClip={clipMasterFromMovie ? clip => window.dispatchEvent(new CustomEvent('oyama-movie-add-media', { detail: clip })) : undefined} />}
+        {view === 'clipmaster' && <ClipMasterBeta onUseFrame={receiveMovieFrame} clip={clipMasterClip ?? undefined} jobs={jobs} settings={settings} onClose={() => { setClipMasterClip(null); setView(clipMasterFromMovie ? 'movie' : 'library') }} onNotice={(tone, text) => setNotice({ tone, text })} onExportClip={clipMasterFromMovie ? clip => window.dispatchEvent(new CustomEvent('davai-movie-add-media', { detail: clip })) : undefined} />}
         {view === 'settings' && <SettingsView settings={settings} setSettings={setSettings} info={info} models={models} jobs={jobs} gpu={gpu} h3Report={h3Report} scanning={scanning} status={status} checking={checking} diagnosticRunning={diagnosticRunning} benchmarkRunning={benchmarkRunning} benchmarkConfig={benchmarkConfig} setBenchmarkConfig={setBenchmarkConfig} benchmarkResults={benchmarkResults} ollamaModels={ollamaModels} localLlmStatus={localLlmStatus} localLlmChecking={localLlmChecking} legacyMigration={legacyMigration} legacyMigrationRunning={legacyMigrationRunning} onRefreshOllama={() => void refreshOllama(settings, true)} onScan={() => void scanModels(settings)} onCheck={() => void checkConnection(settings.comfyUrl)} onSave={() => void saveAppSettings()} onApplyDefaults={applyGenerationDefaults} onRunDiagnostics={() => void runH3Diagnostics()} onRunBenchmark={() => void runH3Benchmark()} onRunLegacyMigration={() => void runLegacyMigration()} onFactoryReset={() => void factoryResetWorkspace()} />}
       </main>
       <footer className="status-bar" aria-label="应用状态栏">
@@ -3364,10 +3364,10 @@ function LanCompanionDialog({ status, qr, onRotate, onClose }: { status: LanStat
         <div className="lan-instructions"><span className="lan-ready"><Check size={15} />局域网服务器已就绪</span><h2>在另一台设备上打开</h2><p>在连接到同一可信 Wi-Fi 或局域网的手机、平板或电脑上扫描你想使用的体验。</p></div>
         <div className="lan-share-grid">
           <article className="lan-share-card"><div className="lan-qr">{qr.mobile ? <img src={qr.mobile} alt="触控优先移动版 MiniMax 工作区的二维码" /> : <LoaderCircle className="spin" aria-label="正在准备移动版二维码" />}</div><div><strong>触控优先的移动创作</strong><small>在手机上快速创建并监视镜头。</small><label>移动端地址<input readOnly value={status.url} onFocus={(event) => event.currentTarget.select()} /></label></div></article>
-          <article className="lan-share-card"><div className="lan-qr">{qr.desktop ? <img src={qr.desktop} alt="完整 Oyama AI Video Studio 界面的二维码" /> : <LoaderCircle className="spin" aria-label="正在准备工作室二维码" />}</div><div><strong>完整工作室界面</strong><small>面向桌面与平板编辑制作的全功能工作区。</small><label>工作室地址<input readOnly value={desktopUrl} onFocus={(event) => event.currentTarget.select()} /></label></div></article>
+          <article className="lan-share-card"><div className="lan-qr">{qr.desktop ? <img src={qr.desktop} alt="完整 DavAi Video Studio 界面的二维码" /> : <LoaderCircle className="spin" aria-label="正在准备工作室二维码" />}</div><div><strong>完整工作室界面</strong><small>面向桌面与平板编辑制作的全功能工作区。</small><label>工作室地址<input readOnly value={desktopUrl} onFocus={(event) => event.currentTarget.select()} /></label></div></article>
         </div>
         <small className="lan-security-note">完整工作室视图共享界面与浏览器本地项目状态。硬件生成与本地文件访问仍由经过鉴权的局域网服务保护。首次使用时 Windows 防火墙可能会请求允许专用网络访问。</small>
-      </div> : <div className="lan-dialog-error"><AlertCircle size={22} /><span><strong>移动服务器不可用</strong><p>{status.error ?? '请重启 Oyama AI Video Studio，然后重试。'}</p></span></div>}
+      </div> : <div className="lan-dialog-error"><AlertCircle size={22} /><span><strong>移动服务器不可用</strong><p>{status.error ?? '请重启 DavAi Video Studio，然后重试。'}</p></span></div>}
       <footer><button className="secondary-button" disabled={rotating || !status.running} title="使之前扫描的移动端链接失效" onClick={async () => { if (!window.confirm('轮换移动端访问链接？之前扫描过的链接将立即失效。')) return; setRotating(true); try { await onRotate() } finally { setRotating(false) } }}><RotateCcw size={14} />{rotating ? '正在轮换…' : '轮换访问链接'}</button><button className="primary-button" onClick={onClose}>完成</button></footer>
     </section>
   </div>
@@ -3641,7 +3641,7 @@ function VideoWorkspaceShell(props: VideoShellProps) {
     props.setTurbo8Profile('balanced'); props.setSampler('res_multistep'); props.setScheduler('simple')
     props.setSigmaShiftMode('model'); props.setLoraStrength(1)
   }
-  const detach = () => { if (popoutRef.current && !popoutRef.current.closed) { popoutRef.current.focus(); return } const popup = window.open('', 'oyama-video-preview', 'popup=yes,width=1080,height=720,resizable=yes'); if (!popup) return; popup.document.title = 'Oyama · 预览'; document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => popup.document.head.appendChild(node.cloneNode(true))); const root = popup.document.createElement('main'); popup.document.body.appendChild(root); popoutRef.current = popup; setPreviewPopoutRoot(root); popup.addEventListener('beforeunload', () => { popoutRef.current = null; setPreviewPopoutRoot(null) }, { once: true }) }
+  const detach = () => { if (popoutRef.current && !popoutRef.current.closed) { popoutRef.current.focus(); return } const popup = window.open('', 'davai-video-preview', 'popup=yes,width=1080,height=720,resizable=yes'); if (!popup) return; popup.document.title = 'DavAi · 预览'; document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => popup.document.head.appendChild(node.cloneNode(true))); const root = popup.document.createElement('main'); popup.document.body.appendChild(root); popoutRef.current = popup; setPreviewPopoutRoot(root); popup.addEventListener('beforeunload', () => { popoutRef.current = null; setPreviewPopoutRoot(null) }, { once: true }) }
   useEffect(() => () => popoutRef.current?.close(), [])
   const assetRail = <AssetRail props={props} onSelect={file => { setRailAsset(file); const ref = boundScene.references.find(item => item.file.path === file.path); setSelection(ref ? { kind: 'reference', id: ref.id } : { kind: 'scene' }); setActiveSection('settings') }} />
   return <div className="video-workspace-shell">
@@ -3782,9 +3782,9 @@ export function LegacyCreateView(props: CreateViewProps) {
   useEffect(() => () => { previewPopoutRef.current?.close() }, [])
   const detachPreview = () => {
     if (previewPopoutRef.current && !previewPopoutRef.current.closed) { previewPopoutRef.current.focus(); return }
-    const popup = window.open('', 'oyama-ai-video-studio-preview', 'popup=yes,width=1080,height=720,resizable=yes')
+    const popup = window.open('', 'davai-video-studio-preview', 'popup=yes,width=1080,height=720,resizable=yes')
     if (!popup) return
-    popup.document.title = 'Oyama AI Video Studio · 预览监视器'
+    popup.document.title = 'DavAi Video Studio · 预览监视器'
     popup.document.documentElement.className = 'preview-popout-document'
     popup.document.head.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => node.remove())
     document.querySelectorAll<HTMLLinkElement | HTMLStyleElement>('link[rel="stylesheet"], style').forEach((node) => {
@@ -4031,7 +4031,7 @@ function DetachedPreviewMonitor({ job, livePreview, liveEnabled, blurSensitive }
   const isLive = Boolean(isRenderingVideo && liveEnabled && livePreview && livePreview.promptId === job?.promptId)
   const sensitive = Boolean(job && blurSensitive && hasSensitivePreviewWording(job.prompt))
   return <section className="detached-preview-monitor" aria-label="分离的预览监视器">
-    <header><span><small>OYAMA AI VIDEO STUDIO</small><strong>预览监视器</strong></span>{isRenderingVideo && job && <StatusBadge status={job.status} />}</header>
+    <header><span><small>DAVAI VIDEO STUDIO</small><strong>预览监视器</strong></span>{isRenderingVideo && job && <StatusBadge status={job.status} />}</header>
     <main>
       {isLive && livePreview && <figure className={`live-preview detached-live-preview ${livePreview.animated ? 'animated' : ''} ${sensitive ? 'sensitive-preview' : ''}`} tabIndex={sensitive ? 0 : undefined}>
         {livePreview.mime === 'video/mp4' ? <video key={livePreview.url} src={livePreview.url} aria-label="MiniMax H3 动态生成预览" autoPlay loop muted playsInline /> : <img key={livePreview.url} src={livePreview.url} alt={livePreview.animated ? 'MiniMax H3 动态生成预览' : '实时生成预览'} />}

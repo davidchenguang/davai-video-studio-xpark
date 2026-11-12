@@ -127,7 +127,7 @@ export function FrameBookmarkStudio({ initialVideo, videos, settings, onClose, o
         const index = pending.findIndex((bookmark) => bookmark.id === item.id)
         return index >= 0 && frames[index] ? { ...item, frame: frames[index] } : item
       }) }))
-      onNotice('success', `${frames.length} 张书签帧已保存到 Oyama AI Video Studio Frames。`)
+      onNotice('success', `${frames.length} 张书签帧已保存到 DavAi Video Studio Frames。`)
     } catch (error) { onNotice('error', error instanceof Error ? error.message : String(error)) }
     finally { setBusy(null) }
   }
@@ -155,7 +155,7 @@ export function FrameBookmarkStudio({ initialVideo, videos, settings, onClose, o
         </div>
         <section className="saved-frame-library"><header><span><strong>已保存的起始帧</strong><small>全部书签片段共 {savedFrames.length} 张可复用静帧</small></span><button className="secondary-button" onClick={() => void window.minimax.showOutput(settings.outputDirectory)}><FolderOpen size={14} />打开输出文件夹</button></header>{savedFrames.length === 0 ? <div className="saved-frame-empty"><ImageIcon size={20} /><span>提取一个书签，把它加入这个可复用帧架。</span></div> : <div>{savedFrames.map(({ project, bookmark, frame }) => <article key={`${project.id}-${bookmark.id}`}><img src={frame.preview} alt={`${bookmark.label}，来自 ${project.name}`} /><div><strong title={bookmark.label}>{bookmark.label}</strong><small title={project.name}>{project.name} · {timecode(bookmark.time)}</small></div><button onClick={() => onUseLtx(frame)}><ImageIcon size={14} />用于 LTX 2.5</button></article>)}</div>}</section>
       </div>
-      <footer><span><Check size={14} />即使移除书签，提取的 PNG 文件仍会保留在 Oyama AI Video Studio Frames 文件夹中。</span><button className="secondary-button" onClick={onClose}>完成</button></footer>
+      <footer><span><Check size={14} />即使移除书签，提取的 PNG 文件仍会保留在 DavAi Video Studio Frames 文件夹中。</span><button className="secondary-button" onClick={onClose}>完成</button></footer>
     </section>
   </div>
 }

@@ -22,7 +22,7 @@ document.documentElement.classList.toggle('movie-editor-route', movieEditor)
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <Suspense fallback={<main className="oyama-movie-loading" role="status">正在打开工作区…</main>}>
+      <Suspense fallback={<main className="davai-movie-loading" role="status">正在打开工作区…</main>}>
         {movieEditor ? <MovieEditorWindow /> : mobile ? <MobileApp /> : <App />}
       </Suspense>
     </ErrorBoundary>

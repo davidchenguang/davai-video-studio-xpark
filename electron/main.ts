@@ -314,36 +314,60 @@ function legacyMigrationMarkerPath() {
   return join(app.getPath('userData'), 'migrated-from-minimax-studio-v1.json')
 }
 
+/** Pre-rename profile directories: the DavAi rename changed Electron's app-data path again. */
+function rebrandUserDataPaths() {
+  const appData = app.getPath('appData')
+  const current = normalize(app.getPath('userData')).toLowerCase()
+  return ['Oyama AI Video Studio', 'oyama-ai-video-studio']
+    .map((name) => join(appData, name))
+    .filter((path) => normalize(path).toLowerCase() !== current)
+}
+
+function rebrandMigrationMarkerPath() {
+  return join(app.getPath('userData'), 'migrated-from-oyama-rebrand-v1.json')
+}
+
 function pendingBrowserStorageMigrationPath() {
   return join(app.getPath('userData'), 'pending-minimax-browser-storage-migration-v1.json')
 }
 
 /**
- * The rename changes Electron's app-data directory.  Carry the complete old
+ * A rename changes Electron's app-data directory.  Carry the complete old
  * profile forward once so settings, intents, local projects, media references,
  * LAN pairing, and downloaded tools all stay available after the upgrade.
  */
 const legacyBrowserStateEntries = new Set(['Local Storage', 'IndexedDB', 'Session Storage', 'SharedStorage', 'Preferences'])
 
-async function migrateLegacyUserData(options: { force?: boolean; browserStorageRestored?: boolean; browserStorageBackupPath?: string } = {}) {
-  if (!options.force && existsSync(legacyMigrationMarkerPath())) return
-  const legacy = legacyUserDataPaths().find((path) => existsSync(path))
-  if (!legacy) return
+async function migrateUserDataProfile(legacyCandidates: string[], markerPath: string, options: { force?: boolean; browserStorageRestored?: boolean; browserStorageBackupPath?: string; includeBrowserState?: boolean } = {}): Promise<boolean> {
+  if (!options.force && existsSync(markerPath)) return false
+  const legacy = legacyCandidates.find((path) => existsSync(path))
+  if (!legacy) return false
 
   const destination = app.getPath('userData')
   await mkdir(destination, { recursive: true })
-  // Never replace data created by the Oyama build: this makes the migration
-  // safe to retry and preserves any changes made after the rename.
-  // Chromium storage is handled as one directory before session startup.
-  await cp(legacy, destination, { recursive: true, force: false, errorOnExist: false, filter: (path) => basename(path) !== 'LOCK' && !legacyBrowserStateEntries.has(basename(path)) })
+  // Never replace data written by earlier runs of this app: this makes the
+  // migration safe to retry and preserves any changes made after it.
+  // Chromium's Local Storage is handled as one directory before session startup.
+  await cp(legacy, destination, { recursive: true, force: false, errorOnExist: false, filter: (path) => basename(path) !== 'LOCK' && basename(path) !== 'Local Storage' && !(options.includeBrowserState !== true && legacyBrowserStateEntries.has(basename(path))) })
   let browserStorageMigrated = options.browserStorageRestored === true || !existsSync(join(legacy, 'Local Storage'))
   let browserStorageBackupPath = options.browserStorageBackupPath
   try {
-    const marker = JSON.parse(await readFile(legacyMigrationMarkerPath(), 'utf8')) as { browserStorageMigrated?: unknown; browserStorageBackupPath?: unknown }
+    const marker = JSON.parse(await readFile(markerPath, 'utf8')) as { browserStorageMigrated?: unknown; browserStorageBackupPath?: unknown }
     browserStorageMigrated ||= marker.browserStorageMigrated === true
     if (!browserStorageBackupPath && typeof marker.browserStorageBackupPath === 'string') browserStorageBackupPath = marker.browserStorageBackupPath
   } catch { /* First import has no marker yet. */ }
-  await writeAtomicFile(legacyMigrationMarkerPath(), `${JSON.stringify({ source: legacy, migratedAt: new Date().toISOString(), browserStorageMigrated, browserStorageBackupPath }, null, 2)}\n`)
+  await writeAtomicFile(markerPath, `${JSON.stringify({ source: legacy, migratedAt: new Date().toISOString(), browserStorageMigrated, browserStorageBackupPath }, null, 2)}\n`)
+  return true
+}
+
+async function migrateLegacyUserData(options: { force?: boolean; browserStorageRestored?: boolean; browserStorageBackupPath?: string } = {}) {
+  // The pre-rename Oyama profile is strictly newer than the MiniMax sources,
+  // so import it first — Chromium browser state included, because it is the
+  // same app's storage under a renamed directory — and skip the older
+  // MiniMax sources entirely whenever it is present.
+  const rebranded = await migrateUserDataProfile(rebrandUserDataPaths(), rebrandMigrationMarkerPath(), { ...options, includeBrowserState: true })
+  if (rebranded) return
+  await migrateUserDataProfile(legacyUserDataPaths(), legacyMigrationMarkerPath(), options)
 }
 
 function isJsonObject(value: string) {
@@ -849,7 +873,7 @@ async function fitVideoForComfyUpload(source: string, limit: number, ffmpegPath:
   const metadata = await probeClipVideoMetadata(source, ffmpegPath)
   const bitrate = Math.floor((budget * 8 / metadata.duration * 0.82 - 160_000) / 1000)
   if (bitrate < 250) throw new Error('该视频对于 ComfyUI 的上传限制来说过长。请改用更短的素材，或调大 ComfyUI 的 --max-upload-size 设置。')
-  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'oyama-comfy-upload-'))
+  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'davai-comfy-upload-'))
   const output = join(temporaryDirectory, `source-${randomUUID()}-24fps.mp4`)
   try {
     for (const factor of [1, 0.7, 0.5]) {
@@ -876,7 +900,7 @@ async function fitVideoForComfyUpload(source: string, limit: number, ffmpegPath:
 async function uploadFileToComfy(url: string, source: string, subfolder: string, limit: number) {
   const name = basename(source).replace(/["\r\n\\]/g, '_')
   const safeSubfolder = subfolder.replace(/[\r\n]/g, '')
-  const boundary = `oyama-${randomUUID()}`
+  const boundary = `davai-${randomUUID()}`
   const prefix = Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`)
   const suffix = Buffer.from(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="type"\r\n\r\ninput\r\n--${boundary}\r\nContent-Disposition: form-data; name="subfolder"\r\n\r\n${safeSubfolder}\r\n--${boundary}\r\nContent-Disposition: form-data; name="overwrite"\r\n\r\ntrue\r\n--${boundary}--\r\n`)
   const length = (await stat(source)).size + prefix.length + suffix.length
@@ -978,7 +1002,7 @@ function createMovieEditorWindow() {
   nativeTheme.themeSource = 'dark'
   const window = new BrowserWindow({
     width: 1480, height: 940, minWidth: 980, minHeight: 680,
-    backgroundColor: '#171719', title: 'Oyama AI 影片剪辑',
+    backgroundColor: '#171719', title: 'DavAi 影片剪辑',
     autoHideMenuBar: true,
     webPreferences: { preload: join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   })
@@ -1013,7 +1037,7 @@ function createWindow() {
   void loadSettings().then((settings) => window.webContents.setZoomFactor(settings.uiScale / 100))
   window.webContents.setWindowOpenHandler(({ url, frameName }) => {
     if (url !== 'about:blank') return { action: 'deny' }
-    const isPreviewMonitor = frameName === 'oyama-ai-video-studio-preview' || frameName === 'oyama-continuation'
+    const isPreviewMonitor = frameName === 'davai-video-studio-preview' || frameName === 'davai-continuation'
     return {
       action: 'allow',
       overrideBrowserWindowOptions: {
@@ -1045,8 +1069,10 @@ function createWindow() {
 // The repair must run before Chromium initializes its LevelDB session. A failed
 // swap leaves the pending marker and the original storage in place.
 const repairRequestedAtLaunch = existsSync(pendingBrowserStorageMigrationPath())
-const legacyProfileAtLaunch = legacyUserDataPaths().find((path) => existsSync(path))
-const initialLegacyImport = !existsSync(legacyMigrationMarkerPath()) && !existsSync(settingsPath())
+// The pre-rename Oyama profile wins over the older MiniMax sources: its Local
+// Storage is the newest copy of the same app's workspace state.
+const legacyProfileAtLaunch = rebrandUserDataPaths().find((path) => existsSync(path)) ?? legacyUserDataPaths().find((path) => existsSync(path))
+const initialLegacyImport = !existsSync(legacyMigrationMarkerPath()) && !existsSync(rebrandMigrationMarkerPath()) && !existsSync(settingsPath())
 let browserStorageRestoredAtLaunch = false
 let browserStorageBackupPathAtLaunch: string | undefined
 let browserStorageRestoreError: string | undefined
@@ -1066,6 +1092,7 @@ app.whenReady().then(async () => {
     await saveSettings(defaultSettings())
     await saveLanToken(randomUUID().replace(/-/g, ''))
     await writeAtomicFile(legacyMigrationMarkerPath(), JSON.stringify({ factoryReset: true, browserStorageMigrated: true }))
+    await writeAtomicFile(rebrandMigrationMarkerPath(), JSON.stringify({ factoryReset: true, browserStorageMigrated: true }))
     if (existsSync(pendingBrowserStorageMigrationPath())) await unlink(pendingBrowserStorageMigrationPath())
     await unlink(factoryResetMarkerPath())
   }
@@ -1518,7 +1545,7 @@ app.whenReady().then(async () => {
       images.push({ base64: bytes.toString('base64'), mime })
     }
     const path = provider === 'lmstudio' ? lmStudioPath(url, '/chat/completions') : '/api/chat'
-    const payload = provider === 'lmstudio' ? { model, messages: [{ role: 'user', content: images.length ? [{ type: 'text', text: prompt }, ...images.map((image) => ({ type: 'image_url', image_url: { url: `data:${image.mime};base64,${image.base64}` } }))] : prompt }], stream: Boolean(requestId), response_format: { type: 'json_schema', json_schema: { name: 'oyama_ai_video_studio_response', strict: true, schema } }, temperature: 0.2, max_tokens: requestId ? 1024 : 6000, ...(requestId ? { reasoning_effort: 'low' } : {}) } : {
+    const payload = provider === 'lmstudio' ? { model, messages: [{ role: 'user', content: images.length ? [{ type: 'text', text: prompt }, ...images.map((image) => ({ type: 'image_url', image_url: { url: `data:${image.mime};base64,${image.base64}` } }))] : prompt }], stream: Boolean(requestId), response_format: { type: 'json_schema', json_schema: { name: 'davai_video_studio_response', strict: true, schema } }, temperature: 0.2, max_tokens: requestId ? 1024 : 6000, ...(requestId ? { reasoning_effort: 'low' } : {}) } : {
         model,
         messages: [{ role: 'user', content: prompt, ...(images.length ? { images: images.map((image) => image.base64) } : {}) }],
         stream: Boolean(requestId),
@@ -1629,7 +1656,7 @@ app.whenReady().then(async () => {
   })
   ipcMain.handle('video:frame', async (_event, source: string, position: number | 'last', outputDirectory: string, ffmpegPath: string) => {
     const input = await resolveVideoSource(source)
-    const framesDirectory = join(outputDirectory, 'Oyama AI Video Studio Frames')
+    const framesDirectory = join(outputDirectory, 'DavAi Video Studio Frames')
     await mkdir(framesDirectory, { recursive: true })
     const label = position === 'last' ? 'last' : `at_${Math.max(0, position).toFixed(2).replace('.', '-')}`
     const name = `frame_${label}_${Date.now()}.png`
@@ -1679,7 +1706,7 @@ app.whenReady().then(async () => {
       throw new Error('请选择 1 到 100 个有效的帧书签。')
     }
     const input = await resolveVideoSource(source)
-    const framesDirectory = join(outputDirectory, 'Oyama AI Video Studio Frames')
+    const framesDirectory = join(outputDirectory, 'DavAi Video Studio Frames')
     await mkdir(framesDirectory, { recursive: true })
     const batchId = Date.now()
     const outputs: Array<{ path: string; name: string }> = []
@@ -1703,7 +1730,7 @@ app.whenReady().then(async () => {
     if (!Number.isFinite(from) || !Number.isFinite(to) || from < 0 || length < 2 || length > 15) {
       throw new Error('参考片段的长度必须在 2 到 15 秒之间。')
     }
-    const directory = join(outputDirectory, 'Oyama AI Video Studio Reference Clips')
+    const directory = join(outputDirectory, 'DavAi Video Studio Reference Clips')
     await mkdir(directory, { recursive: true })
     const name = `Reference_Clip_${Date.now()}.mp4`
     const output = join(directory, name)
@@ -1731,7 +1758,7 @@ app.whenReady().then(async () => {
         target ??= meta
         const duration = (clip.endFrame - clip.startFrame + 1) / meta.fps
         const audio = JSON.parse(await runFfprobe(ffmpegPath, ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=index', '-of', 'json', input])) as { streams?: unknown[] }
-        const segment = join(app.getPath('temp'), `oyama-segment-${randomUUID()}.mp4`)
+        const segment = join(app.getPath('temp'), `davai-segment-${randomUUID()}.mp4`)
         temporary.push(segment)
         const width = Math.ceil(target.width / 2) * 2, height = Math.ceil(target.height / 2) * 2
         const args = ['-hide_banner', '-loglevel', 'error', '-i', input]
@@ -1739,7 +1766,7 @@ app.whenReady().then(async () => {
         args.push('-vf', `trim=start_frame=${clip.startFrame}:end_frame=${clip.endFrame + 1},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${target.fps}`, '-af', audio.streams?.length ? `atrim=start=${clip.startFrame / meta.fps}:duration=${duration},asetpts=PTS-STARTPTS,apad` : 'anull', '-map', '0:v:0', '-map', audio.streams?.length ? '0:a:0' : '1:a:0', '-t', String(duration), '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-ar', '48000', '-ac', '2', '-video_track_timescale', '90000', '-y', segment)
         await runFfmpeg(ffmpegPath, args)
       }
-      const list = join(app.getPath('temp'), `oyama-sequence-${randomUUID()}.txt`)
+      const list = join(app.getPath('temp'), `davai-sequence-${randomUUID()}.txt`)
       await writeFile(list, temporary.map(path => `file '${path.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`).join('\n'))
       temporary.push(list)
       await runFfmpeg(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', '-n', output])
@@ -1786,7 +1813,7 @@ app.whenReady().then(async () => {
     if (!executable) throw new Error('尚未安装 RIFE。请先在片段编辑器中安装。')
     const input = await resolveVideoSource(source)
     const id = String(Date.now())
-    const working = join(outputDirectory, 'Oyama AI Video Studio RIFE', id)
+    const working = join(outputDirectory, 'DavAi Video Studio RIFE', id)
     const frames = join(working, 'frames')
     const interpolated = join(working, 'interpolated')
     await mkdir(frames, { recursive: true }); await mkdir(interpolated, { recursive: true })
@@ -1794,7 +1821,7 @@ app.whenReady().then(async () => {
     const frameCount = (await readdir(frames)).filter((file) => /\.png$/i.test(file)).length
     if (frameCount < 2) throw new Error('RIFE 需要至少包含两个已解码帧的片段。')
     await runTool(executable, ['-i', frames, '-o', interpolated, '-n', String(frameCount * 2 - 1), '-m', join(dirname(executable), 'models', 'rife-v4.6')], 'RIFE 光流插值')
-    const outputRoot = join(outputDirectory, 'Oyama AI Video Studio RIFE')
+    const outputRoot = join(outputDirectory, 'DavAi Video Studio RIFE')
     await mkdir(outputRoot, { recursive: true })
     const output = join(outputRoot, `RIFE_${mode === 'slow-motion' ? 'Cinematic_Slow_Motion' : '48fps'}_${id}.mp4`)
     const outputFps = mode === 'slow-motion' ? '24' : '48'
@@ -1813,7 +1840,7 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 }).catch((error) => {
-  dialog.showErrorBox('Oyama AI Video Studio 启动失败', `窗口打开前启动失败：\n\n${error instanceof Error ? error.stack ?? error.message : String(error)}\n\n应用即将关闭。`)
+  dialog.showErrorBox('DavAi Video Studio 启动失败', `窗口打开前启动失败：\n\n${error instanceof Error ? error.stack ?? error.message : String(error)}\n\n应用即将关闭。`)
   app.quit()
 })
 

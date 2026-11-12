@@ -1,6 +1,6 @@
 {
-  "name": "Oyama AI Video Studio Mobile",
-  "short_name": "Oyama Video",
+  "name": "DavAi Video Studio Mobile",
+  "short_name": "DavAi Video",
   "description": "在手机上远程使用桌面端，进行 AI 文生视频与图生视频创作。",
   "start_url": "/?mobile=1",
   "scope": "/",

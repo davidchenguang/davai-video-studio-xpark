@@ -8,7 +8,7 @@ const WebSocket = require('ws')
 const edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
 const browserPath = process.env.E2E_BROWSER_PATH || edgePath
 const port = 9335 + Math.floor(Math.random() * 500)
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'oyama-ui-e2e-'))
+const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'davai-ui-e2e-'))
 let browser
 let socket
 let nextId = 0
@@ -92,7 +92,7 @@ async function main() {
   await send('Runtime.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: 1379, height: 982, deviceScaleFactor: 1, mobile: false })
   await send('Page.navigate', { url: 'http://127.0.0.1:5173/' })
-  await until(() => evaluate(`document.querySelector('#root')?.textContent.includes('Oyama AI Video Studio')`), 'app shell')
+  await until(() => evaluate(`document.querySelector('#root')?.textContent.includes('DavAi Video Studio')`), 'app shell')
 
   const firstView = await evaluate(`document.body.innerText.slice(0, 3000)`)
   assert.ok(firstView.includes('浏览工作区'))
@@ -165,8 +165,8 @@ async function main() {
   assert.ok(await evaluate(`document.querySelector('.video-suggestions-toggle')?.getAttribute('aria-pressed') === 'false'`), 'Suggestions can be turned off')
 
   await evaluate(`(() => {
-    const image = { path: 'C:/oyama-ui-e2e/identity.png', name: 'identity.png', kind: 'image', preview: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="16" height="16"/%3E' };
-    const secondImage = { ...image, path: 'C:/oyama-ui-e2e/profile.png', name: 'profile.png', referenceType: 'profile' };
+    const image = { path: 'C:/davai-ui-e2e/identity.png', name: 'identity.png', kind: 'image', preview: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="16" height="16"/%3E' };
+    const secondImage = { ...image, path: 'C:/davai-ui-e2e/profile.png', name: 'profile.png', referenceType: 'profile' };
     localStorage.setItem('minimax.character-projects', JSON.stringify([
       { id: 'ui-e2e-character', name: 'Test Character', referenceMode: 'set', baseImage: image, referenceImages: [image, secondImage], wardrobeIds: [], accessoryIds: [], hairStyleIds: [] },
       { id: 'ui-e2e-unready', name: 'Needs Reference', referenceMode: 'set', referenceImages: [], wardrobeIds: [], accessoryIds: [], hairStyleIds: [] },
@@ -200,7 +200,7 @@ async function main() {
   await send('Emulation.setDeviceMetricsOverride', { width: 1379, height: 982, deviceScaleFactor: 1, mobile: false })
 
   await evaluate(`(() => {
-    const file = (kind, name) => ({ kind, name, path: 'C:/oyama-ui-e2e/' + name });
+    const file = (kind, name) => ({ kind, name, path: 'C:/davai-ui-e2e/' + name });
     localStorage.setItem('minimax.workspace', JSON.stringify({ mode: 'reference', prompt: 'Reset this draft', duration: 8, resolution: '1344x768', seed: 4321, referenceImages: [file('image', 'shot.png')], referenceVideos: [file('video', 'motion.mp4')], referenceAudios: [file('audio', 'ambience.wav')], selectedReferenceCharacterIds: [], selectedReferenceLocationIds: [] }));
   })()`)
   await send('Page.reload')
@@ -286,7 +286,7 @@ main().catch(error => { console.error(error); process.exitCode = 1 }).finally(as
   }
   const resolved = path.resolve(profile)
   const tempRoot = fs.realpathSync(os.tmpdir())
-  if (path.dirname(resolved) === tempRoot && path.basename(resolved).startsWith('oyama-ui-e2e-')) {
+  if (path.dirname(resolved) === tempRoot && path.basename(resolved).startsWith('davai-ui-e2e-')) {
     try { fs.rmSync(resolved, { recursive: true, force: true }) }
     catch { console.warn(`Browser profile could not be removed: ${resolved}`) }
   }

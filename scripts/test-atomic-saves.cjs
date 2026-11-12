@@ -9,7 +9,7 @@ const exportsObject = {}
 vm.runInNewContext(ts.transpileModule(readFileSync('electron/atomicFile.ts', 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText, { exports: exportsObject, require, process })
 
 async function test() {
-  const folder = await fs.mkdtemp(join(tmpdir(), 'oyama-atomic-test-'))
+  const folder = await fs.mkdtemp(join(tmpdir(), 'davai-atomic-test-'))
   try {
     const file = join(folder, 'settings.json')
     const { writeAtomicFile } = exportsObject

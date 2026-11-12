@@ -138,8 +138,8 @@ export function MovieEditor({ settings, jobs, onUseFrame, onOpenClipMaster, onNo
       setSelectedIds([timelineClip.id])
       onNotice('success', `${clipName(clip)} 已从片段工坊返回并放置到时间线上。`)
     }
-    window.addEventListener('oyama-movie-add-media', importClip)
-    return () => window.removeEventListener('oyama-movie-add-media', importClip)
+    window.addEventListener('davai-movie-add-media', importClip)
+    return () => window.removeEventListener('davai-movie-add-media', importClip)
   })
   useEffect(() => {
     const video = videoRef.current

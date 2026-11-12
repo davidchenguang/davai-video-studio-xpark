@@ -23,4 +23,4 @@ if (prerelease) {
 packageJson.version = nextVersion
 
 fs.writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`)
-console.log(`Building Oyama AI Video Studio ${nextVersion}`)
+console.log(`Building DavAi Video Studio ${nextVersion}`)

@@ -11,7 +11,7 @@ const path = require('node:path')
 
 const mediaFile = (name, extra = {}) => {
   const kind = /\.(mp4|mov|webm)$/i.test(name) ? 'video' : /\.(mp3|wav|flac)$/i.test(name) ? 'audio' : 'image'
-  return { path: `D:/oyama-parity/${name}`, name, kind, ...extra }
+  return { path: `D:/davai-parity/${name}`, name, kind, ...extra }
 }
 
 // Bindings mirror what the app builds today: English labels that are BOTH
@@ -57,9 +57,9 @@ async function capture(root) {
   const referenceAnalysis = at('src/lib/referenceAnalysis.ts')
   const vision = {}
   for (const kind of ['character', 'wardrobe', 'location', 'hair', 'accessory']) {
-    vision[kind] = await referenceAnalysis.analyzeReferenceImage(settings, 'D:/oyama-parity/ref.png', kind)
+    vision[kind] = await referenceAnalysis.analyzeReferenceImage(settings, 'D:/davai-parity/ref.png', kind)
   }
-  vision.scene = await referenceAnalysis.analyzeSceneReference(settings, 'D:/oyama-parity/scene.png')
+  vision.scene = await referenceAnalysis.analyzeSceneReference(settings, 'D:/davai-parity/scene.png')
   snapshot.visionPrompts = visionCalls.map(call => call.prompt)
   snapshot.visionParsed = vision
   delete global.__TS_LOADER_EXTRA_GLOBALS__

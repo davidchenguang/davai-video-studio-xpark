@@ -45,7 +45,7 @@ function namedFunction(name, dependencies) {
 
 async function main() {
   await run(ffmpeg, ['-version'])
-  const folder = await fsp.mkdtemp(path.join(os.tmpdir(), 'oyama-continuation-test-'))
+  const folder = await fsp.mkdtemp(path.join(os.tmpdir(), 'davai-continuation-test-'))
   try {
     const probe = async file => JSON.parse((await run(ffprobe, ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file])).stdout)
     const dependencies = {
