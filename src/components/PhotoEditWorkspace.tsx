@@ -116,7 +116,7 @@ export function PhotoEditWorkspace({ url, info, connected, outputDirectory, inco
           const saved = await window.minimax.saveComfyOutputImage(job.url, image, outputDirectory, 'photo-edit').catch(reason => {
             throw new Error(`FireRed 已完成，但图片未能保存到本地。请重试保存，或从 ComfyUI 输出中选择完成的图片。${reason instanceof Error ? reason.message : String(reason)}`)
           })
-          if (active) { setResult({ ...saved, kind: 'image' }); setJob(null); setMessage('照片编辑完成。满意后发送到 Ripple。'); setError(false) }
+          if (active) { setResult({ ...saved, kind: 'image' }); setJob(null); setMessage('图片编辑完成。满意后发送到 Ripple。'); setError(false) }
           return
         }
         if (entry?.status?.status_str === 'success') {
@@ -199,7 +199,7 @@ export function PhotoEditWorkspace({ url, info, connected, outputDirectory, inco
   const cancel = async () => {
     if (!job) return
     if (saveProblem) { setJob(null); setSaveProblem(''); setMessage('已忽略保存重试。完成的图片仍保留在 ComfyUI 输出中。'); setError(false); return }
-    try { await window.minimax.cancelPrompt(job.url, job.id); setJob(null); setMessage('已取消照片编辑。'); setError(false) }
+    try { await window.minimax.cancelPrompt(job.url, job.id); setJob(null); setMessage('已取消图片编辑。'); setError(false) }
     catch (reason) { setMessage(`无法取消：${reason instanceof Error ? reason.message : String(reason)}`); setError(true) }
   }
   const chooseExistingResult = async () => {
@@ -209,10 +209,10 @@ export function PhotoEditWorkspace({ url, info, connected, outputDirectory, inco
       setResult({ ...picked, kind: 'image' }); setJob(null); setSaveProblem(''); setMessage('编辑后的图片已就绪，可发送到 Ripple。'); setError(false)
     } catch (reason) { setMessage(reason instanceof Error ? reason.message : String(reason)); setError(true) }
   }
-  const reset = () => { setSource(null); setReferences([]); setPrompt(''); setMode('turbo'); setResolution(defaultFrameResolution); setResult(null); setJob(null); setSaveProblem(''); setSeed(Math.floor(Math.random() * 1_000_000_000)); setMessage('已清空照片编辑。'); setError(false) }
+  const reset = () => { setSource(null); setReferences([]); setPrompt(''); setMode('turbo'); setResolution(defaultFrameResolution); setResult(null); setJob(null); setSaveProblem(''); setSeed(Math.floor(Math.random() * 1_000_000_000)); setMessage('已清空图片编辑。'); setError(false) }
 
   return <div className="photo-edit-workspace">
-    <header className="photo-edit-heading"><div><span className="photo-edit-eyebrow">创作 · FIRERED 图片编辑</span><h1>照片编辑</h1><p>从一张照片开始，描述一处修改，然后把结果用作 Ripple 的替换帧。</p></div><button type="button" className="photo-edit-reset" onClick={reset} disabled={busy}><RotateCcw size={15}/>重置</button></header>
+    <header className="photo-edit-heading"><div><span className="photo-edit-eyebrow">创作 · FIRERED 图片编辑</span><h1>图片编辑</h1><p>从一张照片开始，描述一处修改，然后把结果用作 Ripple 的替换帧。</p></div><button type="button" className="photo-edit-reset" onClick={reset} disabled={busy}><RotateCcw size={15}/>重置</button></header>
     <div className="photo-edit-grid">
       <div className="photo-edit-left">
         <section className="photo-edit-card"><div className="photo-edit-card-heading"><span>01</span><div><h2>图片 1 · 源照片</h2><p>你要修改的那一帧。</p></div></div><button className="photo-edit-image-picker" type="button" onClick={() => void chooseSource()} disabled={busy}>{sourceUrl ? <img src={sourceUrl} alt="用于 FireRed 编辑的图片 1 源照片" onLoad={event => setSourceSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}/> : <span><ImagePlus size={31}/><strong>选择照片</strong><small>或使用从 Ripple 发来的帧 0</small></span>}</button>{source && <div className="photo-edit-file"><span title={source.path}>{source.name}</span><button type="button" onClick={() => void chooseSource()} disabled={busy}>替换</button></div>}<FrameResolutionControl source={sourceSize} value={resolution} onChange={setResolution} disabled={busy}/></section>

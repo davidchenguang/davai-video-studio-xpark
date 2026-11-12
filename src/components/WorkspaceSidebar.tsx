@@ -31,7 +31,7 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
       { view: 'referenceprep', label: '参考图准备', icon: Scan },
       { view: 'ltx25', label: 'LTX 2.5', icon: Aperture },
       { view: 'ltxripple', label: 'LTX Ripple', icon: Aperture },
-      { view: 'photoedit', label: '照片编辑', icon: ImagePlus },
+      { view: 'photoedit', label: '图片编辑', icon: ImagePlus },
       { view: 'music', engine: 'acestep', label: '音乐 · ACE-Step', icon: Music2 },
       { view: 'music', engine: 'music3', label: '音乐 · Music 3', icon: Music2 },
     ] },

@@ -9,7 +9,7 @@ export const workspaceDestinations: WorkspaceDestination[] = [
   { view: 'continue', label: '续接视频', description: '在已有视频之后续写下一个场景或节拍。', group: '创作' },
   { view: 'ltx25', label: '视频 · LTX 2.5', description: '使用 LTX 引擎生成视频。', group: '创作' },
   { view: 'ltxripple', label: 'LTX Ripple', description: '首帧到全帧：把对首帧的编辑沿源视频传递到每一帧。', group: '创作' },
-  { view: 'photoedit', label: '照片编辑 · FireRed', description: '用一句文字指令编辑照片，并发往 Ripple。', group: '创作' },
+  { view: 'photoedit', label: '图片编辑 · FireRed', description: '用一句文字指令编辑图片，并发往 Ripple。', group: '创作' },
   { view: 'zimage', label: '生成图片', description: '使用 Z-Image 生成静态图片。', group: '创作' },
   { view: 'music', engine: 'acestep', label: '音乐 · ACE-Step', description: '根据歌词与风格创作音乐和人声。', group: '创作' },
   { view: 'music', engine: 'music3', label: '音乐 · Music 3', description: '使用 MiniMax Music 3 生成歌曲。', group: '创作' },

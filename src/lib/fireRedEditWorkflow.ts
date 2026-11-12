@@ -31,7 +31,7 @@ export function inferFireRedSelection(info: ObjectInfo): FireRedSelection {
 }
 
 export function buildFireRedEditWorkflow(source: UploadedFile, prompt: string, seed: number, selection: FireRedSelection, mode: 'turbo' | 'quality', size: FrameSize, references: UploadedFile[] = []): ComfyPrompt {
-  if (!prompt.trim()) throw new Error('请在渲染前填写照片编辑指令。')
+  if (!prompt.trim()) throw new Error('请在渲染前填写图片编辑指令。')
   if (!selection.model || !selection.encoder || !selection.vae) throw new Error('需要 FireRed 模型、文本编码器和 VAE。')
   if (!Number.isSafeInteger(seed) || seed < 0) throw new Error('请选择有效的非负种子。')
   if (mode !== 'turbo' && mode !== 'quality') throw new Error('请选择 Turbo 或 Quality 模式。')

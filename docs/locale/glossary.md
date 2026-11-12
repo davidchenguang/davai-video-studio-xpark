@@ -85,6 +85,7 @@
 | wardrobe | 服装 | translate | 工作区语境 |
 | accessories | 配饰 | translate | 工作区语境 |
 | create image | 生成图片 | translate | 工作区名「生成图片 · Z-Image」；不写「创建图片」 |
+| photo edit | 图片编辑 | translate | 工作区名「图片编辑 · FireRed」（2026-11-12 由「照片编辑」更名，与 image→图片 口径一致）；文案内指代源素材的「照片」一词保留 |
 
 ### 提示词预设分类（`src/lib/promptPresets.ts` 的 `promptPresetCategories`）
 
