@@ -43,10 +43,19 @@ function readWorkspace(): StoredWorkspace {
   catch { return defaults }
 }
 
-type H3ImageJob = { id: string; url: string }
+type H3ImageJob = { id: string; url: string; resolution: string }
 type HistoryEntry = {
   status?: { status_str?: string }
   outputs?: Record<string, { images?: Array<{ filename: string; subfolder?: string; type?: string }> }>
+}
+
+// ComfyUI only records a prompt in its history once it ran, so a job that is
+// neither in the history nor in the queue was dropped by the engine.
+async function isJobQueued(job: H3ImageJob) {
+  try {
+    const queue = await window.minimax.getQueue(job.url) as { queue_running?: unknown[]; queue_pending?: unknown[] }
+    return [...(queue.queue_running ?? []), ...(queue.queue_pending ?? [])].some((item) => Array.isArray(item) && item[1] === job.id)
+  } catch { return true }
 }
 
 export function H3ImageWorkspace({
@@ -76,7 +85,7 @@ export function H3ImageWorkspace({
   const [steps, setSteps] = useState(initial.steps)
   const [livePreview, setLivePreview] = useState(initial.livePreview)
   const [job, setJob] = useState<H3ImageJob | null>(null)
-  const [result, setResult] = useState<MediaFile | null>(null)
+  const [result, setResult] = useState<{ file: MediaFile; resolution: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [assisting, setAssisting] = useState(false)
   const [message, setMessage] = useState('')
@@ -94,15 +103,10 @@ export function H3ImageWorkspace({
     setJob(next)
   }, [])
 
-  useEffect(() => {
-    const loadPrompt = (event: Event) => {
-      const value = (event as CustomEvent<string>).detail
-      if (value?.trim()) { setPrompt(value.trim()); setMessage('已从 Studio 助手加载图片提示词。'); setError(false) }
-    }
-    window.addEventListener('minimax:load-image-prompt', loadPrompt)
-    return () => window.removeEventListener('minimax:load-image-prompt', loadPrompt)
-  }, [])
-
+  // The Studio helper still sends its still-image prompt to the Z-Image
+  // workspace (stage one keeps that path untouched), so this workspace must not
+  // listen to the shared event: otherwise it would silently steal the prompt
+  // from Z-Image while staying hidden.
   useEffect(() => {
     localStorage.setItem('minimax.h3image-workspace', JSON.stringify({ prompt, resolution, tier, model, encoder, vae, lora, seed, steps, livePreview }))
   }, [encoder, livePreview, lora, model, prompt, resolution, seed, steps, tier, vae])
@@ -111,28 +115,37 @@ export function H3ImageWorkspace({
     if (!job) return
     let disposed = false
     let timer: ReturnType<typeof setTimeout>
+    let missingPolls = 0
+    let completedWithoutOutputPolls = 0
     const poll = async () => {
       try {
         const history = await window.minimax.getHistory(job.url, job.id)
         const entry = history[job.id] as HistoryEntry | undefined
         if (entry?.status?.status_str === 'error') throw new Error('H3-Image 运行失败。请检查所选组件与 ComfyUI 日志。')
-        // The workflow's SaveImage is node 15. Prefer it so a preview-node
-        // temporary image can never be mistaken for the production output.
+        // Only the SaveImage node (15) writes a stable output file. The preview
+        // node (16) leaves a temporary frame in ComfyUI's temp folder, so it
+        // must never be mistaken for the production result: keep polling until
+        // the saved image appears.
         const image = entry?.outputs?.['15']?.images?.[0]
-          ?? Object.values(entry?.outputs ?? {}).flatMap((output) => output.images ?? [])[0]
         if (image) {
           const preview = await window.minimax.getOutputImage(job.url, image)
           const saved = await window.minimax.saveComfyOutputImage(job.url, image, outputDirectory, 'image-creation')
           if (!disposed) {
-            setResult({ ...saved, preview, kind: 'image' })
+            setResult({ file: { ...saved, preview, kind: 'image' }, resolution: job.resolution })
             updateJob(null); setBusy(false); setError(false); liveProgressRef.current = null; setLiveProgress(null); setMessage('图片已生成，可以使用。')
           }
           return
         }
         if (entry?.status?.status_str === 'success') {
+          completedWithoutOutputPolls += 1
+          if (completedWithoutOutputPolls > 2) throw new Error('ComfyUI 已完成 H3-Image，但没有返回保存的图片。请检查 SaveImage 节点与 ComfyUI 日志。')
           if (!disposed) setMessage('ComfyUI 已完成；正在收集保存的图片……')
         } else if (!disposed) {
-          setMessage(liveProgressRef.current?.label ?? '正在 ComfyUI 中渲染图片……')
+          // A job the engine no longer knows about — a restarted ComfyUI or a
+          // cleared queue — must not leave the workspace waiting forever.
+          missingPolls = entry ? 0 : missingPolls + 1
+          if (missingPolls > 4 && !(await isJobQueued(job))) throw new Error('引擎已重启或队列被清空，本次渲染没有结果。请重新生成。')
+          if (!disposed) setMessage(liveProgressRef.current?.label ?? '正在 ComfyUI 中渲染图片……')
         }
       } catch (caught) {
         if (!disposed) { setMessage(caught instanceof Error ? caught.message : String(caught)); setError(true); setBusy(false); liveProgressRef.current = null; setLiveProgress(null); updateJob(null) }
@@ -195,7 +208,7 @@ export function H3ImageWorkspace({
       const response = await window.minimax.submitPrompt(url, graph, live.clientId)
       live.registerWorkflow(response.prompt_id, graph, livePreview)
       if (gpuRouting) console.info('[GPU Routing] H3-Image component routing enabled.', gpuRouting)
-      updateJob({ id: response.prompt_id, url })
+      updateJob({ id: response.prompt_id, url, resolution })
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : String(caught)); setError(true); setBusy(false)
     }
@@ -263,8 +276,8 @@ export function H3ImageWorkspace({
 
       <PreviewPanel>
         <div className="panel-heading"><div><span>输出</span><strong>图片预览</strong></div>{result && <span className="zimage-complete"><Check size={13} />就绪</span>}</div>
-        <div className="zimage-preview-stage">{result?.preview ? <img src={result.preview} alt="生成的 H3-Image 成果" /> : visibleLivePreview ? <figure className="live-preview zimage-live-preview"><img src={visibleLivePreview.url} alt="H3-Image 采样实时预览" /><figcaption>采样实时预览{visibleLivePreview.step && visibleLivePreview.totalSteps ? ` · 第 ${visibleLivePreview.step} 步，共 ${visibleLivePreview.totalSteps} 步` : ''}</figcaption></figure> : busy ? <div className="render-state"><ProductionLoading label={liveProgress?.label || '正在准备图片条件'} /><strong>正在生成你的图片</strong><span>{liveProgress?.label ?? `${resolution.replace('x', ' × ')} · ${livePreview ? '等待实时预览' : '渲染中（无实时预览）'}`}</span></div> : <div className="empty-preview"><div className="preview-icon"><ImagePlus size={28} /></div><strong>你的图片会显示在这里</strong><span>描述画面、选择画幅，然后在本地生成。</span></div>}</div>
-        <div className="zimage-preview-actions"><span>{result ? `${result.name} · ${resolution.replace('x', ' × ')}` : '已保存到 ComfyUI · MiniMax_first_frames'}</span><div><button className="secondary-button" disabled={!result} onClick={() => result && onUse(result, resolution)}><ImagePlus size={16} />发送到 MiniMax I2V</button><button className="primary-button" disabled={!result} onClick={() => result && onUseLtx(result)} title="载入保留身份特征的 LTX 图生视频提示词"><Film size={16} />发送到 LTX 2.5</button></div></div>
+        <div className="zimage-preview-stage">{result?.file.preview ? <img src={result.file.preview} alt="生成的 H3-Image 成果" /> : visibleLivePreview ? <figure className="live-preview zimage-live-preview"><img src={visibleLivePreview.url} alt="H3-Image 采样实时预览" /><figcaption>采样实时预览{visibleLivePreview.step && visibleLivePreview.totalSteps ? ` · 第 ${visibleLivePreview.step} 步，共 ${visibleLivePreview.totalSteps} 步` : ''}</figcaption></figure> : busy ? <div className="render-state"><ProductionLoading label={liveProgress?.label || '正在准备图片条件'} /><strong>正在生成你的图片</strong><span>{liveProgress?.label ?? `${resolution.replace('x', ' × ')} · ${livePreview ? '等待实时预览' : '渲染中（无实时预览）'}`}</span></div> : <div className="empty-preview"><div className="preview-icon"><ImagePlus size={28} /></div><strong>你的图片会显示在这里</strong><span>描述画面、选择画幅，然后在本地生成。</span></div>}</div>
+        <div className="zimage-preview-actions"><span>{result ? `${result.file.name} · ${result.resolution.replace('x', ' × ')}` : '生成后会保存到 ComfyUI · MiniMax_first_frames'}</span><div><button className="secondary-button" disabled={!result} onClick={() => result && onUse(result.file, result.resolution)}><ImagePlus size={16} />发送到 MiniMax I2V</button><button className="primary-button" disabled={!result} onClick={() => result && onUseLtx(result.file)} title="载入保留身份特征的 LTX 图生视频提示词"><Film size={16} />发送到 LTX 2.5</button></div></div>
       </PreviewPanel>
     </div>
   </div>
