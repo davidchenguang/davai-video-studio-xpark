@@ -70,7 +70,7 @@
 | D14 | 手机页跟随全局主题 |
 | D15 | 墨绿化判定原则：凡当前渲染为**蓝色**的交互强调（生成按钮、eyebrow、选中态、图标、对话框勾选色，不限文件）统一映射为墨绿主题变量；**非蓝色**的功能/身份色（电影编辑器紫 `#a879ff`、时间线播放头黄、各工作室资产色调）钉住变量保留现状。D12 例外清单按「渲染为蓝的界面」口径重列 |
 | D16 | 蓝色主题还原基准 = 设计图观感：upstream 蓝字面值钉成变量后在蓝主题中**保留原值**（`tokens.css` 底色值仅作参考，不是唯一色源） |
-| D17 | 原生窗口外观跟随主题：`titleBarOverlay` 与 `nativeTheme.themeSource` 随主题联动（绿/蓝/黄 = dark，亮色 = light），**切换即时生效**（含电影编辑器窗口；需新增一条 IPC 通道），右键菜单/原生下拉随之 |
+| D17 | 原生窗口外观跟随主题：`titleBarOverlay` 与 `nativeTheme.themeSource` 随主题联动（绿/蓝/黄 = dark，亮色 = light），**切换即时生效**（含电影编辑器窗口；需新增一条 IPC 通道），右键菜单/原生下拉随之。每主题配一组原生外壳值表（BrowserWindow `backgroundColor` + `titleBarOverlay` 的 color/symbolColor）：**绿主题外壳墨绿化**（消灭现状 `#243c53`/`#071524` 蓝标题栏与启动蓝帧，此可见变化列入 D12 例外清单）；蓝主题沿用现值；Comfy 紫、亮色浅各自衍生过对比度；预览监视器弹窗（`#07100b`）按 D7 保持深色（含 overlay，亮色主题下亦然） |
 | D18 | 手机页的「打开完整工作室」（`?desktop=1`）纳入范围：App 在 LAN 浏览器环境下补一次外观拉取（复用手机页 lanFetch 模式 + URL token） |
 
 ## 实现者拍板的技术默认（需求方已知情，可否决）
@@ -82,9 +82,9 @@
 - **color-scheme**：每主题声明 `color-scheme`（三个深色主题 `dark`、亮色 `light`），让原生滚动条、表单控件、`<select>` 弹层跟随主题。
 - **语义色**：`--oy-success/--oy-warning/--oy-danger` 及对应语义变量仅在对比度不达标的主题中调整（预判：亮色主题的 warning 黄需要加深）。
 - **对比度**：文本对比度按 WCAG AA 把关（正文 ≥ 4.5:1，大字/非文本 ≥ 3:1）。
-- **弹出小窗（window.open 预览窗/copilot 窗）**：克隆样式表时同步复制 `data-theme`，并监听 storage 事件实时同步（同源弹出窗可收到该事件）。
+- **弹出小窗（window.open 预览窗/copilot 窗）**：克隆样式表时同步复制 `data-theme`（about:blank 弹窗是手工拼的新 document，属性不继承，必须显式复制）；实时同步以**句柄直写为主**——主窗口已持有 `popoutRef`/`previewPopoutRef` 的 Window 句柄，切换时直接写 `popup.document.documentElement.dataset.theme`，零事件依赖；storage 事件通道仅用于电影编辑器等真实 BrowserWindow（该模式本应用已有生产先例：`minimax.jobs` / `MOVIE_HANDOFF_KEY` 双向在用）。
 - **首帧防闪烁**：主题在渲染前从 localStorage 镜像同步应用（不等异步设置拉取），消除非绿主题启动时的绿帧闪烁。
-- **窗口底色**：`BrowserWindow` 背景色随主题设置（配合 D17，影响启动闪烁），实现者验证细节。
+- **窗口底色**：`BrowserWindow` 背景色与 `titleBarOverlay` 按主题值表设置（见 D17），`setBackgroundColor`/`setTitleBarOverlay` 支持运行时更新。落点：`createWindow`/`createMovieEditorWindow` 创建时读 `settings.theme`（替换现硬编码的 `nativeTheme.themeSource='dark'` 与蓝色底值）；`setWindowOpenHandler` 的 `overrideBrowserWindowOptions` 同样按主题给值；运行时切换需更新**已打开**的弹窗——`did-create-window` 只在创建时触发一次，主进程需登记子窗口列表以便联动。
 
 ## 主题色板基准
 
@@ -100,13 +100,22 @@
 ## 豁免与例外清单
 
 - **媒体预览区保持深色**（所有主题，含亮色）：视频/图片预览列、Live Preview 画面底、剪辑台监看区、剧照/帧对比区——半透明黑底或近黑面板是色彩判断环境，不随主题变。实现者在清理时圈定这些选择器并显式注释豁免原因（对应反目标里的「不允许第三种状态」）。
-- **墨绿主题的可见变化仅限 D12/D15**：凡当前渲染为蓝色的交互强调统一为墨绿（scene-composer 系、workstation/video-workspace 的蓝色按钮与 eyebrow、ui.css 勾选色等）。验收清单按界面逐条列明，供需求方核验；非蓝色身份色不在其列。
+- **墨绿主题的可见变化仅限 D12/D15**：凡当前渲染为蓝色的交互强调统一为墨绿（scene-composer 系、workstation/video-workspace 的蓝色按钮与 eyebrow、ui.css 勾选色等），以及 D17 的原生外壳墨绿化（标题栏 overlay、窗口底色）。验收清单按界面逐条列明，供需求方核验；非蓝色身份色不在其列。
+
+## 评审注记（2026-11-12 对抗性审查，实现时照办）
+
+- **镜像以设置 JSON 为权威源**：首帧镜像可能过期（外部改 JSON、工厂重置清 storage）；`getSettings` 返回后必须覆写 `minimax.theme` 并纠正当前应用值。
+- **语义色有两套 token 家族**：`tokens.css` 的 `--oy-success/--oy-warning/--oy-danger` 与 `production-workspace.css` 自带的 `--success/--warning/--danger`（其 `--accent:#69a8ff` 属 D12/D15 墨绿化口径）；themes.css 必须两套都覆盖。
+- **`color-scheme` 有两处现存覆盖点**：`shell-and-controls.css` 与 `production-workspace.css` 各自的 `:root { color-scheme: dark }` 都要被 themes.css 压过。
+- **MobileApp 预览 mock**：`lanFetch` 的 browser-preview 分支对未知路径直接抛错，`/api/lan/appearance` 需补 mock 分支或 catch 后回落绿。
+- **LAN `?desktop=1` 页只读不存**：该环境下 browserMock 的 saveSettings 是内存态，主题切换不持久（与 uiScale 在该环境既有行为一致），计划中写明。
+- **手机浏览器 chrome 色**：`index.html` 的 `<meta name="theme-color">#101412` 在 mobile 路由按主题动态设置，顺手纳入。
 
 ## 验收（Build 完成后、交需求方逐屏验收前）
 
 1. `pnpm typecheck && pnpm lint && pnpm test && pnpm build:web` 全绿。
 2. **墨绿回归**：清理前后逐屏截图对比（主界面 + 全部工作区 + 电影编辑器窗口 + 手机页），除 D12 例外清单外无可辨差异。截图工具可用 `pnpm test:ui-e2e` 的 CDP 路径或 `/tmp/oyama-cdp/drive.cjs` 驱动真实渲染进程。
-3. **四主题走查**：每个主题下检查空态、加载态、成功态、失败态、禁用态（CLAUDE.md 的 UI 验证要求），重点：下拉即时生效、电影编辑器实时同步、手机页及其「打开完整工作室」页主题正确、弹出小窗（预览/copilot）主题正确且实时同步、亮色下预览区仍深、`select`/滚动条等原生控件跟随 `color-scheme`、亮色下标题栏与右键菜单为浅色（D17）。
+3. **四主题走查**：每个主题下检查空态、加载态、成功态、失败态、禁用态（CLAUDE.md 的 UI 验证要求），重点：下拉即时生效、电影编辑器实时同步、手机页及其「打开完整工作室」页主题正确、弹出小窗（预览/copilot）主题正确且实时同步、亮色下预览区仍深（含预览监视器弹窗 overlay）、`select`/滚动条等原生控件跟随 `color-scheme`、各主题标题栏/窗口底色/右键菜单按 D17 值表（绿=墨绿、亮=浅色，预览监视器弹窗保持深色）。
 4. 最小布局与典型桌面尺寸两档走查（CLAUDE.md 要求）。
 
 ## 交付顺序（分段提交）
