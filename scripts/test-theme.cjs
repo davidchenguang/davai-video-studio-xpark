@@ -82,3 +82,26 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   const monitor = app.slice(app.indexOf("window.open('', 'oyama-ai-video-studio-preview'"))
   assert.ok(monitor.slice(0, 900).includes('dataset.theme'), 'preview monitor popout copies data-theme at detach')
 }
+
+// ---- Native shell theme table (structural + behavioral) ----
+{
+  const code = fs.readFileSync('electron/nativeShellTheme.ts', 'utf8')
+  const compiled = ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
+  const shellExports = {}
+  vm.runInNewContext(compiled, { exports: shellExports }, { filename: 'nativeShellTheme.ts' })
+  const { NATIVE_SHELL, PREVIEW_MONITOR_SHELL, shellFor } = shellExports
+
+  assert.deepEqual(Object.keys(NATIVE_SHELL).sort(), ['blue', 'comfy', 'green', 'light'], 'shell table covers four themes')
+  assert.equal(shellFor('light'), NATIVE_SHELL.light)
+  assert.equal(shellFor('bogus'), NATIVE_SHELL.green, 'invalid theme falls back to the green shell')
+  assert.equal(shellFor('light', true), PREVIEW_MONITOR_SHELL, 'preview monitor keeps the dark shell in every theme')
+  assert.ok(!/ffffff/i.test(PREVIEW_MONITOR_SHELL.titleBarOverlay.color), 'preview monitor overlay is never light')
+  assert.equal(NATIVE_SHELL.green.backgroundColor, '#0c100e', 'green shell greenifies the window background (D12)')
+  assert.equal(NATIVE_SHELL.blue.titleBarOverlay.color, '#243c53', 'blue keeps the current overlay color')
+
+  const main = readSource('electron/main.ts')
+  assert.ok(!main.includes("nativeTheme.themeSource = 'dark'"), 'hard-coded dark themeSource is gone')
+  assert.ok(main.includes("'theme:set-native-shell'"), 'main registers the native-shell IPC channel')
+  const preload = readSource('electron/preload.ts')
+  assert.ok(preload.includes('setNativeTheme'), 'preload exposes setNativeTheme')
+}

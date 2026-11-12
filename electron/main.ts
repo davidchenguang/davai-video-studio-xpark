@@ -4,6 +4,7 @@ import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, rename, rmdir, stat, u
 import { writeAtomicFile } from './atomicFile.js'
 import { cancelComfyPrompt } from './comfyCancellation.js'
 import { readGpuTelemetry } from './gpuTelemetry.js'
+import { PREVIEW_MONITOR_SHELL, shellFor, type NativeShell } from './nativeShellTheme.js'
 import { restoreLegacyLocalStorage } from './legacyBrowserStorage.js'
 import { buildPromptCompletionRequest } from './promptCompletion.js'
 import { lmStudioEndpoint, parseLmStudioModels } from './lmStudioApi.js'
@@ -975,9 +976,29 @@ async function resolveVideoSource(source: string) {
 let movieEditorWindow: BrowserWindow | null = null
 let studioWindow: BrowserWindow | null = null
 
+/** Full-screen themed windows (studio + movie editor). Popout chrome is decided
+ *  at creation time and never re-themed at runtime (the monitor stays dark, D7). */
+const themedWindows = new Set<BrowserWindow>()
+
+function applyShellToWindow(window: BrowserWindow, shell: NativeShell) {
+  if (window.isDestroyed()) return
+  try { window.setBackgroundColor(shell.backgroundColor) } catch { /* pre-usage windows may reject late color changes */ }
+  try { window.setTitleBarOverlay(shell.titleBarOverlay) } catch { /* overlay needs hidden title bar support */ }
+}
+
+async function themeWindowShell(window: BrowserWindow, previewMonitor = false) {
+  const settings = await loadSettings()
+  const shell = previewMonitor ? PREVIEW_MONITOR_SHELL : shellFor(settings.theme)
+  applyShellToWindow(window, shell)
+  if (!previewMonitor) {
+    themedWindows.add(window)
+    window.once('closed', () => themedWindows.delete(window))
+  }
+  nativeTheme.themeSource = settings.theme === 'light' ? 'light' : 'dark'
+}
+
 function createMovieEditorWindow() {
   if (movieEditorWindow && !movieEditorWindow.isDestroyed()) { movieEditorWindow.focus(); return }
-  nativeTheme.themeSource = 'dark'
   const window = new BrowserWindow({
     width: 1480, height: 940, minWidth: 980, minHeight: 680,
     backgroundColor: '#171719', title: 'Oyama AI 影片剪辑',
@@ -986,6 +1007,7 @@ function createMovieEditorWindow() {
   })
   movieEditorWindow = window
   window.setMenuBarVisibility(false)
+  void themeWindowShell(window).catch(() => undefined)
   void loadSettings().then((settings) => window.webContents.setZoomFactor(settings.uiScale / 100))
   window.on('closed', () => { if (movieEditorWindow === window) movieEditorWindow = null })
   const devUrl = process.env.VITE_DEV_SERVER_URL
@@ -994,15 +1016,14 @@ function createMovieEditorWindow() {
 }
 
 function createWindow() {
-  nativeTheme.themeSource = 'dark'
   const window = new BrowserWindow({
     width: 1480,
     height: 940,
     minWidth: 860,
     minHeight: 620,
-    backgroundColor: '#071524',
+    backgroundColor: '#0c100e',
     titleBarStyle: 'hidden',
-    titleBarOverlay: { color: '#243c53', symbolColor: '#d8ebff', height: 48 },
+    titleBarOverlay: { color: '#171d19', symbolColor: '#f0f5ef', height: 48 },
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -1012,6 +1033,7 @@ function createWindow() {
   studioWindow = window
   window.on('closed', () => { if (studioWindow === window) studioWindow = null })
   window.setMenuBarVisibility(false)
+  void themeWindowShell(window).catch(() => undefined)
   void loadSettings().then((settings) => window.webContents.setZoomFactor(settings.uiScale / 100))
   window.webContents.setWindowOpenHandler(({ url, frameName }) => {
     if (url !== 'about:blank') return { action: 'deny' }
@@ -1027,9 +1049,11 @@ function createWindow() {
         minHeight: isPreviewMonitor ? 420 : 560,
         resizable: true,
         movable: true,
-        backgroundColor: isPreviewMonitor ? '#07100b' : '#071524',
+        // Sync defaults match the green shell; themed chrome is applied right
+        // after creation (below). The monitor stays dark in every theme (D7).
+        backgroundColor: isPreviewMonitor ? PREVIEW_MONITOR_SHELL.backgroundColor : '#0c100e',
         titleBarStyle: 'hidden',
-        titleBarOverlay: { color: '#243c53', symbolColor: '#d8ebff', height: 48 },
+        titleBarOverlay: isPreviewMonitor ? PREVIEW_MONITOR_SHELL.titleBarOverlay : { color: '#171d19', symbolColor: '#f0f5ef', height: 48 },
         webPreferences: {
           preload: join(__dirname, 'preload.js'),
           contextIsolation: true,
@@ -1038,7 +1062,11 @@ function createWindow() {
       },
     }
   })
-  window.webContents.on('did-create-window', (child) => child.setMenuBarVisibility(false))
+  window.webContents.on('did-create-window', (child) => {
+    child.setMenuBarVisibility(false)
+    // Popout chrome follows the theme at creation; the preview monitor stays dark (D7).
+    void loadSettings().then((settings) => applyShellToWindow(child, shellFor(settings.theme))).catch(() => undefined)
+  })
   const devUrl = process.env.VITE_DEV_SERVER_URL
   if (devUrl) void window.loadURL(devUrl)
   else void window.loadFile(join(__dirname, '..', 'dist', 'index.html'))
@@ -1243,6 +1271,12 @@ app.whenReady().then(async () => {
     const value = Math.max(0.75, Math.min(1.5, Number(scale) || 1))
     target?.webContents.setZoomFactor(value)
     return Math.round(value * 100)
+  })
+  ipcMain.handle('theme:set-native-shell', (_event, theme: string) => {
+    const shell = shellFor(theme)
+    nativeTheme.themeSource = theme === 'light' ? 'light' : 'dark'
+    for (const window of themedWindows) applyShellToWindow(window, shell)
+    return true
   })
   ipcMain.handle('dialog:directory', async (_event, initialPath?: string) => {
     const result = await dialog.showOpenDialog({

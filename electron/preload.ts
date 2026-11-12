@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('minimax', {
   factoryResetSettings: (confirmation: string) => ipcRenderer.invoke('settings:factory-reset', confirmation),
   exportWorkflowJson: (suggestedName: string, workflow: unknown) => ipcRenderer.invoke('workflow:export-json', suggestedName, workflow),
   setUiScale: (scale: number) => ipcRenderer.invoke('window:set-ui-scale', scale),
+  setNativeTheme: (theme: string) => ipcRenderer.invoke('theme:set-native-shell', theme),
   chooseDirectory: (initialPath?: string) => ipcRenderer.invoke('dialog:directory', initialPath),
   chooseMedia: (type: 'image' | 'video' | 'audio') => ipcRenderer.invoke('dialog:media', type),
   chooseVideos: () => ipcRenderer.invoke('dialog:videos'),
