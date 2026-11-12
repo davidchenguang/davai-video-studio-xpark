@@ -68,3 +68,17 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   assert.ok(settingsView.includes('label="界面主题"'), 'settings has the theme dropdown')
   assert.ok(settingsView.includes('THEME_LABELS'), 'theme options come from THEME_LABELS')
 }
+
+// ---- Cross-window sync (structural assertions) ----
+{
+  const editor = readSource('src/MovieEditorWindow.tsx')
+  assert.ok(editor.includes('THEME_STORAGE_KEY'), 'movie editor listens for the theme mirror')
+  assert.ok(/addEventListener\('storage'/.test(editor), 'movie editor has a storage listener')
+  assert.ok(editor.includes('applyTheme'), 'movie editor applies the theme')
+
+  const app = readSource('src/App.tsx')
+  const detach = app.slice(app.indexOf("window.open('', 'oyama-video-preview'"))
+  assert.ok(detach.includes('dataset.theme'), 'video preview popout copies data-theme at detach')
+  const monitor = app.slice(app.indexOf("window.open('', 'oyama-ai-video-studio-preview'"))
+  assert.ok(monitor.slice(0, 900).includes('dataset.theme'), 'preview monitor popout copies data-theme at detach')
+}

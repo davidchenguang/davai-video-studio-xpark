@@ -3653,8 +3653,11 @@ function VideoWorkspaceShell(props: VideoShellProps) {
     props.setTurbo8Profile('balanced'); props.setSampler('res_multistep'); props.setScheduler('simple')
     props.setSigmaShiftMode('model'); props.setLoraStrength(1)
   }
-  const detach = () => { if (popoutRef.current && !popoutRef.current.closed) { popoutRef.current.focus(); return } const popup = window.open('', 'oyama-video-preview', 'popup=yes,width=1080,height=720,resizable=yes'); if (!popup) return; popup.document.title = 'Oyama · 预览'; document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => popup.document.head.appendChild(node.cloneNode(true))); const root = popup.document.createElement('main'); popup.document.body.appendChild(root); popoutRef.current = popup; setPreviewPopoutRoot(root); popup.addEventListener('beforeunload', () => { popoutRef.current = null; setPreviewPopoutRoot(null) }, { once: true }) }
+  const detach = () => { if (popoutRef.current && !popoutRef.current.closed) { popoutRef.current.focus(); return } const popup = window.open('', 'oyama-video-preview', 'popup=yes,width=1080,height=720,resizable=yes'); if (!popup) return; popup.document.title = 'Oyama · 预览'; popup.document.documentElement.dataset.theme = document.documentElement.dataset.theme; document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => popup.document.head.appendChild(node.cloneNode(true))); const root = popup.document.createElement('main'); popup.document.body.appendChild(root); popoutRef.current = popup; setPreviewPopoutRoot(root); popup.addEventListener('beforeunload', () => { popoutRef.current = null; setPreviewPopoutRoot(null) }, { once: true }) }
   useEffect(() => () => popoutRef.current?.close(), [])
+  // The popout is held by handle: keep its data-theme in step with the main document
+  // after every render (a theme change re-renders the whole tree).
+  useEffect(() => { const popup = popoutRef.current; if (popup && !popup.closed && popup.document.documentElement.dataset.theme !== document.documentElement.dataset.theme) popup.document.documentElement.dataset.theme = document.documentElement.dataset.theme })
   const assetRail = <AssetRail props={props} onSelect={file => { setRailAsset(file); const ref = boundScene.references.find(item => item.file.path === file.path); setSelection(ref ? { kind: 'reference', id: ref.id } : { kind: 'scene' }); setActiveSection('settings') }} />
   return <div className="video-workspace-shell">
     <ModeBar projectName={props.projectName} onOpenProjects={props.onOpenProjects} connected={props.connected} modelReady={props.modelReady} onOpenSettings={props.onOpenSettings} onOpenCompare={props.onOpenCompare} compareOpen={props.compareOpen} onOpenNavigator={props.onOpenNavigator} onReset={props.onReset} />
@@ -3792,12 +3795,15 @@ export function LegacyCreateView(props: CreateViewProps) {
     window.requestAnimationFrame(() => dialogueTriggerRef.current?.focus())
   }, [])
   useEffect(() => () => { previewPopoutRef.current?.close() }, [])
+  // Same handle-write sync for the preview monitor popout.
+  useEffect(() => { const popup = previewPopoutRef.current; if (popup && !popup.closed && popup.document.documentElement.dataset.theme !== document.documentElement.dataset.theme) popup.document.documentElement.dataset.theme = document.documentElement.dataset.theme })
   const detachPreview = () => {
     if (previewPopoutRef.current && !previewPopoutRef.current.closed) { previewPopoutRef.current.focus(); return }
     const popup = window.open('', 'oyama-ai-video-studio-preview', 'popup=yes,width=1080,height=720,resizable=yes')
     if (!popup) return
     popup.document.title = 'Oyama AI Video Studio · 预览监视器'
     popup.document.documentElement.className = 'preview-popout-document'
+    popup.document.documentElement.dataset.theme = document.documentElement.dataset.theme
     popup.document.head.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => node.remove())
     document.querySelectorAll<HTMLLinkElement | HTMLStyleElement>('link[rel="stylesheet"], style').forEach((node) => {
       const clone = node.cloneNode(true) as HTMLLinkElement | HTMLStyleElement
