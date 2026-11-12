@@ -677,6 +677,7 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
         }
       }
       if (url.pathname === '/api/lan/characters' && request.method === 'GET') return sendJson(response, 200, { characters: mobileCharacterLibrary })
+      if (url.pathname === '/api/lan/appearance' && request.method === 'GET') return sendJson(response, 200, { theme: settings.theme })
       if (url.pathname === '/api/lan/upload' && request.method === 'POST') {
         const body = await readJson(request)
         const data = typeof body.data === 'string' ? body.data : ''

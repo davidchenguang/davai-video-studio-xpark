@@ -105,3 +105,16 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   const preload = readSource('electron/preload.ts')
   assert.ok(preload.includes('setNativeTheme'), 'preload exposes setNativeTheme')
 }
+
+// ---- LAN appearance endpoint and companion pages ----
+{
+  const main = readSource('electron/main.ts')
+  assert.ok(main.includes("'/api/lan/appearance'"), 'LAN serves the appearance endpoint')
+
+  const mobile = readSource('src/MobileApp.tsx')
+  assert.ok(mobile.includes("'/api/lan/appearance'"), 'MobileApp has a browser-preview mock for appearance')
+  assert.ok(mobile.includes('theme-color'), 'MobileApp updates the meta theme-color')
+
+  const app = readSource('src/App.tsx')
+  assert.ok(/\/api\/lan\/appearance/.test(app), 'App fetches appearance in LAN browser context')
+}

@@ -10,7 +10,7 @@ import { ComfyActivityConsole, JobExecutionChips, JobsView, StatusBadge } from '
 import { WorkspaceNavigator } from './components/WorkspaceNavigator'
 import { WorkspaceSectionTabs, type WorkspaceSectionTab } from './components/WorkspaceSectionTabs'
 import { writeLocalJson } from './lib/localPersistence'
-import { applyTheme, writeThemeMirror } from './lib/theme'
+import { applyTheme, normalizeTheme, writeThemeMirror } from './lib/theme'
 import { collectWorkspaceSearchEntries, compactSearchText, highlightWorkspaceSearchText, type WorkspaceSearchEntry } from './lib/workspaceSearch'
 import { H3_PREVIEW_FPS, compactJob, compactSceneState, randomH3Seed, readWorkspace, withoutPreview, workspaceDefaults, type PersistedWorkspace } from './lib/workspacePersistence'
 import { WORKSPACE_PROJECTS_KEY, loadWorkspaceProjects, type WorkspaceProject } from './lib/workspaceProjects'
@@ -765,6 +765,17 @@ function App() {
     writeThemeMirror(settings.theme)
     void window.minimax.setNativeTheme?.(settings.theme)
   }, [settings])
+
+  // In the LAN "complete studio" browser page (?desktop=1 / token link) the mock
+  // bridge has no real settings: read the theme once from the studio, read-only.
+  useEffect(() => {
+    if (typeof window.minimax?.setNativeTheme === 'function' || !new URLSearchParams(location.search).has('token')) return
+    const token = new URLSearchParams(location.search).get('token') ?? localStorage.getItem('minimax.lan-token') ?? ''
+    fetch('/api/lan/appearance', { headers: { 'x-minimax-token': token } })
+      .then((response) => response.json() as Promise<{ theme?: string }>)
+      .then(({ theme }) => { if (theme) applyTheme(document.documentElement, normalizeTheme(theme)) })
+      .catch(() => undefined)
+  }, [])
 
   useEffect(() => {
     void window.minimax.getLegacyMigrationStatus().then(setLegacyMigration).catch(() => setLegacyMigration({ available: false, migrated: false, needsBrowserStorageRepair: false }))
