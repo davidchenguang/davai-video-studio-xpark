@@ -64,6 +64,7 @@ type AppSettings = {
   clipMasterOutputDirectory: string
   ffmpegPath: string
   uiScale: number
+  theme: 'green' | 'blue' | 'comfy' | 'light'
   attentionBackend: 'automatic' | 'sol' | 'kitchen' | 'sage' | 'native'
   solAttnTau: number
   solCacheEnabled: boolean
@@ -165,6 +166,7 @@ function defaultSettings(): AppSettings {
     clipMasterOutputDirectory: join(app.getPath('documents'), 'ComfyUI', 'output', 'video'),
     ffmpegPath: existsSync('C:\\FFMPEG\\bin\\ffmpeg.exe') ? 'C:\\FFMPEG\\bin\\ffmpeg.exe' : 'ffmpeg',
     uiScale: 100,
+    theme: 'green',
     attentionBackend: 'automatic',
     solAttnTau: 1,
     solCacheEnabled: true,
@@ -419,7 +421,7 @@ async function loadSettings(): Promise<AppSettings> {
     const rawRouting = raw.gpuRouting
     const validDevice = (value: unknown): GpuRouteDevice => typeof value === 'string' && (value === 'auto' || value === 'cpu' || /^gpu:\d+$/.test(value)) ? value as GpuRouteDevice : 'auto'
     const gpuRouting: GpuRoutingSettings = { ...defaults.gpuRouting, ...rawRouting, preset: rawRouting?.preset === 'single' || rawRouting?.preset === 'split' || rawRouting?.preset === 'custom' ? rawRouting.preset : 'automatic', strategy: rawRouting?.strategy === 'resident' || rawRouting?.strategy === 'cpu-fallback' ? rawRouting.strategy : 'sequential', diffusion: validDevice(rawRouting?.diffusion), textEncoder: validDevice(rawRouting?.textEncoder), videoVae: validDevice(rawRouting?.videoVae), audioVae: validDevice(rawRouting?.audioVae), previewVae: validDevice(rawRouting?.previewVae), allowOvercommit: rawRouting?.allowOvercommit === true, preloadDiffusionDuringTextEncoding: rawRouting?.preloadDiffusionDuringTextEncoding === true }
-    return { ...defaults, ...raw, outputDirectory, clipMasterOutputDirectory, uiScale, attentionBackend, solAttnTau, solCacheEnabled: raw.solCacheEnabled !== false, h3DiffusionPrecision: raw.h3DiffusionPrecision === 'nvfp4' ? 'nvfp4' : 'int8', gpuRouting, h3ParallelAttentionEnabled: raw.h3ParallelAttentionEnabled === true, queueDelaySeconds: Math.max(0, Math.min(600, Number(raw.queueDelaySeconds) || 0)), experimentalLtxMsrEnabled: raw.experimentalLtxMsrEnabled === true, blurNsfwLivePreviews: raw.blurNsfwLivePreviews === true, llmProvider: raw.llmProvider === 'lmstudio' ? 'lmstudio' : 'ollama', characterDetailReferencesEnabled: raw.characterDetailReferencesEnabled === true, renderSettingsPresets, paths: { ...defaults.paths, ...raw.paths }, generationDefaults }
+    return { ...defaults, ...raw, outputDirectory, clipMasterOutputDirectory, uiScale, theme: raw.theme === 'blue' || raw.theme === 'comfy' || raw.theme === 'light' ? raw.theme : 'green', attentionBackend, solAttnTau, solCacheEnabled: raw.solCacheEnabled !== false, h3DiffusionPrecision: raw.h3DiffusionPrecision === 'nvfp4' ? 'nvfp4' : 'int8', gpuRouting, h3ParallelAttentionEnabled: raw.h3ParallelAttentionEnabled === true, queueDelaySeconds: Math.max(0, Math.min(600, Number(raw.queueDelaySeconds) || 0)), experimentalLtxMsrEnabled: raw.experimentalLtxMsrEnabled === true, blurNsfwLivePreviews: raw.blurNsfwLivePreviews === true, llmProvider: raw.llmProvider === 'lmstudio' ? 'lmstudio' : 'ollama', characterDetailReferencesEnabled: raw.characterDetailReferencesEnabled === true, renderSettingsPresets, paths: { ...defaults.paths, ...raw.paths }, generationDefaults }
   } catch {
     return defaultSettings()
   }
