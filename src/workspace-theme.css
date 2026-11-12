@@ -1,23 +1,23 @@
 /* Shared neutral workstation system. Accent is reserved for focus and actions. */
 :root {
-  --bg: var(--bg);
-  --surface: var(--surface);
-  --surface-1: var(--surface-1);
-  --surface-2: var(--surface-2);
-  --surface-3: var(--surface-3);
-  --surface-raised: var(--surface-raised);
-  --line: var(--line);
-  --line-strong: var(--line-strong);
-  --text: var(--text);
-  --muted: var(--muted);
-  --muted-2: var(--muted-2);
-  --accent: var(--accent);
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   --accent-soft: rgb(88 166 255 / 12%);
-  --accent-ink: var(--accent-ink);
+  
   --radius: 7px;
   --sidebar: 200px;
   --space-panel: clamp(16px, 1.6vw, 24px);
-  --titlebar-surface: var(--titlebar-surface);
+  
 }
 body { background: var(--bg); }
 .main-area { background: var(--bg); scrollbar-gutter: stable; }

@@ -6,15 +6,15 @@
    ------------------------------------------------------------------------- */
 :root {
   --bg: var(--surface);
-  --surface: var(--surface);
-  --surface-2: var(--surface-2);
-  --surface-3: var(--surface-3);
+  
+  
+  
   --surface-raised: var(--surface-2);
   --line: var(--surface-3);
-  --line-strong: var(--line-strong);
-  --text: var(--text);
-  --muted: var(--muted);
-  --muted-2: var(--muted-2);
+  
+  
+  
+  
   --accent: var(--info-accent);
   --accent-ink: var(--surface);
   --accent-soft: rgba(112,188,255,.13);

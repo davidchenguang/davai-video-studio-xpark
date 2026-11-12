@@ -2,18 +2,18 @@
    Their specialized editors retain their own controls and data flow. */
 .app-shell.studio-shell-active {
   --sidebar: 0px;
-  --bg: var(--bg);
-  --surface: var(--surface);
-  --surface-1: var(--surface-1);
-  --surface-2: var(--surface-2);
-  --surface-3: var(--surface-3);
-  --line: var(--line);
-  --line-strong: var(--line-strong);
-  --text: var(--text);
-  --muted: var(--muted);
-  --muted-2: var(--muted-2);
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   --accent: var(--info-accent);
-  --accent-soft: var(--accent-soft);
+  
   grid-template: 58px minmax(0, 1fr) 28px / minmax(0, 1fr);
   background: var(--bg);
   color: var(--text);

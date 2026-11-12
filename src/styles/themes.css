@@ -16,6 +16,11 @@
   --info-accent-soft: rgb(143 211 90 / 12%);
   --check-tint: rgb(196 248 120 / 18%);
 
+  /* Semantic status hues (D15): functional in every theme, re-pinned per theme below if needed. */
+  --warning: #f0bc66;
+  --danger: #ff7f7f;
+  --success: #63dfbc;
+
   /* Identity family (D15): functional accents that keep their hue in every theme. */
   --identity-movie: #a879ff;
   --playhead: #f4c85d;

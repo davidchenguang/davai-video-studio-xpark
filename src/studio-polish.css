@@ -1,21 +1,21 @@
 /* Final visual layer: shared chrome and the primary video workspace.
    Keep geometry controlled by the existing workspace and rail-width state. */
 :root {
-  --bg: var(--bg);
-  --surface: var(--surface);
-  --surface-1: var(--surface-1);
-  --surface-2: var(--surface-2);
-  --surface-3: var(--surface-3);
-  --surface-raised: var(--surface-raised);
-  --line: var(--line);
-  --line-strong: var(--line-strong);
-  --text: var(--text);
-  --muted: var(--muted);
-  --muted-2: var(--muted-2);
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   --accent: var(--info-accent);
   --accent-soft: rgb(145 186 255 / 12%);
   --radius: 12px;
-  --titlebar-surface: var(--titlebar-surface);
+  
 }
 .app-shell .titlebar { background: var(--titlebar-surface); border-bottom-color: var(--line); box-shadow: none; }
 .app-shell .titlebar .brand-mark { border-radius: 9px; background: var(--surface-3); color: var(--info-accent); }
@@ -40,11 +40,11 @@
 .app-shell :is(button, a, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .minimax-workspace {
-  --surface: var(--surface);
-  --surface-2: var(--surface-2);
-  --line: var(--line);
-  --text: var(--text);
-  --muted: var(--muted);
+  
+  
+  
+  
+  
   --workflow-lime: var(--info-accent);
   --workflow-cyan: var(--info-accent);
   background: radial-gradient(ellipse at top right, var(--info-accent-soft), transparent 55%);

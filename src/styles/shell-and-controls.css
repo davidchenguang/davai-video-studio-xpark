@@ -5,20 +5,20 @@
   /* Midnight blue is the canvas; blue is reserved for intent and progress.
      This keeps generated media visually dominant instead of fighting lime UI. */
   --bg: var(--surface);
-  --surface: var(--surface);
-  --surface-2: var(--surface-2);
-  --surface-3: var(--surface-3);
+  
+  
+  
   --surface-raised: var(--surface-2);
   --line: var(--surface-3);
-  --line-strong: var(--line-strong);
-  --text: var(--text);
-  --muted: var(--muted);
-  --muted-2: var(--muted-2);
-  --accent: var(--accent);
+  
+  
+  
+  
+  
   --accent-ink: var(--surface);
   --accent-soft: var(--action-soft);
   --danger: #ff7f7f; /* theme-exempt: semantic danger red, functional in every theme (D15) */
-  --warning: var(--warning);
+  
   --radius: 12px;
   --sidebar: 218px;
   background: var(--bg);
