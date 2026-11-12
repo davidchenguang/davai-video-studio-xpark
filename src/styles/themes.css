@@ -29,15 +29,67 @@
   --preview-bg: rgb(0 0 0 / 12%);
   --preview-panel: #0a0f0c;
   --preview-line: #1d2721;
+
+  /* Shell accents (D15): green chrome gradients that follow the theme's action hue. */
+  --nav-active-from: #334a2b;
+  --nav-active-to: #263629;
+  --nav-active-line: #6b8d4a;
+  --sidebar-glow-from: #19221b;
+  --sidebar-glow-to: #141b16;
+  --page-glow: rgb(91 134 65 / 11%);
+  --panel-glow-from: #1e2a20;
+  --panel-glow-to: #171f19;
 }
 
-/* Blue (classic) — upstream look per D16. Values filled by the blue theme task. */
-[data-theme="blue"] {
+/* Blue (classic) — upstream look per D16.
+   Grays come from the tokens.css family; interactions restore the upstream blues.
+   The palette block mirrors studio-refresh.css's selector list with a
+   [data-theme] prefix and the same !important: important declarations only
+   lose to later or higher-specificity important declarations, so both are
+   required to win every definition site the green block owns. */
+html[data-theme="blue"],
+html[data-theme="blue"] .app-shell,
+html[data-theme="blue"] .app-shell.studio-shell-active,
+html[data-theme="blue"] .app-shell.video-shell-active,
+html[data-theme="blue"] .video-workspace-shell,
+html[data-theme="blue"] .minimax-workspace {
+  --bg: #0e1419 !important;
+  --surface: #151d23 !important;
+  --surface-1: #1a242c !important;
+  --surface-2: #202c35 !important;
+  --surface-3: #29323c !important;
+  --surface-raised: #1d262e !important;
+  --line: #303c46 !important;
+  --line-strong: #40515e !important;
+  --text: #e9f0f6 !important;
+  --muted: #a2b1be !important;
+  --muted-2: #7f919f !important;
+  --accent: #249cf1 !important;
+  --accent-soft: rgb(36 156 241 / 13%) !important;
+  --accent-ink: #ffffff !important;
+  --titlebar-surface: #121920 !important;
+}
+
+/* Action family restores the upstream interactive blues (D16).
+   Shell chrome gradients re-tint from green to the blue family (D15). */
+html[data-theme="blue"] {
+  --action-from: #289cf5;
+  --action-to: #0878dc;
+  --action-soft: rgb(112 188 255 / 14%);
+  --info-accent: #70bcff;
+  --info-accent-soft: rgb(112 188 255 / 12%);
+  --check-tint: rgb(191 229 255 / 18%);
+  --accent-ink: #ffffff;
+  --nav-active-from: #1d3d5c;
+  --nav-active-to: #16293c;
+  --nav-active-line: #3a7fb5;
+  --sidebar-glow-from: #131c24;
+  --sidebar-glow-to: #0f151b;
+  --page-glow: rgb(58 127 181 / 12%);
+  --panel-glow-from: #182430;
+  --panel-glow-to: #131a21;
   color-scheme: dark;
-  /* Palette override block: bg/surfaces/lines/text from the upstream tokens,
-     action family restored to the upstream blues. */
 }
-
 /* Comfy yellow — #211927 ground + #F2FF59 accent per D4. Values filled by the comfy task. */
 [data-theme="comfy"] {
   color-scheme: dark;

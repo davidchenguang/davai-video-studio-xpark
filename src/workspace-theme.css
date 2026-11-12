@@ -12,7 +12,7 @@
   
   
   
-  --accent-soft: rgb(88 166 255 / 12%);
+  --accent-soft: var(--info-accent-soft);
   
   --radius: 7px;
   --sidebar: 200px;

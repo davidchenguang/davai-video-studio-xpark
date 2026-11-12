@@ -13,7 +13,7 @@
   
   
   --accent: var(--info-accent);
-  --accent-soft: rgb(145 186 255 / 12%);
+  --accent-soft: var(--info-accent-soft);
   --radius: 12px;
   
 }
