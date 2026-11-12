@@ -103,7 +103,7 @@ export function installBrowserMock() {
     saveRenderBenchmarks: async (benchmarks) => benchmarks,
     saveSettings: async (next) => (current = next),
     factoryResetSettings: async (confirmation) => {
-      if (confirmation !== 'Reset') throw new Error('请原样输入 Reset 以确认恢复出厂设置。')
+      if (confirmation !== 'Reset') throw new Error('请准确输入 Reset 以确认恢复出厂设置。')
       current = structuredClone(settings)
       localStorage.clear()
       location.reload()

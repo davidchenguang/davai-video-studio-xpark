@@ -43,7 +43,7 @@ export function RenderSize({ value, onChange, provider = 'minimax' }: { value: s
         }))
       }}>{Object.keys(imageSizes).map((option) => <option key={option} value={option}>{imageRatioLabel(option)}</option>)}</select></label>
       <label>分辨率<select value={value} onChange={(event) => onChange(event.target.value)}>{imageSizes[ratio].map((size) => <option key={size} value={size}>{size.replace('x', ' × ')} · {imageQualityLabel(size)}</option>)}</select></label>
-      <p className="field-help">Z-Image 画幅 · {(area / 1e6).toFixed(2)} 百万像素。画幅越大占用的 VRAM 越多，渲染耗时也越长。</p>
+      <p className="field-help">Z-Image 画幅 · {(area / 1e6).toFixed(2)} 百万像素。画幅越大占用的显存越多，渲染耗时也越长。</p>
     </fieldset>
   }
   const maxPixels = provider === 'minimax' ? 1344 * 768 : LTX25_MAX_PIXELS

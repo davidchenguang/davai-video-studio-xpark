@@ -10,7 +10,7 @@ const STORAGE_KEY = 'oyama.prompt-scratchpad.v1'
 const targets: Array<{ id: ScratchpadTarget; label: string; note: string }> = [
   { id: 'h3', label: 'MiniMax H3', note: '官方多模态字段' },
   { id: 'ltx25', label: 'LTX 2.5', note: '自然的视频方向' },
-  { id: 'image', label: '创建图片', note: '静态图片方向' },
+  { id: 'image', label: '生成图片', note: '静态图片方向' },
   { id: 'music', label: '音乐', note: '配乐与制作方向' },
 ]
 

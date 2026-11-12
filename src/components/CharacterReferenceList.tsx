@@ -12,13 +12,13 @@ interface CharacterReferenceListProps {
 
 // referenceType values are the English storage/prompt enum; labels are the Chinese display layer.
 const referenceTypeLabels: Record<string, string> = {
-  master: '主身份',
-  face: '面部近景',
+  master: '主参考',
+  face: '面部特写',
   'full-body': '全身',
   'three-quarter': '四分之三侧',
   profile: '侧面',
   back: '背面',
-  detail: '身份细节',
+  detail: '特征细节',
   other: '其他角度',
 }
 

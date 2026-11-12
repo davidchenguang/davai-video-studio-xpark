@@ -32,7 +32,7 @@ function ReferenceImage({ file, number, disabled, onReplace, onRemove }: { file:
   }, [file.path])
   return <div className="photo-edit-reference">
     <div className="photo-edit-reference-preview">{preview && !failed ? <img src={preview} alt={`Image ${number} 参考图`} onError={() => setFailed(true)}/> : <ImagePlus size={24} aria-hidden="true"/>}</div>
-    <div className="photo-edit-reference-detail"><strong>Image {number} · 参考图</strong><span title={file.path}>{file.name}</span>{failed && <small role="alert">无法打开此图片。请在渲染前替换。</small>}</div>
+    <div className="photo-edit-reference-detail"><strong>图片 {number} · 参考图</strong><span title={file.path}>{file.name}</span>{failed && <small role="alert">无法打开此图片。请在渲染前替换。</small>}</div>
     <div className="photo-edit-reference-actions"><button type="button" onClick={onReplace} disabled={disabled}>替换</button><button type="button" onClick={onRemove} disabled={disabled} aria-label={`移除 Image ${number} 参考图`}><X size={15}/></button></div>
   </div>
 }
@@ -219,7 +219,7 @@ export function PhotoEditWorkspace({ url, info, connected, outputDirectory, inco
         <section className="photo-edit-card"><div className="photo-edit-card-heading"><span>02</span><div><h2>参考图与编辑</h2><p>Image 1 是上方所选源图。最多可添加两张参考图，用于身份、服装、物品或风格。</p></div></div>
           <div className="photo-edit-references" aria-label="FireRed 参考图">
             {references.map((file, index) => <ReferenceImage key={`${index}-${file.path}`} file={file} number={index + 2} disabled={busy} onReplace={() => void chooseReference(index)} onRemove={() => removeReference(index)}/>)}
-            {references.length < 2 && <button type="button" className="photo-edit-add-reference" onClick={() => void chooseReference(references.length)} disabled={busy}><ImagePlus size={17}/>添加 Image {references.length + 2} 参考图 <span>可选</span></button>}
+            {references.length < 2 && <button type="button" className="photo-edit-add-reference" onClick={() => void chooseReference(references.length)} disabled={busy}><ImagePlus size={17}/>添加图片 {references.length + 2} 参考图 <span>可选</span></button>}
           </div>
           <label className="photo-edit-prompt" htmlFor="fire-red-prompt">要修改什么？<textarea id="fire-red-prompt" value={prompt} onChange={event => setPrompt(event.target.value)} rows={5} disabled={busy} placeholder="例如：Keep Image 1's pose and background. Use the jacket from Image 2 and the hat from Image 3." /></label><small className="photo-edit-hint">在指令中用 Image 1、Image 2、Image 3 按编号引用。Image 1 决定输出的构图与分辨率。</small></section>
       </div>

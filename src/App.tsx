@@ -1795,7 +1795,7 @@ function App() {
     }
     const surveyGpuRouting = routingPlanFor({ diffusion: surveyModels.ref2va, textEncoder: surveyModels.textEncoder, videoVae: surveyModels.videoVae, audioVae: surveyModels.audioVae })
     if (surveyGpuRouting?.vramWarnings.length && !settings.gpuRouting.allowOvercommit) {
-      const message = `${surveyGpuRouting.vramWarnings.join(' ')} 请检查 GPU 路由，或明确允许 VRAM 警告。`
+      const message = `${surveyGpuRouting.vramWarnings.join(' ')} 请检查 GPU 路由，或明确允许显存警告。`
       setNotice({ tone: 'error', text: message })
       return message
     }
@@ -1924,7 +1924,7 @@ function App() {
     }
     const ltxGpuRouting = routingPlanFor({ diffusion: ltxSelection.diffusion, textEncoder: ltxSelection.textEncoder, videoVae: ltxSelection.videoVae, audioVae: ltxSelection.audioVae })
     if (ltxGpuRouting?.vramWarnings.length && !settings.gpuRouting.allowOvercommit) {
-      const message = `${ltxGpuRouting.vramWarnings.join(' ')} 请检查 GPU 路由，或明确允许 VRAM 警告。`
+      const message = `${ltxGpuRouting.vramWarnings.join(' ')} 请检查 GPU 路由，或明确允许显存警告。`
       setNotice({ tone: 'error', text: message })
       return message
     }
@@ -2140,7 +2140,7 @@ function App() {
     }
     const aceGpuRouting = routingPlanFor({ diffusion: selectedModel, textEncoder: aceSelection.textEncoderLarge, audioVae: aceSelection.vae })
     if (aceGpuRouting?.vramWarnings.length && !settings.gpuRouting.allowOvercommit) {
-      setNotice({ tone: 'error', text: `${aceGpuRouting.vramWarnings.join(' ')} 请检查 GPU 路由，或明确允许 VRAM 警告。` })
+      setNotice({ tone: 'error', text: `${aceGpuRouting.vramWarnings.join(' ')} 请检查 GPU 路由，或明确允许显存警告。` })
       return
     }
     const missingNodes = ACE_STEP_REQUIRED_NODES.filter((node) => !info[node])
@@ -2246,7 +2246,7 @@ function App() {
       return stop('缺少一个或多个必需的 MiniMax H3 模型组件。请打开设置，重新扫描模型，并核对 MiniMax H3 的要求。')
     }
     if (h3GpuRouting?.vramWarnings.length && !settings.gpuRouting.allowOvercommit) {
-      return stop(`${h3GpuRouting.vramWarnings.join(' ')} 请在设置中检查 GPU 路由，选择顺序卸载或 CPU 回退，或明确允许 VRAM 警告。`)
+      return stop(`${h3GpuRouting.vramWarnings.join(' ')} 请在设置中检查 GPU 路由，选择顺序卸载或 CPU 回退，或明确允许显存警告。`)
     }
     if (target === 'video' && liveEnabled && livePreviewMode === 'h3-override' && !h3PreviewOverrideNode) {
       return stop('已选择 MiniMax H3 动态预览，但未检测到它的 Preview Override 节点。请安装或启用该自定义节点，重启 ComfyUI，然后点击本地引擎状态刷新。')
@@ -2761,7 +2761,7 @@ function App() {
       return setNotice({ tone: 'error', text: '基准测试需要 FL2VA 基础组件与官方 8 步 Turbo LoRA。' })
     }
     if (h3GpuRouting?.vramWarnings.length && !settings.gpuRouting.allowOvercommit) {
-      return setNotice({ tone: 'error', text: `${h3GpuRouting.vramWarnings.join(' ')} 基准测试前请启用「忽略 VRAM 估算仍渲染」，或选择更稳妥的 GPU 路由策略。` })
+      return setNotice({ tone: 'error', text: `${h3GpuRouting.vramWarnings.join(' ')} 基准测试前请启用「忽略显存估算仍渲染」，或选择更稳妥的 GPU 路由策略。` })
     }
     const available = h3BenchmarkBackends.map((item) => ({
       ...item,
@@ -3851,7 +3851,7 @@ export function LegacyCreateView(props: CreateViewProps) {
                 <div className="create-options-actions" aria-label="场景工具">
                 <button type="button" aria-label="精修场景" onClick={() => { if (sceneToolsRef.current) sceneToolsRef.current.open = false; onPromptTool('enhance') }} disabled={!ollamaAvailable || Boolean(promptingTool)}>{promptingTool === 'enhance' ? <LoaderCircle size={14} className="spin" /> : <WandSparkles size={14} />}<span><strong>精修场景</strong><small>润色已写好的镜头描述</small></span></button>
                 <button type="button" aria-label="生成镜头时间线" onClick={() => { if (sceneToolsRef.current) sceneToolsRef.current.open = false; onPromptTool('timeline') }} disabled={!ollamaAvailable || Boolean(promptingTool)}>{promptingTool === 'timeline' ? <LoaderCircle size={14} className="spin" /> : <Clock3 size={14} />}<span><strong>镜头时间线</strong><small>编排带时长的镜头序列</small></span></button>
-                <button type="button" aria-label="执行音频处理" onClick={() => { if (sceneToolsRef.current) sceneToolsRef.current.open = false; onPromptTool('audio') }} disabled={!ollamaAvailable || Boolean(promptingTool)}>{promptingTool === 'audio' ? <LoaderCircle size={14} className="spin" /> : <Volume2 size={14} />}<span><strong>音频处理</strong><small>优化环境声与音效提示</small></span></button>
+                <button type="button" aria-label="执行声音处理" onClick={() => { if (sceneToolsRef.current) sceneToolsRef.current.open = false; onPromptTool('audio') }} disabled={!ollamaAvailable || Boolean(promptingTool)}>{promptingTool === 'audio' ? <LoaderCircle size={14} className="spin" /> : <Volume2 size={14} />}<span><strong>声音处理</strong><small>优化环境声与音效提示</small></span></button>
                 {mode === 'reference' && <button ref={dialogueTriggerRef} type="button" aria-label="打开角色对白" onClick={() => { if (sceneToolsRef.current) sceneToolsRef.current.open = false; setDialogueOpen(true) }}><MessageSquareText size={14} /><span><strong>角色对白</strong><small>撰写可表演的对白</small></span></button>}
                 </div>
               </div>
@@ -3889,7 +3889,7 @@ export function LegacyCreateView(props: CreateViewProps) {
             <div className="modal-backdrop source-media-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeSourceMedia() }}>
               <section className="source-media-modal" role="dialog" aria-modal="true" aria-labelledby="source-media-modal-title" aria-describedby="source-media-modal-description" onKeyDown={keepSourceMediaFocus}>
                 <header>
-                  <div><span><ImageIcon size={18} /></span><div><small>参考素材工作区</small><strong id="source-media-modal-title">素材来源</strong><p id="source-media-modal-description">为本次渲染搭建角色阵容、地点、造型、运动与声音。</p></div></div>
+                  <div><span><ImageIcon size={18} /></span><div><small>参考工作区</small><strong id="source-media-modal-title">素材来源</strong><p id="source-media-modal-description">为本次渲染搭建角色阵容、地点、造型、运动与声音。</p></div></div>
                   <div className="source-media-header-actions"><em>已载入 {sourceMediaCount} 项</em><button ref={sourceMediaCloseRef} type="button" aria-label="关闭素材来源" onClick={closeSourceMedia}><X size={18} /></button></div>
                 </header>
                 <div className="source-media-modal-body">
@@ -3968,11 +3968,11 @@ export function LegacyCreateView(props: CreateViewProps) {
             {mode !== 'reference' && <div className="create-presets" aria-label="推荐的 H3 预设"><button type="button" onClick={() => applyCreatePreset('quality')}><strong>原生画质</strong><small>1344 × 768 · 30 步</small></button><button type="button" onClick={() => applyCreatePreset('turbo')}><strong>Turbo 8</strong><small>原生画布 · 官方 LoRA</small></button><button type="button" onClick={() => applyCreatePreset('preview')}><strong>预览</strong><small>864 × 480 · Turbo 8</small></button></div>}
              <div className="render-settings-masonry">
              <RenderSize value={resolution} onChange={setResolution} />
-             {mode === 'reference' && <details className="output-reference-fidelity"><summary><Gauge size={16} /><span><small>参考保真度</small><strong>{refImageSize === 'max' ? '最大身份保留' : '均衡'}</strong><em>{refImageSize === 'max' ? '保留更多原始素材细节' : '让参考图适应输出画布'}</em></span><ChevronDown size={15} /></summary><fieldset><legend>选择 H3 保留多少源图像细节</legend><label className={refImageSize === 'match' ? 'selected' : ''}><input type="radio" name="output-reference-fidelity" checked={refImageSize === 'match'} onChange={() => setRefImageSize('match')} /><span><strong>均衡</strong><small>让参考图适应输出画布。速度更快，显存占用更少。</small></span></label><label className={refImageSize === 'max' ? 'selected' : ''}><input type="radio" name="output-reference-fidelity" checked={refImageSize === 'max'} onChange={() => setRefImageSize('max')} /><span><strong>最大身份保留</strong><small>保留更多原始图像细节。速度更慢，显存占用更多。</small></span></label></fieldset></details>}
+             {mode === 'reference' && <details className="output-reference-fidelity"><summary><Gauge size={16} /><span><small>参考图保真度</small><strong>{refImageSize === 'max' ? '最大身份保留' : '均衡'}</strong><em>{refImageSize === 'max' ? '保留更多原始素材细节' : '让参考图适应输出画布'}</em></span><ChevronDown size={15} /></summary><fieldset><legend>选择 H3 保留多少源图像细节</legend><label className={refImageSize === 'match' ? 'selected' : ''}><input type="radio" name="output-reference-fidelity" checked={refImageSize === 'match'} onChange={() => setRefImageSize('match')} /><span><strong>均衡</strong><small>让参考图适应输出画布。速度更快，显存占用更少。</small></span></label><label className={refImageSize === 'max' ? 'selected' : ''}><input type="radio" name="output-reference-fidelity" checked={refImageSize === 'max'} onChange={() => setRefImageSize('max')} /><span><strong>最大身份保留</strong><small>保留更多原始图像细节。速度更慢，显存占用更多。</small></span></label></fieldset></details>}
              {mode === 'reference' && <section className={`frame-zero-guide-setting ${frameZeroGuide ? 'active' : ''}`} aria-labelledby="frame-zero-guide-title">
                <div className="frame-zero-guide-heading"><span><Aperture size={17} /></span><div><small>续接控制</small><strong id="frame-zero-guide-title">首帧 0 引导</strong><p>选择一张图片，在原生 <code>frame_idx 0</code> 处做 VAE 锚定。</p></div><em>{frameZeroGuide ? '已锚定 0.00s' : '关闭'}</em></div>
                <label><span>明确的开场素材</span><select aria-label="首帧 0 引导来源" value={frameZeroGuide?.id || ''} disabled={!frameZeroCandidates.length} onChange={(event) => setSceneState(setFrameZeroGuide(boundScene, event.target.value || undefined))}><option value="">关闭 · 参考图不会锁定开场</option>{frameZeroCandidates.map((ref) => { const label = sceneCompilation.references.find(item => item.id === ref.id)?.label.replace(/[<>]/g, '') || '图片'; return <option key={ref.id} value={ref.id}>{label} · {ref.name}</option> })}</select></label>
-               <div className="frame-zero-guide-meaning"><span><strong>首帧 0 锚定</strong><small>原生 Add Guide 引导条件会把该图片固定为 0.00s 的开场视觉状态。</small></span><span><strong>仅作参考</strong><small>只用于引导身份、服装、场景、运动或风格，不固定第一帧生成结果。</small></span></div>
+               <div className="frame-zero-guide-meaning"><span><strong>帧 0 锚定</strong><small>原生 Add Guide 引导条件会把该图片固定为 0.00s 的开场视觉状态。</small></span><span><strong>仅作参考</strong><small>只用于引导身份、服装、场景、运动或风格，不固定第一帧生成结果。</small></span></div>
                {!frameZeroCandidates.length && <p className="field-help">至少在「素材来源」中添加一张图片，才能启用首帧 0 引导。</p>}
                {frameZeroGuide && !info.MiniMaxH3AddGuide && <p className="field-help upscale-warning">当前 ComfyUI 安装未报告 MiniMaxH3AddGuide。请更新 ComfyUI 或关闭首帧 0 引导。</p>}
              </section>}
@@ -4088,7 +4088,7 @@ function MediaDrop({ label, note, file, onChoose, onRemove }: { label: string; n
 }
 
 function ReferenceRow({ icon: Icon, label, limit, kind, files, onAdd, onEdit, onRemove }: { icon: typeof Film; label: string; limit: string; kind: MediaKind; files: MediaFile[]; onAdd(): void; onEdit?(index: number): void; onRemove(index: number): void }) {
-  return <div className="reference-row"><div className="reference-title"><span><Icon size={17} /></span><div><strong>{label}</strong><small>{limit}</small></div></div><div className="reference-files">{files.map((file, index) => <div className="file-pill" key={`${file.path}-${index}`}>{file.preview && kind === 'image' ? <><img src={file.preview} alt="" /><span className="reference-hover-preview" role="tooltip"><img src={file.preview} alt={`${file.name} 的大图预览`} /><b>{file.name}</b></span></> : <Icon size={15} />}<span><strong>{kind === 'image' ? `图片 ${index + 1}` : kind === 'video' ? `视频 ${index + 1}` : `音频 ${index + 1}`}</strong><small>{file.clip ? `${(file.clip.end - file.clip.start).toFixed(1)}s · ${file.name}` : file.name}</small></span>{onEdit && <button onClick={() => onEdit(index)} aria-label={`编辑片段 ${file.name}`} title="更换参考片段"><Scissors size={13} /></button>}<button onClick={() => onRemove(index)} aria-label={`移除 ${file.name}`}><X size={14} /></button></div>)}<button className="add-reference" onClick={onAdd} disabled={files.length >= (kind === 'image' ? 9 : 3)}><Plus size={16} />添加{kind === 'image' ? '图片' : kind === 'video' ? '视频' : '音频'}</button></div></div>
+  return <div className="reference-row"><div className="reference-title"><span><Icon size={17} /></span><div><strong>{label}</strong><small>{limit}</small></div></div><div className="reference-files">{files.map((file, index) => <div className="file-pill" key={`${file.path}-${index}`}>{file.preview && kind === 'image' ? <><img src={file.preview} alt="" /><span className="reference-hover-preview" role="tooltip"><img src={file.preview} alt={`${file.name} 的大图预览`} /><b>{file.name}</b></span></> : <Icon size={15} />}<span><strong>{kind === 'image' ? `图片 ${index + 1}` : kind === 'video' ? `视频 ${index + 1}` : `音频 ${index + 1}`}</strong><small>{file.clip ? `${(file.clip.end - file.clip.start).toFixed(1)}s · ${file.name}` : file.name}</small></span>{onEdit && <button onClick={() => onEdit(index)} aria-label={`剪辑片段 ${file.name}`} title="更换参考片段"><Scissors size={13} /></button>}<button onClick={() => onRemove(index)} aria-label={`移除 ${file.name}`}><X size={14} /></button></div>)}<button className="add-reference" onClick={onAdd} disabled={files.length >= (kind === 'image' ? 9 : 3)}><Plus size={16} />添加{kind === 'image' ? '图片' : kind === 'video' ? '视频' : '音频'}</button></div></div>
 }
 
 function CharacterReferencePicker({ characters, wardrobes, values, onChange }: { characters: CharacterProject[]; wardrobes: WardrobeProject[]; values: string[]; onChange(value: string): void }) {

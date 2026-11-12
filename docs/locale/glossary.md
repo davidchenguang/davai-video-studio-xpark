@@ -34,6 +34,9 @@
 | first frame | 首帧 | translate | |
 | last frame | 尾帧 | translate | |
 | take | 条 | translate | 拍摄条数 |
+| image | 图片 | data | 通用名词；英文形式常见于文件名（`z_image_*.safetensors`）与引擎侧编号（`Image 1–5`），不做漏译判定 |
+| latent | 潜空间 | data | LTX 2.5 的放大选项；英文形式常见于文件名（`latent_upscale_models`），不做漏译判定 |
+| VRAM | 显存 | translate | 通用硬件名词，不属品牌/型号，不按 keep 处理 |
 
 ### 摄影枚举取值
 
@@ -78,6 +81,20 @@
 | hair | 发型 | translate | 工作区语境 |
 | wardrobe | 服装 | translate | 工作区语境 |
 | accessories | 配饰 | translate | 工作区语境 |
+| create image | 生成图片 | translate | 工作区名「生成图片 · Z-Image」；不写「创建图片」 |
+
+### 提示词预设分类（`src/lib/promptPresets.ts` 的 `promptPresetCategories`）
+
+这一组是**提示词创作分类名**，与上表的通用词义不同，按本表走，不得回改上表：
+
+| 英文 | 中文 | 类别 | 备注 |
+| --- | --- | --- | --- |
+| camera | 镜头 | data | 相机类预设 |
+| shot | 景别 | data | 该分类下是取景预设，与上表 `shot size` 同义 |
+| movement | 表演 | data | 该分类下是人物表演动作（Listening Reaction 等） |
+| location | 场景 | data | 该分类写的是提示词段落；工作区名仍用「地点」 |
+
+`data` 行只作口径登记，不参与漏译与术语检查（与「身份参考角色」表同理）。
 
 ### 身份参考角色（data：英文为提示词层，显示层用中文）
 
@@ -354,7 +371,6 @@ ACE-Step 的调性下拉使用同一写法：`src/components/AceStepWorkspace.ts
 | SageAttention | SageAttention | keep | |
 | Kitchen INT8 | Kitchen INT8 | keep | |
 | Sol-Attn | Sol-Attn | keep | |
-| VRAM | VRAM | keep | |
 | VAE | VAE | keep | |
 | SDXL | SDXL | keep | |
 | Qwen | Qwen | keep | |
