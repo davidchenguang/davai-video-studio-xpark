@@ -151,3 +151,143 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   const accentInk = themes.slice(lightStart).match(/--accent-ink:\s*([^;]+);/)?.[1]?.trim()
   assert.ok(accentInk, 'light block defines --accent-ink (deep green actions need light ink)')
 }
+
+// ---- No self-referencing custom properties (Chromium poisons them) ----
+// `--x: var(--x)` — with or without a fallback — is a cycle: the declaration
+// computes to the guaranteed-invalid value and every usage silently falls
+// back to `unset`. It is invisible in review and shows up as a wrong color.
+{
+  const cssFiles = []
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const path = `${dir}/${entry.name}`
+      if (entry.isDirectory()) walk(path)
+      else if (entry.name.endsWith('.css')) cssFiles.push(path)
+    }
+  }
+  walk('src')
+  const selfReference = /(--[a-z0-9-]+)\s*:\s*var\(\s*\1\s*(?:,|\))/gi
+  const offenders = []
+  for (const file of cssFiles) {
+    fs.readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
+      let match
+      selfReference.lastIndex = 0
+      while ((match = selfReference.exec(line))) offenders.push(`${file}:${index + 1} ${match[1]}`)
+    })
+  }
+  assert.deepEqual(offenders, [], `no custom property may reference itself: ${offenders.join(', ')}`)
+}
+
+// ---- Pinned workspace identity tones (D15) ----
+{
+  const themes = readSource('src/styles/themes.css')
+  for (const token of ['--asset-wardrobe-tone', '--asset-hair-tone', '--asset-location-tone', '--music-accent']) {
+    assert.ok(themes.includes(`${token}:`), `themes.css pins ${token}`)
+  }
+  const movie = readSource('src/styles/movie-and-mobile.css')
+  assert.ok(/--asset-tone:\s*var\(--asset-wardrobe-tone\)/.test(movie), 'the wardrobe studio uses the pinned wardrobe tone')
+  assert.ok(/--asset-tone:\s*var\(--asset-hair-tone\)/.test(movie), 'the hair studio uses the pinned hair tone')
+  assert.ok(/--asset-tone:\s*var\(--asset-location-tone\)/.test(movie), 'the location studio uses the pinned location tone')
+  const feature = readSource('src/styles/feature-workspaces.css')
+  assert.ok(/--accent:\s*var\(--music-accent\)/.test(feature), 'the music workspace keeps its own accent identity')
+}
+
+// ---- Emphasis ink is opaque (readable as text) ----
+{
+  const themes = readSource('src/styles/themes.css')
+  const values = [...themes.matchAll(/--check-tint:\s*([^;]+);/g)].map((match) => match[1].trim())
+  assert.ok(values.length >= 4, 'every theme defines --check-tint')
+  for (const value of values) {
+    assert.ok(!/\//.test(value) && !/^#[0-9a-f]{8}$/i.test(value), `--check-tint must be opaque (it is used as a text color), got ${value}`)
+  }
+}
+
+// ---- Green theme keeps the pre-branch semantic hues (D15) ----
+{
+  const themes = readSource('src/styles/themes.css')
+  const root = themes.slice(themes.indexOf(':root'), themes.indexOf('}', themes.indexOf(':root')))
+  assert.ok(/--warning:\s*#e3ad55/.test(root), 'green keeps the pre-branch warning hue')
+  assert.ok(/--danger:\s*#f1707e/.test(root), 'green keeps the pre-branch danger hue')
+  assert.ok(/--success:\s*#55c98a/.test(root), 'green keeps the pre-branch success hue')
+}
+
+// ---- Light theme: detached media windows stay dark (D7) ----
+{
+  const themes = readSource('src/styles/themes.css')
+  const lightStart = themes.indexOf('html[data-theme="light"]')
+  const mediaWindow = themes.slice(lightStart).match(/html\[data-theme="light"\][^{]*\.preview-popout-document[^{]*\{([^}]*)\}/)
+  assert.ok(mediaWindow, 'light theme pins the detached media window surfaces')
+  const mediaBg = mediaWindow[1].match(/--bg:\s*([^;]+);/)?.[1]?.trim()
+  assert.ok(mediaBg && /^#[0-6]/i.test(mediaBg), `the detached media window keeps a dark ground in the light theme, got ${mediaBg}`)
+  const mediaText = mediaWindow[1].match(/--text:\s*([^;]+);/)?.[1]?.trim()
+  assert.ok(mediaText && /^#[c-f]/i.test(mediaText), `the detached media window keeps light ink in the light theme, got ${mediaText}`)
+}
+
+// ---- Media popouts are marked so D7 applies (renderer) ----
+{
+  const app = readSource('src/App.tsx')
+  const videoPopout = app.slice(app.indexOf("'oyama-video-preview'"), app.indexOf("'oyama-video-preview'") + 1200)
+  assert.ok(videoPopout.includes('preview-popout-document'), 'the video preview popout marks its document (media surfaces stay dark)')
+  assert.ok(app.includes('dataset.theme'), 'the popouts still carry the theme id (theme sync)')
+}
+
+// ---- Native shell: media windows keep the dark chrome, windows are themed at creation ----
+{
+  const main = readSource('electron/main.ts')
+  const didCreate = main.slice(main.indexOf("on('did-create-window'"), main.indexOf("on('did-create-window'") + 800)
+  assert.ok(didCreate.includes('frameName'), 'did-create-window decides the shell from the frame name')
+  assert.ok(/shellFor\([^)]*,\s*(isMediaWindow|isPreviewMonitor)\)/.test(didCreate), 'did-create-window tells the media windows apart')
+  assert.ok(main.includes("'oyama-video-preview'"), 'the video preview popout is a media window')
+
+  const studioWindow = main.slice(main.indexOf('function createWindow()'), main.indexOf('function createWindow()') + 900)
+  assert.ok(!/backgroundColor:\s*'#0c100e'/.test(studioWindow), 'the studio window is created with the themed background (no green flash)')
+  const movieWindow = main.slice(main.indexOf('function createMovieEditorWindow()'), main.indexOf('function createMovieEditorWindow()') + 900)
+  assert.ok(!/backgroundColor:\s*'#171719'/.test(movieWindow), 'the movie editor window is created with the themed background')
+}
+
+// ---- LAN browser companion follows the studio theme ----
+{
+  const app = readSource('src/App.tsx')
+  const lanEffect = app.slice(app.indexOf("'/api/lan/appearance'") - 1200, app.indexOf("'/api/lan/appearance'") + 400)
+  assert.ok(!/typeof window\.minimax\?\.setNativeTheme === 'function'/.test(lanEffect), 'the LAN appearance fetch is not gated on the mock bridge (the mock defines the same function)')
+  assert.ok(/Electron/.test(lanEffect), 'the LAN appearance fetch detects the Electron runtime')
+}
+
+// ---- Green-theme fidelity: the cleanup may not re-tint non-blue emphasis ----
+// The pre-branch baseline styled these elements white/muted/neutral. Mapping
+// them to the interactive-accent token silently recolored them (found by the
+// base-vs-branch computed-color diff after review).
+{
+  const video = readSource('src/video-workspace.css')
+  // Headings and labels that were white/near-white in the baseline stay text-colored.
+  assert.ok(!/\.video-workflow-intro h2\s*\{[^}]*--info-accent/.test(video), 'the workflow intro heading keeps its baseline white (not the accent)')
+  assert.ok(!/\.video-step-control strong\s*\{[^}]*--info-accent/.test(video), 'the step-control heading keeps its baseline white')
+  assert.ok(!/\.video-quality-note strong\s*\{[^}]*--info-accent/.test(video), 'the quality-note heading keeps its baseline white')
+  assert.ok(!/\.video-asset-empty strong\s*\{[^}]*--info-accent/.test(video), 'the asset-empty heading keeps its baseline white')
+  assert.ok(!/\.video-workspace-switcher\s*\{[^}]*--info-accent/.test(video), 'the workspace switcher keeps its baseline ink')
+  // Labels that were muted in the baseline stay muted.
+  assert.ok(/\.video-pipeline-state\s*\{[^}]*color:\s*var\(--muted\)/.test(video), 'the pipeline state chip keeps its baseline muted ink')
+  assert.ok(/\.video-mode-identity small\s*\{[^}]*color:\s*var\(--muted\)/.test(video), 'the mode identity small keeps its baseline muted ink')
+  // Field borders were neutral blue-grays in the baseline, not accents.
+  const workstation = readSource('src/styles/workstation.css')
+  assert.ok(!/\.field-border:\s*var\(--info-accent\)/.test(workstation), 'field borders stay neutral (not the accent)')
+}
+
+// ---- Badges keep their baseline pill palette (identity, D15) ----
+{
+  const ui = readSource('src/components/ui/ui.css')
+  assert.ok(/\.ui-badge-warning\{[^}]*#785c35/.test(ui), 'the warning badge keeps its warm pill border')
+  assert.ok(/\.ui-badge-warning\{[^}]*#4d3a23/.test(ui), 'the warning badge keeps its warm pill ground')
+  assert.ok(/\.ui-badge-warning\{[^}]*#f0cf98/.test(ui), 'the warning badge keeps its warm pill ink')
+  assert.ok(/\.ui-badge-primary\{[^}]*#174a70/.test(ui), 'the primary badge keeps its baseline pill ground')
+  assert.ok(/\.ui-badge-success\{[^}]*#164b38/.test(ui), 'the success badge keeps its baseline pill ground')
+}
+
+// ---- Danger buttons keep their baseline soft-danger treatment ----
+{
+  const production = readSource('src/production-workspace.css')
+  assert.ok(!/\.danger-button\s*\{[^}]*var\(--danger,\s*var\(--danger/.test(production), 'the danger button does not self-reference --danger')
+  assert.ok(/\.danger-button\s*\{[^}]*color-mix\(in srgb,\s*var\(--danger\)/.test(production), 'the danger button keeps its soft translucent treatment per theme')
+  const branchCreation = readSource('src/styles/creation-workspaces.css')
+  assert.ok(!/\.danger-button\s*\{[^}]*background:\s*var\(--danger\)/.test(branchCreation), 'creation danger buttons keep the translucent treatment, not a solid fill')
+}

@@ -123,9 +123,9 @@
 .bible-library-strip button > span { overflow: hidden; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 
 .character-studio { --asset-tone: var(--accent); --asset-soft: var(--accent-soft); max-width: 1540px; }
-.wardrobe-studio { --asset-tone: var(--asset-tone, var(--identity-movie)); --asset-soft: rgba(233,165,210,.09); }
-.hair-studio { --asset-tone: var(--asset-tone, var(--identity-movie)); --asset-soft: rgba(215,166,255,.09); }
-.location-studio { --asset-tone: var(--asset-tone, var(--info-accent)); --asset-soft: rgba(101,214,194,.09); }
+.wardrobe-studio { --asset-tone: var(--asset-wardrobe-tone); --asset-soft: rgba(233,165,210,.09); }
+.hair-studio { --asset-tone: var(--asset-hair-tone); --asset-soft: rgba(215,166,255,.09); }
+.location-studio { --asset-tone: var(--asset-location-tone); --asset-soft: rgba(101,214,194,.09); }
 .location-nature-toggle { display: grid; grid-template-columns: 16px 18px minmax(0, 1fr); align-items: start; gap: 8px; min-width: 0; margin: 0; padding: 11px 12px; border-bottom: 1px solid var(--line); color: var(--muted); cursor: pointer; }
 .location-nature-toggle:hover { background: color-mix(in srgb, var(--asset-soft) 45%, transparent); color: var(--text); }
 .location-nature-toggle.selected { background: var(--asset-soft); color: var(--text); }

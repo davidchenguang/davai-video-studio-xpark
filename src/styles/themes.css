@@ -14,16 +14,25 @@
   --action-soft: rgb(196 248 120 / 14%);
   --info-accent: #8fd35a;
   --info-accent-soft: rgb(143 211 90 / 12%);
-  --check-tint: rgb(196 248 120 / 18%);
+  /* Emphasis ink: opaque on purpose — it is used as a text color (checked
+     select items, activity states, progress numbers), so a tint would be
+     unreadable. */
+  --check-tint: #c4f878;
 
-  /* Semantic status hues (D15): functional in every theme, re-pinned per theme below if needed. */
-  --warning: #f0bc66;
-  --danger: #ff7f7f;
-  --success: #63dfbc;
+  /* Semantic status hues (D15): the pre-branch values. Only a theme whose
+     ground fails contrast re-pins them (see the light block). */
+  --warning: #e3ad55;
+  --danger: #f1707e;
+  --success: #55c98a;
 
   /* Identity family (D15): functional accents that keep their hue in every theme. */
   --identity-movie: #a879ff;
   --playhead: #f4c85d;
+  /* Per-workspace identity tones — pinned, never re-tinted (D15). */
+  --asset-wardrobe-tone: #e9a5d2;
+  --asset-hair-tone: #d7a6ff;
+  --asset-location-tone: #65d6c2;
+  --music-accent: #7ee2ae;
 
   /* Preview family (D7): color-judging surfaces stay dark in every theme. */
   --preview-bg: rgb(0 0 0 / 12%);
@@ -37,6 +46,7 @@
   --nav-active-to: #263629;
   --nav-active-line: #6b8d4a;
   --nav-active-ink: #f0f5ef;
+  --nav-active-svg: #c4f878;
   --sidebar-glow-from: #19221b;
   --sidebar-glow-to: #141b16;
   --page-glow: rgb(91 134 65 / 11%);
@@ -81,12 +91,14 @@ html[data-theme="blue"] {
   --action-soft: rgb(112 188 255 / 14%);
   --info-accent: #70bcff;
   --info-accent-soft: rgb(112 188 255 / 12%);
-  --check-tint: rgb(191 229 255 / 18%);
+  /* The upstream checked-item ink, restored literally (D16). */
+  --check-tint: #bfe5ff;
   --accent-ink: #ffffff;
   --nav-active-from: #1d3d5c;
   --nav-active-to: #16293c;
   --nav-active-line: #3a7fb5;
   --nav-active-ink: #e9f0f6;
+  --nav-active-svg: #289cf5;
   --sidebar-glow-from: #131c24;
   --sidebar-glow-to: #0f151b;
   --page-glow: rgb(58 127 181 / 12%);
@@ -126,12 +138,13 @@ html[data-theme="comfy"] {
   --action-soft: rgb(242 255 89 / 14%);
   --info-accent: #e8f06a;
   --info-accent-soft: rgb(232 240 106 / 13%);
-  --check-tint: rgb(242 255 89 / 17%);
+  --check-tint: #f2ff59;
   --accent-ink: #211927;
   --nav-active-from: #463754;
   --nav-active-to: #34283f;
   --nav-active-line: #8a7b3a;
   --nav-active-ink: #f1eff3;
+  --nav-active-svg: #f2ff59;
   --sidebar-glow-from: #251c2c;
   --sidebar-glow-to: #1d1623;
   --page-glow: rgb(242 255 89 / 7%);
@@ -176,12 +189,19 @@ html[data-theme="light"] {
   --action-soft: rgb(62 122 30 / 10%);
   --info-accent: #2f6317;
   --info-accent-soft: rgb(62 122 30 / 9%);
-  --check-tint: rgb(62 122 30 / 12%);
+  /* Opaque: the emphasis ink is used as a text color. */
+  --check-tint: #3e7a1e;
   --accent-ink: #f4f6f8;
   /* Semantic hues darken for the pale ground; pass AA-normal on white. */
   --warning: #8a6116;
   --danger: #b3383e;
   --success: #0e7a5c;
+  /* Pinned identity tones keep their hue but darken for the pale ground
+     (same rule as the semantic hues: AA-normal on every light surface). */
+  --asset-wardrobe-tone: #a83d75;
+  --asset-hair-tone: #6f3fc4;
+  --asset-location-tone: #0d7057;
+  --music-accent: #0d7057;
   --nav-active-from: #2f5320;
   --nav-active-to: #24431a;
   --nav-active-line: #7aa85e;
@@ -193,4 +213,28 @@ html[data-theme="light"] {
   --panel-glow-from: #ffffff;
   --panel-glow-to: #f2f5f7;
   color-scheme: light;
+}
+
+/* D7 — the detached media windows (preview popout and preview monitor) are
+   color-judging surfaces: they keep the dark studio palette in every theme,
+   even when the studio around them is light. The popout documents carry the
+   same theme id, so the override has to out-specify the theme blocks above. */
+html[data-theme="light"].preview-popout-document,
+html[data-theme="light"].preview-popout-document body {
+  --bg: #0c100e !important;
+  --surface: #171d19 !important;
+  --surface-1: #1b231e !important;
+  --surface-2: #222c25 !important;
+  --surface-3: #2c3830 !important;
+  --line: #344139 !important;
+  --line-strong: #4c5d51 !important;
+  --text: #f0f5ef !important;
+  --muted: #b5c2b7 !important;
+  --muted-2: #98a99a !important;
+  --accent: #c4f878 !important;
+  --accent-soft: rgb(196 248 120 / 12%) !important;
+  --accent-ink: #19220e !important;
+  --titlebar-surface: #171d19 !important;
+  --check-tint: #c4f878 !important;
+  color-scheme: dark;
 }

@@ -759,17 +759,20 @@ function App() {
   }, [queueSettingsSave, settings])
 
   // Theme changes apply immediately (like uiScale); the debounced autosave above persists them.
+  const activeTheme = settings?.theme
   useEffect(() => {
-    if (!settings) return
-    applyTheme(document.documentElement, settings.theme)
-    writeThemeMirror(settings.theme)
-    void window.minimax.setNativeTheme?.(settings.theme)
-  }, [settings])
+    if (!activeTheme) return
+    applyTheme(document.documentElement, activeTheme)
+    writeThemeMirror(activeTheme)
+    void window.minimax.setNativeTheme?.(activeTheme)
+  }, [activeTheme])
 
   // In the LAN "complete studio" browser page (?desktop=1 / token link) the mock
   // bridge has no real settings: read the theme once from the studio, read-only.
+  // The browser mock defines the same bridge shape as the preload, so the
+  // bridge cannot signal the runtime — the Electron user agent can.
   useEffect(() => {
-    if (typeof window.minimax?.setNativeTheme === 'function' || !new URLSearchParams(location.search).has('token')) return
+    if (navigator.userAgent.includes('Electron') || !new URLSearchParams(location.search).has('token')) return
     const token = new URLSearchParams(location.search).get('token') ?? localStorage.getItem('minimax.lan-token') ?? ''
     fetch('/api/lan/appearance', { headers: { 'x-minimax-token': token } })
       .then((response) => response.json() as Promise<{ theme?: string }>)
@@ -3664,7 +3667,7 @@ function VideoWorkspaceShell(props: VideoShellProps) {
     props.setTurbo8Profile('balanced'); props.setSampler('res_multistep'); props.setScheduler('simple')
     props.setSigmaShiftMode('model'); props.setLoraStrength(1)
   }
-  const detach = () => { if (popoutRef.current && !popoutRef.current.closed) { popoutRef.current.focus(); return } const popup = window.open('', 'oyama-video-preview', 'popup=yes,width=1080,height=720,resizable=yes'); if (!popup) return; popup.document.title = 'Oyama · 预览'; popup.document.documentElement.dataset.theme = document.documentElement.dataset.theme; document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => popup.document.head.appendChild(node.cloneNode(true))); const root = popup.document.createElement('main'); popup.document.body.appendChild(root); popoutRef.current = popup; setPreviewPopoutRoot(root); popup.addEventListener('beforeunload', () => { popoutRef.current = null; setPreviewPopoutRoot(null) }, { once: true }) }
+  const detach = () => { if (popoutRef.current && !popoutRef.current.closed) { popoutRef.current.focus(); return } const popup = window.open('', 'oyama-video-preview', 'popup=yes,width=1080,height=720,resizable=yes'); if (!popup) return; popup.document.title = 'Oyama · 预览'; popup.document.documentElement.className = 'preview-popout-document'; popup.document.documentElement.dataset.theme = document.documentElement.dataset.theme; document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => popup.document.head.appendChild(node.cloneNode(true))); const root = popup.document.createElement('main'); popup.document.body.appendChild(root); popoutRef.current = popup; setPreviewPopoutRoot(root); popup.addEventListener('beforeunload', () => { popoutRef.current = null; setPreviewPopoutRoot(null) }, { once: true }) }
   useEffect(() => () => popoutRef.current?.close(), [])
   // The popout is held by handle: keep its data-theme in step with the main document
   // after every render (a theme change re-renders the whole tree).

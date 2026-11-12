@@ -139,7 +139,7 @@ html, body, .app-shell, .main-area, .app-shell.studio-shell-active,
 .ui-tabs-trigger[data-state='active'] {
   border-bottom-color:var(--accent) !important; background:var(--accent-soft) !important; color:var(--accent) !important;
 }
-.ui-badge-primary { border-color:var(--info-accent) !important; background:var(--accent-soft) !important; color:var(--check-tint) !important; }
+.ui-badge-primary { border-color:#567a32 !important; background:#293f1c !important; color:#d8ff9d !important; } /* theme-exempt: baseline badge pill identity (D15) */
 .ui-switch[data-state='checked'], .ui-checkbox[data-state='checked'],
 .ui-slider-range { background:var(--accent) !important; }
 .ui-checkbox[data-state='checked'] { color:var(--accent-ink) !important; }

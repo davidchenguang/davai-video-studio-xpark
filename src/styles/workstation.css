@@ -173,8 +173,9 @@ body { background: var(--bg); }
   --field-bg: var(--surface-2);
   --field-bg-hover: var(--surface-2);
   --field-bg-focus: var(--surface-3);
-  --field-border: var(--info-accent);
-  --field-border-hover: var(--info-accent);
+  /* Neutral field borders, as in the baseline (blue-gray before, gray now). */
+  --field-border: var(--line-strong);
+  --field-border-hover: var(--muted);
   --field-placeholder: var(--muted);
   --help-text: var(--muted);
 }
