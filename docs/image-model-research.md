@@ -6,8 +6,8 @@
 
 | 需求 | 现状 | 建议 | 关键理由 |
 | --- | --- | --- | --- |
-| 文生图（Z-Image 主工作区 + 角色/服装/地点/发型/配饰工作室 + 移动端） | Z-Image Turbo（Apache-2.0，8 步） | **换成 Qwen-Image-2.1 Turbo**，Z-Image 保留为后备 | 中文长文渲染与多行排版明显更好（实测评见下），7B 权重只有 6.7 GB |
-| 图片编辑（照片编辑工作区，FireRed 1.1） | FireRed-Image-Edit-1.1（Apache-2.0，Turbo 8 步） | **不换。FireRed 的中文编辑不弱反强**（REDEdit CN Text 4.49 领先 2511 的 4.08；实测中文改字/加字三模型全对，见 bench4） | 用户提的三个候选都不适合替换 FireRed（详下） |
+| 文生图（Z-Image 主工作区 + 角色/服装/地点/发型/配饰工作室 + 移动端） | Z-Image Turbo（Apache-2.0，8 步） | **换成 MiniMax-H3-Image（专用 DiT）**，Z-Image 保留为快速草稿 | bench5 实测中文密集排版全对、热跑 12s、4K 直出 84s；与视频同族（客户装了 H3 视频即万事俱备）；许可三项已确认可接受（UI 署名、营收 < $1M、大陆可用）。Qwen-2.1 因研究许可降为备选 |
+| 图片编辑（照片编辑工作区，FireRed 1.1） | FireRed-Image-Edit-1.1（Apache-2.0，Turbo 8 步） | **不换。FireRed 的中文编辑不弱反强**（REDEdit CN Text 4.49 领先 2511 的 4.08；实测中文改字/加字三模型全对，见 bench4） | H3-Image 本地编辑实测失败（见 bench5）；用户提的三个候选都不适合替换 FireRed（详下） |
 | 抠图（BiRefNet） | BiRefNet | 不换 | 与生图模型无关，保持现状 |
 
 三个候选模型并不是同一个赛道的替代品：
@@ -102,12 +102,38 @@
 
 > 即"FireRed 中文编辑弱"这个假设在榜单和实测两个方向上都站不住：它是当前开源模型里中文编辑的最强档，实测中也无短板。
 
+### H3-Image 实测（bench5，ComfyUI 升级 v0.45.2 后）
+
+服务器升级 + 模型下载（21G int8 DiT + 1.17G VAE）完成后，同一 seed、同一提示词对 H3-Image 两条本地图路径实测：
+
+**路径 A：FL2VA 视频 DiT + turbo 8 步 LoRA 直接出图**（官方 `image_minimax_h3_t2i` 模板子图；文件全部与视频管线共用，**零新增下载**）
+
+| 任务 | 耗时 | 结果 |
+| --- | --- | --- |
+| A_simple（水墨海报） | 360s 冷启 | ✅ 标题/副标题全对；地址疑 1 错字（杭州→杭山，判读模型两次独立读出，建议肉眼复核） |
+| A_long（音乐节密集长文） | 68s 热 | ✅ **全部文字正确**（标题/日期/地址/三行日程/票价行，零错字） |
+
+**路径 B：专用 H3-Image DiT（`minimax_h3_image_pruned_int8_convrot` + `minimax_h3_image_vae_fp16`）**，本地图 = `UNETLoader + CLIPLoader(qwen3vl_32b, type:minimax) + VAELoader + MiniMaxH3ImageConditioning + ConditioningZeroOut + KSampler(6步, cfg=1, euler/simple) + VAEDecode`
+
+| 任务 | 耗时 | 结果 |
+| --- | --- | --- |
+| B_simple | 120s 冷启 | ✅ **全对**（含「杭州市」地址，无路径 A 的错字） |
+| B_long | **12s 热** | ✅ **全部文字正确**（含票价行，零错字） |
+| B_4k（4096×4096 直出） | 84s | ✅ 三段中文全对，16MP 印刷级独有卖点 |
+| B_edit（中文改字，6 步与 30 步均试） | 12s | ❌ **编辑失败**：输出为白页乱码排版，标题改对但正文全是幻觉乱字；带图与不带图输出同形态（接线已验证正确——单链接写法会直接报张量错误），即图片条件未能绑定。本地忠实编辑仍需 FL2VA + `p-h3-image` LoRA 路线（官方仅此编辑模板）或云端 API |
+
+**运维发现（重要）：**
+
+1. **`MinimaxH3ImageNode`（及 `MinimaxHailuo*` 系列）是 `comfy_api_nodes` 云端 API 节点**，走 Comfy 官方云服务需 API key，不能驱动本地 21G DiT——集成时必须用上面的显式本地图，别被节点名骗了。
+2. **`comfy kitchen attention` 后端在本台 0.45.2 服务器有 bug**：`rms_rope` 权重落 CPU，抛 `weight is on cpu, different from other tensors on cuda:0`，且两次把 ComfyUI 打崩重启。官方 t2i 模板默认带此节点，路径 A 已去除；**App 的 H3 视频工作流若配了 kitchen attention 同样会崩，升级后必须回归**。
+3. ComfyUI 重启会清空内存队列；跑长基准务必 nohup 挂服务器端。
+4. `/prompt` POST 无干跑模式——"验证图结构"本身就会入队执行，别拿生产提示词当校验用。
+
 ### 中文渲染结论
 
-- **短文本（≤2 行）**：三者 + Z-Image 都能全对。客户如果只需要标题类海报，Z-Image 够用。
-- **长文本（≥3 行信息排版）**：**Qwen-2.1 Turbo 明显最稳**；MOSS 理论分最高（LLTB 96.3）但实测海报场景反而不如 Qwen-2.1 的版式控制；Z-Image 密集文字会崩。
-- **编辑后文字保持**：FireRed / Qwen-2.1 / Qwen-Edit-2511 三者都保住了全部中文文字，MOSS（LoRA）未测（未装）。
-- **中文文字改写/新增（编辑里最难的两类）**：三模型全对，FireRed 不落下风（REDEdit-Bench 的 CN Text 类目 FireRed 反而领先 2511 +0.41）。
+- **短文本（≤2 行）**：所有测过的模型（含 H3-Image 两条路径）都能全对。客户如果只需要标题类海报，Z-Image 够用。
+- **长文本（≥3 行信息排版）**：**H3-Image 专用 DiT 与 FL2VA 同款路径在 bench5 中全部零错字**（含 4K），超过 Qwen-2.1 的 1 错字；Qwen-2.1 仍明显稳于 MOSS/Z-Image。
+- **中文文字改写/新增（编辑里最难的两类）**：FireRed / Qwen-2.1 / Qwen-Edit-2511 全对（bench4）；**H3-Image 本地图编辑失败**（bench5，白页乱码），编辑继续归 FireRed。
 
 ## 三、与代码库的对照（替换成本）
 
@@ -126,16 +152,14 @@
 4. MobileApp 走同一 builder，无额外 IPC。
 5. FireRed photo-edit 不动。
 
-### 换 H3-Image 的落点（若选它）
+### 换 H3-Image 的落点（已按此执行，2026-11-12）
 
-1. **先升级 ComfyUI 到 v0.45.0**（服务器 e6515b16 = v0.44.2，两个本地修改文件需要 stash/恢复）。⚠️ 同一台引擎同时服务 H3 视频管线——升级后必须先跑视频回归（t2i 之外的 H3 视频全流程）再测图片，这是该方案最大的单点风险。
-2. 下载 21G int8 DiT + 1.17G VAE（编码器复用 H3 视频，已在服务器）。
-3. 新 builder 用 `MiniMax H3 Image Conditioning` 节点 + 6 步 PDD 采样（SamplerCustomAdvanced + ManualSigmas 六步表 + BasicGuider）。
-4. 许可署名需要在 UI（设置/关于页）和交付文档中体现 "Powered by MiniMax-H3-Image"。
-5. **"同族统一"论点的两个待验证收益**：
-   - **首帧衔接**：H3-Image 生成的首帧喂 H3 视频，是否比 Z-Image/Qwen 首帧的风格连续性更好（同族训练分布）——专项 A/B 测试；
-   - **16MP 印刷级直出**（4096×4096）是三个候选里唯一原生超过 2K 的，若客户要打印物料这是独有卖点。
-   - 同样先跑本文三场景基准（简单海报/密集长文/中文改字），与已验证的 Qwen-2.1 同 seed 对比后再定。
+1. ~~升级 ComfyUI 到 v0.45.0~~ ✅ 服务器已到 **v0.45.2**（两个本地改动文件完好）；21G int8 DiT + 1.17G VAE 已下载，编码器与视频共享。
+2. 新 builder（`src/lib/h3Image.ts`）：`UNETLoader(minimax_h3_image_pruned_int8_convrot) + CLIPLoader(qwen3vl_32b_minimax_h3_nvfp4_awq, type:'minimax') + VAELoader(minimax_h3_image_vae_fp16) + MiniMaxH3ImageConditioning(clip, prompt, width, height, vae[, images=[[loadImage,0]]]) + ConditioningZeroOut + KSampler(6步, cfg=1, euler, simple) + VAEDecode`。**不要用 `MinimaxH3ImageNode`（云端 API 节点）**；4K 档把 conditioning 的 width/height 提到 4096 即可（84s）。
+3. 8 个 `buildZImage` 调用点改造同前（复用 RenderSize provider 模式，新增 `h3image` provider；`preferredModel` 正则 `/minimax_h3_image/i`）。
+4. UI 署名：设置/关于页加 "Powered by MiniMax-H3-Image"（§IV.2 强制项），交付文档带 NOTICE 说明。
+5. 视频回归：升级后必须验证 H3 视频全流程——**尤其 `comfy kitchen attention` 配置会触发 rope 设备错位崩溃**（见 bench5 运维发现 2）。
+6. 可选双模式：Turbo 6 步默认；若上 30-50 步 base 档注意耗时；4K 作为"印刷质量"选项而非默认。
 
 ### 换 MOSS 的落点（若选它）
 
@@ -145,26 +169,28 @@
 
 ## 四、风险与开放问题
 
-1. **Qwen-2.1 商用许可**是最大的落地门槛。如果客户场景确定商用，三条路：a) 向阿里申请商用授权（无公开价格）；b) 用 Apache-2.0 的 Qwen-Image-2512（文生图）+ Qwen-Image-Edit-2511（编辑）组合替代；c) 走官方 API（按量付费自带商用权，但违背本项目 local-first 卖点）。
-2. **H3-Image 的 "Powered by" 署名义务**：如果客户产品界面不愿显示模型名，H3-Image 排除。
-3. **H3-Image 需要升级 ComfyUI 0.44.2 → 0.45.0**。服务器 ComfyUI 有两个本地改动（model_patcher.py、gemma4.py）需要先处理。GB10 内存 128G，33.1B int8 21G DiT + 25.9G 编码器可以装下，但和其他 H3 视频模型并存时要靠 ComfyUI 内存管理。
-4. Z-Image 不是必须下架：它 4s 热缓存出图、Apache-2.0、无许可风险，作为"快速草稿"模式保留成本低。**建议 Qwen-2.1 为默认，Z-Image 降级为快速模式**，两者共存（就像 Z-Image 工作区已有的 turbo/base 双模式）。
-5. 实测样本量小（每个场景 1-2 张、单一 seed）。推荐在正式立项前，把三类场景（海报长文、RGBA 透明、参考图编辑）各跑 5 seed 对比，再冻结选型。
+1. **Qwen-2.1 商用许可**：已因 H3-Image 胜出而降级为备选，此项仅在切换回 Qwen 时重新评估（研究许可，商用需向阿里申请）。
+2. **H3-Image 许可义务（已接受，落地时别漏）**：商业产品 UI 需显著展示 "MiniMax-H3-Image"；年营收 > $1M 或托管服务需另行书面授权；禁用输出训练其他模型。
+3. **kitchen attention 崩溃 bug**：0.45.2 + 本机配置下 `comfy kitchen attention` 触发 rope 权重 CPU/CUDA 设备错位并两次打崩 ComfyUI——H3 视频回归的重点项；H3-Image 图不要带 `ModelAttentionBackend(kitchen)` 节点（官方 t2i 模板默认带，需删）。
+4. Z-Image 不是必须下架：它 4s 热缓存出图、Apache-2.0、无许可风险，作为"快速草稿"模式保留成本低。
+5. 实测样本量小（每场景 1 张、单一 seed）。正式立项前建议三场景各 5 seed 复测；首帧→视频同族衔接的 A/B（H3-Image 首帧 vs Z-Image 首帧喂 H3 视频）值得专项验证。
+6. H3-Image 本地编辑失败（bench5）：若未来要"生图+编辑同模型"，需评估 FL2VA + `p-h3-image` LoRA 路线（需另下 `p-h3-image_lora_bf16` 等文件）或云端 API——当前编辑仍归 FireRed。
 
-## 五、推荐组合（最终建议）
+## 五、推荐组合（终版，2026-11-12 bench5 后）
 
-- **默认文生图：Qwen-Image-2.1 Turbo**（若商用许可谈不拢 → 降级方案：Qwen-Image-2512，Apache-2.0，能力略弱）
+- **默认文生图：MiniMax-H3-Image 专用 DiT**（中文密集排版零错字、热跑 12s、4K 直出 84s、与 H3 视频同族同引擎；许可三项已确认：大陆可用、营收 < $1M、UI 署名可接受）
 - **快速草稿模式：保留 Z-Image Turbo**（4 秒热图 + Apache-2.0 无风险）
-- **图片编辑：FireRed 1.1 维持现状**（Apache-2.0，实测编辑质量不低于 Qwen-2.1 编辑路径，且已有完整工作区+测试）
-3. **海报专项（可选后续）：MOSS-Image JSON 布局工作流**（Apache-2.0，版式可控，作为独立工作流补充）
+- **图片编辑：FireRed 1.1 维持现状**（Apache-2.0，中文编辑开源最强，bench4 全对；H3-Image 本地编辑实测失败，见 bench5）
+- **备选 T2I：Qwen-Image-2.1 Turbo**（质量同级但研究许可需商用授权，仅在 H3-Image 出问题时启用）
+- **海报专项（可选后续）：MOSS-Image JSON 布局工作流**（Apache-2.0，版式可控，作为独立工作流补充）
 
-这个组合把许可风险控制在零（Apache-2.0 为主）、把中文长文渲染能力提到最高（Qwen-2.1），且改动面集中在 `src/lib/` + 8 个调用点，FireRed/BiRefNet/Ripple 链路零改动。
+这个组合：生图/视频统一 MiniMax H3 家族（编码器、引擎、署名、许可口径全一致），Z-Image 留作零风险快速档，编辑链路（FireRed/BiRefNet/Ripple）零改动；改动面集中在一个新 builder + 8 个 `buildZImage` 调用点。
 
 ## 附：实测产物与可复现脚本
 
-- 服务器：`dawo@192.168.20.80:~/bench-image-models/bench.py|bench2.py|bench3.py|bench4.py`
-- 服务器输出：`~/comfyui/output/bench/`（zimage_turbo / moss / qwen21_simple / moss_long / zimage_long / firered_edit / qwen21_edit / qwen_edit_2511 共 8 组，另有 bench4 的 fr_textedit / qw21_textedit / qw2511_textedit / fr_textadd / qw21_textadd / qw2511_textadd 共 6 张）
-- 本地镜像：本 worktree `bench-results/` 目录（14 张 PNG）
+- 服务器：`dawo@192.168.20.80:~/bench-image-models/bench.py|bench2.py|bench3.py|bench4.py|bench5.py|bench5_edit30.py`
+- 服务器输出：`~/comfyui/output/bench/`（bench1-3 共 8 组 + bench4 中文改字/加字 6 张 + bench5：h3a_simple / h3a_long / h3b_simple / h3b_long / h3b_edit / h3b_edit30 / h3b_edit_noimg / h3b_4k）
+- 本地镜像：本 worktree `bench-results/` 目录（bench5 后共 22 张 PNG）
 - 图表节点 schema 快照：`/tmp/oi.json`（服务器 `/object_info`，2026-11-12 10:30 左右）
 
 ### 来源（主要外部资料）
