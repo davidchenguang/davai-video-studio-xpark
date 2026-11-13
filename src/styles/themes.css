@@ -24,6 +24,9 @@
   --warning: #e3ad55;
   --danger: #f1707e;
   --success: #55c98a;
+  /* How much of the danger hue tints the soft-danger surface. A light theme
+     ground needs less of it, or the danger text loses its contrast. */
+  --danger-soft-mix: 14%;
 
   /* Identity family (D15): functional accents that keep their hue in every theme. */
   --identity-movie: #a879ff;
@@ -40,6 +43,38 @@
   --preview-line: #1d2721;
   /* Ink on the dark preview surfaces — constant across themes (D7). */
   --preview-ink: #c9d4cd;
+  /* Accent on the dark preview surfaces — per theme, so a tool keeps its
+     identity while staying readable on its own dark figure (D7). */
+  --preview-accent: #c4f878;
+  /* The empty-state card inside a preview stage: the baseline raised surface
+     in the dark themes, a dark card in the light theme (D7). */
+  --preview-empty-surface: var(--surface-2);
+
+  /* Page-ground accents of the two tool workspaces that keep their own
+     palette (LTX Ripple, photo edit). They darken for the light theme. */
+  --ripple-kicker: #aa99fb;
+  --photo-edit-eyebrow: #e5a380;
+
+  /* Ink for the two tool workspaces that keep their own dark palette: their
+     cards stay dark in every theme, so the ink on them is constant. Only
+     their page-ground text follows the theme. */
+  --tool-ink: #f2f3f7;
+  --tool-ink-muted: #c7bdcb;
+
+  /* The scratchpad is a normal workspace, not a media surface: its glass
+     panels follow the theme, so the theme inks inside them keep reading. */
+  --scratch-glass: rgb(20 31 39 / 88%);
+  --scratch-field: rgb(8 14 18 / 65%);
+  --scratch-chip: rgb(13 21 27 / 72%);
+
+  /* The live monitor is a media surface (D7): it stays dark in every theme,
+     so its chrome, ink and accent are the dark-surface ones. */
+  --monitor-chrome: color-mix(in srgb, var(--surface-2) 82%, #05090e);
+  --monitor-accent: var(--accent);
+
+  /* The empty-state card inside a preview stage is dark in every theme (D7),
+     so the text on it needs the dark-surface ink. */
+  --preview-empty-ink: var(--muted);
 
   /* Shell accents (D15): green chrome gradients that follow the theme's action hue. */
   --nav-active-from: #334a2b;
@@ -76,7 +111,7 @@ html[data-theme="blue"] .minimax-workspace {
   --line-strong: #40515e !important;
   --text: #e9f0f6 !important;
   --muted: #a2b1be !important;
-  --muted-2: #7f919f !important;
+  --muted-2: #8d9eaa !important;
   --accent: #249cf1 !important;
   --accent-soft: rgb(36 156 241 / 13%) !important;
   --accent-ink: #ffffff !important;
@@ -93,6 +128,7 @@ html[data-theme="blue"] {
   --info-accent-soft: rgb(112 188 255 / 12%);
   /* The upstream checked-item ink, restored literally (D16). */
   --check-tint: #bfe5ff;
+  --preview-accent: #289cf5;
   --accent-ink: #ffffff;
   --nav-active-from: #1d3d5c;
   --nav-active-to: #16293c;
@@ -125,7 +161,7 @@ html[data-theme="comfy"] .minimax-workspace {
   --line-strong: #6e5483 !important;
   --text: #f1eff3 !important;
   --muted: #bdb1c6 !important;
-  --muted-2: #a08fae !important;
+  --muted-2: #b3a4be !important;
   --accent: #f2ff59 !important;
   --accent-soft: rgb(242 255 89 / 13%) !important;
   --accent-ink: #211927 !important;
@@ -140,6 +176,10 @@ html[data-theme="comfy"] {
   --info-accent-soft: rgb(232 240 106 / 13%);
   --check-tint: #f2ff59;
   --accent-ink: #211927;
+  --preview-accent: #f2ff59;
+  /* The Comfy ground is light enough that the 14% danger tint swallows the
+     danger text: less tint, more contrast (D15 keeps the hue itself). */
+  --danger-soft-mix: 8%;
   --nav-active-from: #463754;
   --nav-active-to: #34283f;
   --nav-active-line: #8a7b3a;
@@ -171,10 +211,10 @@ html[data-theme="light"] .minimax-workspace {
   --line: #d5dde2 !important;
   --line-strong: #b9c4cb !important;
   --text: #1f2a24 !important;
-  --muted: #5c6b62 !important;
-  --muted-2: #64756b !important;
-  --accent: #3e7a1e !important;
-  --accent-soft: rgb(62 122 30 / 10%) !important;
+  --muted: #4e5c53 !important;
+  --muted-2: #4d5b52 !important;
+  --accent: #3c751d !important;
+  --accent-soft: rgb(60 117 29 / 10%) !important;
   --accent-ink: #f4f6f8 !important;
   --titlebar-surface: #ffffff !important;
   /* D7 anchor: the media preview family never goes light. */
@@ -192,6 +232,22 @@ html[data-theme="light"] {
   /* Opaque: the emphasis ink is used as a text color. */
   --check-tint: #3e7a1e;
   --accent-ink: #f4f6f8;
+  /* D7: the preview empty-state card and the tool accents darken for the
+     pale ground — the same rule as the semantic hues. */
+  --preview-accent: #8fd35a;
+  --preview-empty-surface: #1d2721;
+  --preview-empty-ink: var(--preview-ink);
+  --ripple-kicker: #5b3fc9;
+  --photo-edit-eyebrow: #8f4520;
+  /* The scratchpad glass follows the pale ground: the theme inks inside it
+     (text, muted) have to read on a light panel. */
+  --scratch-glass: #ffffff;
+  --scratch-field: #f1f4f6;
+  --scratch-chip: #ffffff;
+  /* The live monitor stays dark in every theme (D7): dark chrome, and the
+     dark-surface accent so the kicker keeps reading. */
+  --monitor-chrome: #1e2823;
+  --monitor-accent: var(--preview-accent);
   /* Semantic hues darken for the pale ground; pass AA-normal on white. */
   --warning: #8a6116;
   --danger: #b3383e;

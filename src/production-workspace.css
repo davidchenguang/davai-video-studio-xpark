@@ -10,7 +10,7 @@ body { background:var(--bg); color:var(--text); -webkit-font-smoothing:antialias
 button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 .primary-button { background:var(--info-accent); color:white; border-color:transparent; border-radius:8px; }
 .secondary-button,.icon-button { border-radius:8px; }
-.danger-button { color:var(--danger); background:color-mix(in srgb, var(--danger) 14%, var(--surface)); border-color:color-mix(in srgb, var(--danger) 40%, var(--line)); } /* theme-exempt: baseline soft-danger treatment, re-derived per theme (D15) */
+.danger-button { color:var(--danger); background:color-mix(in srgb, var(--danger) var(--danger-soft-mix, 14%), var(--surface)); border-color:color-mix(in srgb, var(--danger) 40%, var(--line)); } /* theme-exempt: baseline soft-danger treatment, re-derived per theme (D15) */
 .status-badge.completed,.status-badge.ready,.ready,.complete { color:var(--success); }
 .status-badge.queued,.warning,.warn { color:var(--warning); }
 .status-badge.failed,.status-badge.cancelled,.error { color:var(--danger); }

@@ -148,7 +148,7 @@ html, body, .app-shell, .main-area, .app-shell.studio-shell-active,
 .movie-program-stage { background:var(--preview-panel) !important; background-image:none !important; }
 .zimage-preview-stage .empty-preview, .ace-preview-stage .empty-preview,
 .preview-stage .empty-preview {
-  border-color:var(--line) !important; background:var(--surface-2) !important;
+  border-color:var(--line) !important; background:var(--preview-empty-surface, var(--surface-2)) !important;
 }
 .zimage-mode-picker label.selected, .app-shell :is(.selected,[aria-selected='true']):where(.scene-reference-card,.zimage-mode-picker label) {
   border-color:var(--accent) !important; background:var(--accent-soft) !important;

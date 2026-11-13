@@ -291,3 +291,222 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   const branchCreation = readSource('src/styles/creation-workspaces.css')
   assert.ok(!/\.danger-button\s*\{[^}]*background:\s*var\(--danger\)/.test(branchCreation), 'creation danger buttons keep the translucent treatment, not a solid fill')
 }
+
+// ---- Ground-contrast invariants ----
+// A runtime contrast sweep (every view x every theme) found text painted in
+// the ground color of its own surface: the LTX Ripple and photo-edit pages
+// carry a hardcoded light ink while the light theme's ground is pale, and the
+// character studio's primary-preview caption sits on a fixed dark figure.
+// These assertions pin the invariants that keep that from coming back.
+{
+  const themes = readSource('src/styles/themes.css')
+  const refresh = readSource('src/styles/studio-refresh.css')
+
+  const hexOf = (value) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(String(value).trim())
+    return m ? `#${m[1].toLowerCase()}` : null
+  }
+  const blockBody = (css, startIndex) => {
+    const open = css.indexOf('{', startIndex)
+    let depth = 0
+    for (let i = open; i < css.length; i++) {
+      if (css[i] === '{') depth++
+      else if (css[i] === '}') { depth--; if (depth === 0) return css.slice(open + 1, i) }
+    }
+    return ''
+  }
+  const declarations = (body) => {
+    const map = new Map()
+    for (const m of body.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)) map.set(m[1], m[2].replace(/!important$/i, '').trim())
+    return map
+  }
+  const merge = (...maps) => {
+    const out = new Map()
+    for (const map of maps) for (const [k, v] of map) out.set(k, v)
+    return out
+  }
+  const themeBlocks = (id) => {
+    const tokens = new Map()
+    const re = new RegExp(`html\\[data-theme="${id}"\\][^{]*\\{`, 'g')
+    let match
+    while ((match = re.exec(themes))) {
+      const selector = themes.slice(match.index, themes.indexOf('{', match.index))
+      if (selector.includes('preview-popout-document')) continue // the detached media windows are their own palette
+      for (const [k, v] of declarations(blockBody(themes, match.index))) tokens.set(k, v)
+    }
+    return tokens
+  }
+  const themesRoot = declarations(blockBody(themes, themes.indexOf(':root')))
+  const greenRoot = declarations(blockBody(refresh, refresh.indexOf(':root')))
+  const palette = {
+    green: merge(greenRoot, themesRoot),
+    blue: merge(themesRoot, themeBlocks('blue')),
+    comfy: merge(themesRoot, themeBlocks('comfy')),
+    light: merge(themesRoot, themeBlocks('light')),
+  }
+  const resolve = (tokens, name, seen = new Set()) => {
+    if (!tokens.has(name) || seen.has(name)) return null
+    seen.add(name)
+    const raw = tokens.get(name)
+    const ref = /^var\(\s*(--[a-z0-9-]+)/i.exec(raw)
+    if (ref) return resolve(tokens, ref[1], seen)
+    return hexOf(raw)
+  }
+  const luminance = (hex) => {
+    const channels = [0, 2, 4].map((i) => parseInt(hex.slice(1 + i, 3 + i), 16) / 255)
+    const [r, g, b] = channels.map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const contrast = (a, b) => {
+    const l1 = luminance(a)
+    const l2 = luminance(b)
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)
+  }
+
+  for (const id of ['green', 'blue', 'comfy', 'light']) {
+    const tokens = palette[id]
+    const surface3 = resolve(tokens, '--surface-3')
+    const muted2 = resolve(tokens, '--muted-2')
+    assert.ok(surface3 && muted2, `${id}: --surface-3 and --muted-2 resolve to hex colors`)
+    const ratio = contrast(muted2, surface3)
+    assert.ok(ratio >= 4.5, `${id}: --muted-2 (${muted2}) passes AA-normal on --surface-3 (${surface3}) — ${ratio.toFixed(2)}:1`)
+  }
+
+  {
+    const light = palette.light
+    const surface3 = resolve(light, '--surface-3')
+    const accent = resolve(light, '--accent')
+    const accentRatio = contrast(accent, surface3)
+    assert.ok(accentRatio >= 4.5, `light: --accent (${accent}) passes AA-normal on --surface-3 (${surface3}) — ${accentRatio.toFixed(2)}:1`)
+    const bg = resolve(light, '--bg')
+    // The light page ground carries a soft green glow, so the secondary ink
+    // has to read on the tinted ground too, not only on the flat background.
+    const tintedGround = '#cadedb'
+    for (const token of ['--ripple-kicker', '--photo-edit-eyebrow']) {
+      const value = resolve(light, token)
+      assert.ok(value, `light: ${token} is defined`)
+      const ratio = contrast(value, bg)
+      assert.ok(ratio >= 4.5, `light: ${token} (${value}) passes AA-normal on the page ground (${bg}) — ${ratio.toFixed(2)}:1`)
+      const tintedRatio = contrast(value, tintedGround)
+      assert.ok(tintedRatio >= 4.5, `light: ${token} (${value}) passes AA-normal on the tinted page ground (${tintedGround}) — ${tintedRatio.toFixed(2)}:1`)
+    }
+    const muted = resolve(light, '--muted')
+    assert.ok(muted, 'light: --muted is defined')
+    for (const ground of [bg, resolve(light, '--surface-3'), tintedGround]) {
+      const ratio = contrast(muted, ground)
+      assert.ok(ratio >= 4.5, `light: --muted (${muted}) passes AA-normal on the page ground (${ground}) — ${ratio.toFixed(2)}:1`)
+    }
+    const emptySurface = resolve(light, '--preview-empty-surface')
+    assert.ok(emptySurface, 'light: --preview-empty-surface is defined')
+    const previewInk = resolve(light, '--preview-ink')
+    const emptyRatio = contrast(previewInk, emptySurface)
+    assert.ok(emptyRatio >= 4.5, `light: the preview empty-state card (${emptySurface}) keeps a readable ink (${previewInk}) — ${emptyRatio.toFixed(2)}:1`)
+    for (const id of ['green', 'blue', 'comfy']) {
+      const tokens = palette[id]
+      const surface2 = resolve(tokens, '--surface-2')
+      const previewInkId = resolve(tokens, '--preview-ink')
+      const ratio = contrast(previewInkId, surface2)
+      assert.ok(ratio >= 4.5, `${id}: the preview empty-state card keeps a readable ink (${previewInkId} on ${surface2}) — ${ratio.toFixed(2)}:1`)
+    }
+  }
+
+  // Tool workspaces that keep their own palette still follow the theme ground.
+  const ripple = readSource('src/components/ltx-ripple.css')
+  const photo = readSource('src/components/photo-edit.css')
+  assert.ok(/\.ripple-workspace\{[^}]*color:var\(--text/.test(ripple), 'the Ripple page text follows the theme ground')
+  assert.ok(/\.ripple-heading p\{[^}]*color:var\(--muted/.test(ripple), 'the Ripple subtitle follows the theme ground')
+  assert.ok(/\.ripple-kicker\{[^}]*color:var\(--ripple-kicker/.test(ripple), 'the Ripple eyebrow uses its theme token')
+  assert.ok(/\.photo-edit-workspace\{[^}]*color:var\(--text/.test(photo), 'the photo-edit page text follows the theme ground')
+  assert.ok(/\.photo-edit-heading p\{[^}]*color:var\(--muted/.test(photo), 'the photo-edit subtitle follows the theme ground')
+  assert.ok(/\.photo-edit-eyebrow\{[^}]*color:var\(--photo-edit-eyebrow/.test(photo), 'the photo-edit eyebrow uses its theme token')
+  // The cards keep their own dark surface in every theme, so the ink that
+  // reads on them is constant: the card declares it, the page ground does not.
+  assert.ok(/\.ripple-card\{[^}]*color:var\(--tool-ink/.test(ripple), 'the Ripple card declares the ink that reads on its dark surface')
+  assert.ok(/\.photo-edit-card\{[^}]*color:var\(--tool-ink/.test(photo), 'the photo-edit card declares the ink that reads on its dark surface')
+  assert.ok(/\.photo-edit-back\{[^}]*color:var\(--tool-ink-muted/.test(photo), 'the photo-edit back link sits inside the dark card, so it uses the card ink')
+
+  // The tool ink is constant across themes and has to read on the card's own
+  // gradient, whose stops are hardcoded in the tool stylesheets.
+  const toolInk = resolve(palette.green, '--tool-ink')
+  assert.ok(toolInk, '--tool-ink is defined')
+  for (const id of ['green', 'blue', 'comfy', 'light']) {
+    assert.equal(resolve(palette[id], '--tool-ink'), toolInk, `${id}: --tool-ink stays the same in every theme`)
+  }
+  const cardStops = [...ripple.matchAll(/\.ripple-card\{[^}]*background:linear-gradient\(145deg,(#[0-9a-f]{6}),(#[0-9a-f]{6})\)/g)].flatMap((m) => [m[1], m[2]])
+  assert.ok(cardStops.length, 'the Ripple card gradient stops are found')
+  for (const stop of cardStops) {
+    const ratio = contrast(toolInk, stop)
+    assert.ok(ratio >= 4.5, `--tool-ink (${toolInk}) passes AA-normal on the Ripple card ground (${stop}) — ${ratio.toFixed(2)}:1`)
+  }
+  const photoStops = [...photo.matchAll(/\.photo-edit-card\{[^}]*background:linear-gradient\(145deg,(#[0-9a-f]{6}),(#[0-9a-f]{6})\)/g)].flatMap((m) => [m[1], m[2]])
+  assert.ok(photoStops.length, 'the photo-edit card gradient stops are found')
+  for (const stop of photoStops) {
+    const ratio = contrast(toolInk, stop)
+    assert.ok(ratio >= 4.5, `--tool-ink (${toolInk}) passes AA-normal on the photo-edit card ground (${stop}) — ${ratio.toFixed(2)}:1`)
+  }
+
+  // The character primary preview is a fixed dark surface: its caption needs a
+  // light ink in every theme, not the theme text color.
+  const audit = readSource('src/workspace-audit.css')
+  assert.ok(/\.character-primary-preview > button\s*\{[^}]*color:\s*var\(--preview-ink\)/.test(audit), 'the primary-preview button uses the dark-surface ink')
+  assert.ok(/\.character-primary-preview > button strong\s*\{[^}]*color:\s*var\(--preview-ink\)/.test(audit), 'the primary-preview caption uses the dark-surface ink')
+  assert.ok(/\.character-primary-preview > button svg\s*\{[^}]*color:\s*var\(--preview-accent\)/.test(audit), 'the primary-preview icon uses the preview accent')
+  assert.ok(/\.character-primary-preview figcaption \.ui-button-ghost\s*\{[^}]*color:\s*var\(--preview-ink\)/.test(audit), 'the primary-preview actions use the dark-surface ink')
+  assert.ok(/\.movie-media-list > p\s*\{[^}]*color:\s*var\(--muted\)/.test(audit), 'the movie media empty-state follows the theme ink')
+
+  // The scratchpad is a normal workspace, not a D7 media surface: its glass
+  // panels follow the theme, so the theme inks inside them keep reading.
+  const scratchpad = readSource('src/scratchpad.css')
+  assert.ok(/--scratch-panel:\s*var\(--scratch-glass/.test(scratchpad), 'the scratchpad panel uses the theme-derived glass token')
+  assert.ok(/\.h3-prompt-editor > textarea\s*\{[^}]*background:\s*var\(--scratch-field/.test(scratchpad), 'the scratchpad writing field uses the theme-derived field token')
+  assert.ok(/\.scratchpad-status\s*\{[^}]*background:\s*var\(--scratch-chip/.test(scratchpad), 'the scratchpad status chip uses the theme-derived chip token')
+  const lightGlass = resolve(palette.light, '--scratch-glass')
+  assert.ok(lightGlass, 'light: --scratch-glass is defined')
+  const lightText = resolve(palette.light, '--text')
+  const glassRatio = contrast(lightText, lightGlass)
+  assert.ok(glassRatio >= 4.5, `light: the scratchpad glass panel (${lightGlass}) carries the page text (${lightText}) — ${glassRatio.toFixed(2)}:1`)
+
+  // The live monitor is a media surface (D7): it stays dark in every theme,
+  // so its own ink and accent have to be the dark-surface ones.
+  const cont = readSource('src/components/continue-workspace.css')
+  assert.ok(/\.continue-live-monitor\{[^}]*color:\s*var\(--preview-ink/.test(cont), 'the live monitor uses the dark-surface ink')
+  assert.ok(/\.continue-monitor-empty\{[^}]*color:\s*var\(--preview-ink/.test(cont), 'the live monitor empty state uses the dark-surface ink')
+  assert.ok(/\.continue-live-monitor>header\{[^}]*background:\s*var\(--monitor-chrome/.test(cont), 'the live monitor header uses the theme-derived chrome token')
+  assert.ok(/\.continue-live-monitor>header small\{[^}]*color:\s*var\(--monitor-accent/.test(cont), 'the live monitor kicker uses the monitor accent')
+  const lightMonitor = resolve(palette.light, '--monitor-chrome')
+  assert.ok(lightMonitor, 'light: --monitor-chrome is defined')
+  const monitorRatio = contrast(resolve(palette.light, '--preview-ink'), lightMonitor)
+  assert.ok(monitorRatio >= 4.5, `light: the live monitor chrome (${lightMonitor}) keeps a readable ink — ${monitorRatio.toFixed(2)}:1`)
+
+  // The empty-state card inside a preview stage stays dark in every theme
+  // (D7), so its own text needs the dark-surface ink.
+  const workstation = readSource('src/styles/workstation.css')
+  assert.ok(/\.empty-preview span \{[^}]*color:\s*var\(--preview-empty-ink/.test(workstation), 'the preview empty-state card uses the preview empty ink')
+  assert.ok(!/\.empty-preview span,\n\.render-state span/.test(workstation), 'the preview empty-state card is not painted with the theme help colour')
+  const lightEmptyInk = resolve(palette.light, '--preview-empty-ink')
+  assert.ok(lightEmptyInk, 'light: --preview-empty-ink is defined')
+  const emptyInkRatio = contrast(lightEmptyInk, resolve(palette.light, '--preview-empty-surface'))
+  assert.ok(emptyInkRatio >= 4.5, `light: the preview empty-state card keeps a readable ink (${lightEmptyInk}) — ${emptyInkRatio.toFixed(2)}:1`)
+
+  // The soft-danger button paints the danger hue over the theme surface; the
+  // danger text has to read on that mix in every theme — this is the button
+  // the requirement holder reported as invisible.
+  const mixHex = (fg, bg, percent) => {
+    const channel = (i) => Math.round(parseInt(fg.slice(1 + i, 3 + i), 16) * percent / 100 + parseInt(bg.slice(1 + i, 3 + i), 16) * (1 - percent / 100))
+    return `#${[0, 2, 4].map((i) => channel(i).toString(16).padStart(2, '0')).join('')}`
+  }
+  for (const id of ['green', 'blue', 'comfy', 'light']) {
+    const tokens = palette[id]
+    const danger = resolve(tokens, '--danger')
+    const surface = resolve(tokens, '--surface')
+    assert.ok(danger && surface, `${id}: --danger and --surface resolve to hex colors`)
+    const percent = Number(String(tokens.get('--danger-soft-mix') || '14%').replace('%', ''))
+    const soft = mixHex(danger, surface, percent)
+    const ratio = contrast(danger, soft)
+    assert.ok(ratio >= 4.5, `${id}: the soft-danger button keeps the danger text readable (${danger} on ${soft}) — ${ratio.toFixed(2)}:1`)
+  }
+
+  // The empty-state card inside a preview stage stays dark in every theme (D7).
+  const original = readSource('src/original-theme.css')
+  assert.ok(/\.empty-preview[^{]*\{[^}]*background:var\(--preview-empty-surface/.test(original), 'the preview empty-state card uses the preview empty surface token')
+}
