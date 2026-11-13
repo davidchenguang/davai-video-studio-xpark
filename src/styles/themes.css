@@ -49,6 +49,20 @@
   /* The empty-state card inside a preview stage: the baseline raised surface
      in the dark themes, a dark card in the light theme (D7). */
   --preview-empty-surface: var(--surface-2);
+  /* Media grounds that follow the studio's own darkness rather than the
+     monitor: the hairline around them, the ink on their captions, the
+     checkerboard that shows an alpha edge. The light theme re-pins them — a
+     canvas there is a charcoal monitor on paper, so its furniture has to be
+     charcoal too. */
+  --preview-hairline: var(--line);
+  --preview-caption-ink: var(--muted);
+  --preview-strong-ink: var(--text);
+  --preview-checker: var(--surface);
+  /* An empty media area is always dark. In the dark themes the ground behind
+     it is already dark, so it stays transparent — exactly what they render
+     today (D6). The light theme re-pins it to the charcoal canvas, because
+     the ground behind it there is paper. */
+  --preview-empty-ground: transparent;
 
   /* Page-ground accents of the two tool workspaces that keep their own
      palette (LTX Ripple, photo edit). They darken for the light theme. */
@@ -60,6 +74,23 @@
      their page-ground text follows the theme. */
   --tool-ink: #f2f3f7;
   --tool-ink-muted: #c7bdcb;
+
+  /* The dark-room tools (LTX Ripple, photo edit) are instruments, not themed
+     panels: they keep their own palette in every theme. These tokens are the
+     one place that palette is written down, so the two tools read as one
+     family instead of six unrelated near-blacks. The card is each tool's
+     face, so each one keeps its own card stops; the stages and insets are
+     the family's shared near-blacks. */
+  --tool-card-from: #272733;
+  --tool-card-to: #1b1d29;
+  --tool-card-line: #3b3d4d;
+  --tool-shadow: 0 10px 32px #0002;
+  --ripple-card-from: #252637;
+  --ripple-card-to: #1b1d2a;
+  --ripple-card-line: #37394a;
+  --ripple-shadow: 0 10px 34px #0002;
+  --tool-stage: #10121b;
+  --tool-inset: #181923;
 
   /* The scratchpad is a normal workspace, not a media surface: its glass
      panels follow the theme, so the theme inks inside them keep reading. */
@@ -230,10 +261,12 @@ html[data-theme="light"] .minimax-workspace {
   --scrim: rgb(30 36 28 / 28%);
   --dialog-shadow: 0 28px 90px rgb(24 30 22 / 24%);
   --oy-shadow-popover: 0 16px 42px rgb(24 30 22 / 14%);
-  /* D7 anchor: the media preview family never goes light. */
+  /* D7 anchor: the media preview family never goes light. The ground is a
+     neutral charcoal — no green temperature — so the monitor reads as
+     equipment standing on the paper rather than as a hole in it. */
   --preview-bg: rgb(0 0 0 / 12%);
-  --preview-panel: #0a0f0c;
-  --preview-line: #1d2721;
+  --preview-panel: #191a1b;
+  --preview-line: #2b2e31;
 }
 
 html[data-theme="light"] {
@@ -248,8 +281,18 @@ html[data-theme="light"] {
   /* D7: the preview empty-state card and the tool accents darken for the
      pale ground — the same rule as the semantic hues. */
   --preview-accent: #8fd35a;
-  --preview-empty-surface: #1d2721;
+  --preview-empty-surface: #25282b;
   --preview-empty-ink: var(--preview-ink);
+  /* A canvas on paper is equipment: its hairline, its caption ink and its
+     alpha checker are charcoal furniture, not paper furniture. An empty media
+     area is a monitor that is switched off — it stays charcoal, because the
+     rule is "media areas are dark", not "media areas are dark once they have
+     something to show". */
+  --preview-hairline: var(--preview-line);
+  --preview-caption-ink: var(--preview-ink);
+  --preview-strong-ink: var(--preview-ink);
+  --preview-checker: #3a3e42;
+  --preview-empty-ground: var(--preview-panel);
   --ripple-kicker: #5b3fc9;
   --photo-edit-eyebrow: #8f4520;
   /* The scratchpad glass follows the pale ground: the theme inks inside it

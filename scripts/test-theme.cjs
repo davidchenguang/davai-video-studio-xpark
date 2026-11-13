@@ -196,6 +196,112 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   assert.ok(mobile.includes("light: '#f3f4f0'"), 'the mobile browser chrome matches the paper theme')
 }
 
+// ---- The monitor: one canvas for every media surface ----
+// Media is judged against a neutral ground, so the canvas stays dark in every
+// theme (D7). What changed on 2026-11-13 (requirement holder): the light
+// theme's canvas is re-pinned to a neutral charcoal with no green
+// temperature, so the monitor reads as equipment standing on paper instead of
+// as the green theme's black; every media surface in the app paints that one
+// ground; and the dark-room tools keep their own identity palette instead of
+// adding one more black to the room.
+{
+  const themes = readSource('src/styles/themes.css')
+  const rootBody = themes.slice(themes.indexOf(':root'), themes.indexOf('}', themes.indexOf(':root')))
+  const lightStart = themes.indexOf('html[data-theme="light"]')
+  const lightBody = themes.slice(lightStart, themes.indexOf('preview-popout-document'))
+  const blueBody = themes.slice(themes.indexOf('html[data-theme="blue"]'), lightStart)
+  const comfyBody = themes.slice(themes.indexOf('html[data-theme="comfy"]'), lightStart)
+
+  const hexOf = (body, token) => body.match(new RegExp(`${token}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1]
+  // The channel spread of a hex: 0 means a perfectly neutral gray. The paper
+  // ladder deliberately leads in green; the monitor must not.
+  const spread = (hex) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(hex || '')
+    if (!m) return null
+    const ch = [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16))
+    return Math.max(...ch) - Math.min(...ch)
+  }
+  const relLum = (hex) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(hex || '')
+    if (!m) return null
+    const lin = [0, 2, 4].map(i => {
+      const v = parseInt(m[1].slice(i, i + 2), 16) / 255
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+    })
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+  }
+
+  // 1. The dark themes render the canvas they render today: zero visible
+  //    difference against the pre-branch baseline (D6).
+  assert.ok(/--preview-panel:\s*#0a0f0c/.test(rootBody), ':root pins the canvas the dark themes render today')
+  assert.ok(!/--preview-panel/.test(blueBody), 'the blue theme shares the one canvas (D16 keeps its upstream literals)')
+  assert.ok(!/--preview-panel/.test(comfyBody), 'the comfy theme shares the one canvas')
+
+  // 2. The light theme's canvas is a neutral charcoal — no green temperature.
+  const lightCanvas = hexOf(lightBody, '--preview-panel')
+  assert.ok(lightCanvas, 'the light theme pins the canvas')
+  assert.ok((spread(lightCanvas) ?? 99) <= 4, `light: the canvas is a neutral charcoal (${lightCanvas}, spread ${spread(lightCanvas)}) — the paper's green temperature stops at the studio walls`)
+  const lightGround = hexOf(lightBody, '--bg')
+  const canvasVsGround = (relLum(lightGround) + 0.05) / (relLum(lightCanvas) + 0.05)
+  assert.ok(canvasVsGround >= 12, `light: the canvas is far darker than the paper ground (${canvasVsGround.toFixed(1)}:1)`)
+
+  // 3. The canvas furniture follows the same neutral family.
+  const lightEmpty = hexOf(lightBody, '--preview-empty-surface')
+  assert.ok(lightEmpty && (spread(lightEmpty) ?? 99) <= 6, `light: the empty-state card is neutral too (${lightEmpty})`)
+  assert.ok(relLum(lightEmpty) > relLum(lightCanvas), 'light: the empty-state card reads as raised off the canvas')
+  const lightHair = hexOf(lightBody, '--preview-line')
+  assert.ok(lightHair && (spread(lightHair) ?? 99) <= 6, `light: the canvas hairline is neutral (${lightHair})`)
+
+  // 4. Media surfaces that follow the studio ground still need their own ink,
+  //    hairline and alpha checker.
+  for (const token of ['--preview-hairline', '--preview-caption-ink', '--preview-strong-ink', '--preview-checker', '--preview-empty-ground']) {
+    assert.ok(new RegExp(`${token}:`).test(rootBody), `:root defines ${token}`)
+    assert.ok(new RegExp(`${token}:`).test(lightBody), `the light theme re-pins ${token}`)
+  }
+  assert.ok(/--preview-checker:\s*#[0-9a-f]{6}/i.test(lightBody), 'the light theme checks alpha against a solid gray, not against white')
+  // An empty media area is always dark. In the dark themes the ground behind
+  // it is already dark, so it stays transparent — exactly what they render
+  // today (D6). The light theme re-pins it to the charcoal canvas, because
+  // the ground behind it there is paper.
+  assert.ok(
+    /--preview-empty-ground:\s*transparent/.test(rootBody),
+    ':root leaves the empty media ground to the ground behind it',
+  )
+  assert.ok(
+    /--preview-empty-ground:\s*var\(--preview-panel\)/.test(lightBody),
+    'the light theme paints the empty media area with the charcoal canvas',
+  )
+
+  // 5. Every media surface paints the one canvas.
+  const audit = readSource('src/workspace-audit.css')
+  assert.ok(/\.character-primary-preview\s*\{[^}]*background:\s*var\(--preview-panel\)/.test(audit), 'the character identity preview paints the canvas vocabulary')
+  const features = readSource('src/styles/feature-workspaces.css')
+  assert.ok(/\.reference-prep-source\s*\{[^}]*background:\s*var\(--preview-panel\)/.test(features), 'the reference-prep source paints the canvas vocabulary')
+  assert.ok(/\.reference-prep-results figure\s*\{[^}]*background:\s*var\(--preview-panel\)/.test(features), 'the reference-prep result paints the canvas vocabulary')
+  assert.ok(/\.reference-prep-results img\s*\{[^}]*var\(--preview-checker\)/.test(features), 'the alpha checkerboard uses the checker vocabulary')
+  assert.ok(/\.reference-prep-source figcaption\s*\{[^}]*color:\s*var\(--preview-caption-ink\)/.test(features), 'the caption on a canvas uses the caption-ink vocabulary')
+  assert.ok(/\.reference-prep-empty\s*\{[^}]*background:\s*var\(--preview-empty-ground\)/.test(features), 'the empty media area keeps the canvas rule in every theme')
+  assert.ok(/\.reference-prep-empty\s*\{[^}]*color:\s*var\(--preview-caption-ink\)/.test(features), 'the empty media area uses the caption-ink vocabulary')
+  assert.ok(/\.reference-prep-empty strong\s*\{[^}]*color:\s*var\(--preview-strong-ink\)/.test(features), 'the empty media area heading uses the strong-ink vocabulary')
+
+  // 6. The dark-room tools keep their identity palette, written down once.
+  for (const token of ['--tool-card-from', '--tool-card-to', '--tool-card-line', '--tool-stage', '--tool-inset', '--tool-shadow', '--ripple-card-from', '--ripple-card-to', '--ripple-card-line', '--ripple-shadow']) {
+    assert.ok(new RegExp(`${token}:`).test(rootBody), `:root defines ${token}`)
+    assert.ok(!new RegExp(`${token}:`).test(lightBody), `${token} is theme-independent — the tools keep their own identity`)
+  }
+  const photoEdit = readSource('src/components/photo-edit.css')
+  const ripple = readSource('src/components/ltx-ripple.css')
+  const hardcoded = ['#11131c', '#10121b', '#0d0f17', '#171923', '#181923', '#252637', '#1b1d2a', '#272733', '#37394a', '#3b3d4d']
+  for (const hex of hardcoded) {
+    assert.ok(!photoEdit.includes(hex), `photo-edit.css has no hardcoded dark (${hex}) — the tool vocabulary owns it`)
+    assert.ok(!ripple.includes(hex), `ltx-ripple.css has no hardcoded dark (${hex}) — the tool vocabulary owns it`)
+  }
+  assert.ok(/\.photo-edit-card\s*\{[^}]*var\(--tool-card-from\)[^}]*var\(--tool-card-to\)/.test(photoEdit), 'the photo-edit card paints the tool card vocabulary')
+  assert.ok(/\.photo-edit-image-picker[^}]*\{[^}]*background:\s*var\(--tool-stage\)/.test(photoEdit), 'the photo-edit stage paints the tool stage vocabulary')
+  assert.ok(/\.ripple-card\s*\{[^}]*var\(--ripple-card-from\)[^}]*var\(--ripple-card-to\)/.test(ripple), 'the ripple card keeps its own identity in the tool vocabulary')
+  assert.ok(/\.ripple-result-stage\s*\{[^}]*background:\s*var\(--tool-stage\)/.test(ripple), 'the ripple stage paints the tool stage vocabulary')
+}
+
 // ---- No self-referencing custom properties (Chromium poisons them) ----
 // `--x: var(--x)` — with or without a fallback — is a cycle: the declaration
 // computes to the guaranteed-invalid value and every usage silently falls
@@ -476,14 +582,17 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   for (const id of ['green', 'blue', 'comfy', 'light']) {
     assert.equal(resolve(palette[id], '--tool-ink'), toolInk, `${id}: --tool-ink stays the same in every theme`)
   }
-  const cardStops = [...ripple.matchAll(/\.ripple-card\{[^}]*background:linear-gradient\(145deg,(#[0-9a-f]{6}),(#[0-9a-f]{6})\)/g)].flatMap((m) => [m[1], m[2]])
-  assert.ok(cardStops.length, 'the Ripple card gradient stops are found')
+  // The card gradient stops now live in the tool vocabulary, so the contrast
+  // check reads the stops from the tokens rather than from the stylesheet.
+  // Each tool keeps its own card stops — the card is that tool's face.
+  const cardStops = ['--ripple-card-from', '--ripple-card-to'].map((token) => resolve(palette.green, token))
+  assert.ok(cardStops.every(Boolean), 'the Ripple card gradient stops resolve from the tool vocabulary')
   for (const stop of cardStops) {
     const ratio = contrast(toolInk, stop)
     assert.ok(ratio >= 4.5, `--tool-ink (${toolInk}) passes AA-normal on the Ripple card ground (${stop}) — ${ratio.toFixed(2)}:1`)
   }
-  const photoStops = [...photo.matchAll(/\.photo-edit-card\{[^}]*background:linear-gradient\(145deg,(#[0-9a-f]{6}),(#[0-9a-f]{6})\)/g)].flatMap((m) => [m[1], m[2]])
-  assert.ok(photoStops.length, 'the photo-edit card gradient stops are found')
+  const photoStops = ['--tool-card-from', '--tool-card-to'].map((token) => resolve(palette.green, token))
+  assert.ok(photoStops.every(Boolean), 'the photo-edit card gradient stops resolve from the tool vocabulary')
   for (const stop of photoStops) {
     const ratio = contrast(toolInk, stop)
     assert.ok(ratio >= 4.5, `--tool-ink (${toolInk}) passes AA-normal on the photo-edit card ground (${stop}) — ${ratio.toFixed(2)}:1`)

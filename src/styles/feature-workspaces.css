@@ -312,17 +312,17 @@
 .reference-prep-panel strong { color: var(--text); font-size: 12px; }
 .reference-prep-panel small, .reference-prep-panel > footer > span { color: var(--muted); font-size: 10px; line-height: 1.45; }
 .reference-prep-panel > footer { min-height: 52px; border-top: 1px solid var(--line); background: var(--surface-raised); }
-.reference-prep-source { display: grid; min-height: 0; margin: 0; place-items: center; overflow: hidden; background: var(--bg); }
+.reference-prep-source { display: grid; min-height: 0; margin: 0; place-items: center; overflow: hidden; background: var(--preview-panel); }
 .reference-prep-source img { display: block; width: 100%; height: 100%; min-height: 0; object-fit: contain; }
-.reference-prep-source figcaption { width: 100%; padding: 7px 10px; overflow: hidden; color: var(--muted); font-size: 10px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
-.reference-prep-empty { display: grid; place-content: center; justify-items: center; gap: 8px; min-height: 300px; padding: 24px; color: var(--muted); text-align: center; }
-.reference-prep-empty svg { color: var(--accent); }
-.reference-prep-empty strong { color: var(--text); }
+.reference-prep-source figcaption { width: 100%; padding: 7px 10px; overflow: hidden; color: var(--preview-caption-ink); font-size: 10px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.reference-prep-empty { display: grid; place-content: center; justify-items: center; gap: 8px; min-height: 300px; padding: 24px; background: var(--preview-empty-ground); color: var(--preview-caption-ink); text-align: center; }
+.reference-prep-empty svg { color: var(--preview-accent); }
+.reference-prep-empty strong { color: var(--preview-strong-ink); }
 .reference-prep-empty span { max-width: 290px; font-size: 11px; line-height: 1.45; }
 .reference-prep-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 0; }
-.reference-prep-results figure { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; margin: 0; border-right: 1px solid var(--line); background: var(--bg); }
+.reference-prep-results figure { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; margin: 0; border-right: 1px solid var(--preview-hairline); background: var(--preview-panel); }
 .reference-prep-results figure:last-child { border-right: 0; }
-.reference-prep-results img { display: block; width: 100%; height: 100%; min-height: 0; object-fit: contain; background-image: linear-gradient(45deg, var(--surface) 25%, transparent 25%), linear-gradient(-45deg, var(--surface) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--surface) 75%), linear-gradient(-45deg, transparent 75%, var(--surface) 75%); background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-size: 16px 16px; }
+.reference-prep-results img { display: block; width: 100%; height: 100%; min-height: 0; object-fit: contain; background-image: linear-gradient(45deg, var(--preview-checker) 25%, transparent 25%), linear-gradient(-45deg, var(--preview-checker) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--preview-checker) 75%), linear-gradient(-45deg, transparent 75%, var(--preview-checker) 75%); background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-size: 16px 16px; }
 .reference-prep-results figcaption { display: grid; gap: 4px; padding: 10px; border-top: 1px solid var(--line); background: var(--surface); }
 .reference-prep-results figcaption .primary-button { margin-top: 4px; justify-content: center; }
 .reference-prep-install { display: grid; gap: 5px; margin-top: 16px; padding: 12px 14px; border-left: 3px solid var(--warning); background: color-mix(in srgb, var(--warning) 8%, var(--surface)); color: var(--muted); font-size: 11px; line-height: 1.5; }
