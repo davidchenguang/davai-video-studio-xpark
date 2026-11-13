@@ -11,7 +11,7 @@ export const NATIVE_SHELL: Record<ShellTheme, NativeShell> = {
   green: { backgroundColor: '#0c100e', titleBarOverlay: { color: '#171d19', symbolColor: '#f0f5ef', height: 48 } },
   blue: { backgroundColor: '#071524', titleBarOverlay: { color: '#243c53', symbolColor: '#d8ebff', height: 48 } },
   comfy: { backgroundColor: '#211927', titleBarOverlay: { color: '#2a2138', symbolColor: '#f5f0fa', height: 48 } },
-  light: { backgroundColor: '#f4f6f8', titleBarOverlay: { color: '#ffffff', symbolColor: '#23300f', height: 48 } },
+  light: { backgroundColor: '#f3f4f0', titleBarOverlay: { color: '#ffffff', symbolColor: '#2a3a1c', height: 48 } },
 }
 
 /** The preview monitor is a color-judging surface (D7): dark chrome in every theme. */

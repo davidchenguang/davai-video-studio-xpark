@@ -118,7 +118,7 @@
 .source-media-manage { flex: 0 0 auto; min-height: 36px; }
 
 .source-media-backdrop { z-index: 70; padding: 14px; backdrop-filter: blur(10px); }
-.source-media-modal { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(1120px, 100%); max-height: calc(100dvh - 48px); overflow: hidden; border: 1px solid var(--line-strong); border-radius: 13px; background: var(--surface); box-shadow: 0 28px 90px rgba(0,0,0,.62); }
+.source-media-modal { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(1120px, 100%); max-height: calc(100dvh - 48px); overflow: hidden; border: 1px solid var(--line-strong); border-radius: 13px; background: var(--surface); box-shadow: var(--dialog-shadow, 0 28px 90px rgba(0,0,0,.62)); }
 .source-media-modal > header, .source-media-modal > footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 22px; background: var(--surface); }
 .source-media-modal > header { border-bottom: 1px solid var(--line); }
 .source-media-modal > header > div:first-child { display: flex; align-items: center; min-width: 0; gap: 11px; }
@@ -319,7 +319,7 @@
 .dialogue-tool-button { border-color: rgba(84,230,212,.25) !important; color: var(--asset-teal, var(--info-accent)) !important; }
 .dialogue-tool-button:hover { border-color: rgba(84,230,212,.5) !important; background: rgba(84,230,212,.08) !important; }
 .character-dialogue-backdrop { z-index: 90; padding: 14px; backdrop-filter: blur(10px); }
-.character-dialogue-modal { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(780px, 100%); max-height: calc(100dvh - 70px); overflow: hidden; border: 1px solid var(--line-strong); border-radius: 13px; background: var(--surface); box-shadow: 0 28px 90px rgba(0,0,0,.62); }
+.character-dialogue-modal { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(780px, 100%); max-height: calc(100dvh - 70px); overflow: hidden; border: 1px solid var(--line-strong); border-radius: 13px; background: var(--surface); box-shadow: var(--dialog-shadow, 0 28px 90px rgba(0,0,0,.62)); }
 .character-dialogue-modal > header, .character-dialogue-modal > footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 17px; background: var(--surface); }
 .character-dialogue-modal > header { border-bottom: 1px solid var(--line); }
 .character-dialogue-modal > header > div { display: flex; align-items: center; min-width: 0; gap: 11px; }

@@ -87,6 +87,11 @@
   --page-glow: rgb(91 134 65 / 11%);
   --panel-glow-from: #1e2a20;
   --panel-glow-to: #171f19;
+
+  /* Night chrome: what the dark themes render today, pinned as vocabulary so
+     the light theme can re-derive it for the pale ground. */
+  --scrim: rgb(3 8 12 / 78%);
+  --dialog-shadow: 0 28px 90px rgb(0 0 0 / 70%);
 }
 
 /* Blue (classic) — upstream look per D16.
@@ -193,23 +198,25 @@ html[data-theme="comfy"] {
   color-scheme: dark;
 }
 
-/* Light — pale gray ground + white raised panels + deep green accent per D5.
-   Media color-judging surfaces are pinned back to dark values (D7): preview
-   panels keep their near-black ground in every theme. */
+/* Light — the daylight half of a color-judging studio: a paper-neutral ground
+   whose gray ladder carries the brand's green temperature (the G channel
+   leads), white raised panels, deep green accent per D5. Media color-judging
+   surfaces are pinned back to dark values (D7): preview panels keep their
+   near-black ground in every theme. */
 html[data-theme="light"],
 html[data-theme="light"] .app-shell,
 html[data-theme="light"] .app-shell.studio-shell-active,
 html[data-theme="light"] .app-shell.video-shell-active,
 html[data-theme="light"] .video-workspace-shell,
 html[data-theme="light"] .minimax-workspace {
-  --bg: #f4f6f8 !important;
+  --bg: #f3f4f0 !important;
   --surface: #ffffff !important;
-  --surface-1: #f7f9fa !important;
-  --surface-2: #eef1f3 !important;
-  --surface-3: #e3e8eb !important;
+  --surface-1: #f8f9f5 !important;
+  --surface-2: #eff1eb !important;
+  --surface-3: #e5e8e1 !important;
   --surface-raised: #ffffff !important;
-  --line: #d5dde2 !important;
-  --line-strong: #b9c4cb !important;
+  --line: #d8dcd2 !important;
+  --line-strong: #bdc4b4 !important;
   --text: #1f2a24 !important;
   --muted: #4e5c53 !important;
   --muted-2: #4d5b52 !important;
@@ -217,6 +224,12 @@ html[data-theme="light"] .minimax-workspace {
   --accent-soft: rgb(60 117 29 / 10%) !important;
   --accent-ink: #f4f6f8 !important;
   --titlebar-surface: #ffffff !important;
+  /* Night chrome re-derived for the pale ground (same rule as the semantic
+     hues): the dark themes' 78% black scrim and 70% black dialog shadow read
+     as holes on paper. */
+  --scrim: rgb(30 36 28 / 28%);
+  --dialog-shadow: 0 28px 90px rgb(24 30 22 / 24%);
+  --oy-shadow-popover: 0 16px 42px rgb(24 30 22 / 14%);
   /* D7 anchor: the media preview family never goes light. */
   --preview-bg: rgb(0 0 0 / 12%);
   --preview-panel: #0a0f0c;
@@ -263,12 +276,18 @@ html[data-theme="light"] {
   --nav-active-line: #7aa85e;
   --nav-active-ink: #f4f6f8;
   --nav-active-svg: #a5d17e;
-  --sidebar-glow-from: #fbfcfd;
-  --sidebar-glow-to: #eef1f3;
+  --sidebar-glow-from: #fbfcfb;
+  --sidebar-glow-to: #f0f2ec;
   --page-glow: rgb(62 122 30 / 7%);
   --panel-glow-from: #ffffff;
-  --panel-glow-to: #f2f5f7;
+  --panel-glow-to: #f3f5ef;
   color-scheme: light;
+}
+
+/* The paper theme highlights selections with the accent at daylight weight —
+   the default blue selection is the one color the theme does not own. */
+html[data-theme="light"] ::selection {
+  background: rgb(60 117 29 / 18%);
 }
 
 /* D7 — the detached media windows (preview popout and preview monitor) are

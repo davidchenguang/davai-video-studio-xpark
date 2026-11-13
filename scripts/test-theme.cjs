@@ -152,6 +152,50 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   assert.ok(accentInk, 'light block defines --accent-ink (deep green actions need light ink)')
 }
 
+// ---- Light theme: a paper-neutral daylight room ----
+// The light theme is the daylight half of a color-judging studio: the gray
+// ladder carries the brand's green temperature (the G channel leads) instead
+// of the legacy blue-gray, and the night-weight chrome (dialog scrim, dialog
+// and popover shadows) is re-derived for the pale ground — the same rule the
+// semantic hues already follow. The ground value was re-pinned by the
+// requirement holder (2026-11-13): paper-neutral over cool gray.
+{
+  const themes = readSource('src/styles/themes.css')
+  const lightStart = themes.indexOf('html[data-theme="light"]')
+  const lightBody = themes.slice(lightStart, themes.indexOf('preview-popout-document'))
+  const gLeads = (hex) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(hex)
+    if (!m) return false
+    const r = parseInt(m[1].slice(0, 2), 16)
+    const g = parseInt(m[1].slice(2, 4), 16)
+    const b = parseInt(m[1].slice(4, 6), 16)
+    return g >= r && g > b
+  }
+  const alphaOf = (value) => { const m = /\/\s*([\d.]+)%\s*\)/.exec(value); return m ? Number(m[1]) / 100 : null }
+  assert.ok(/--bg:\s*#f3f4f0 !important/.test(lightBody), 'the light ground is the paper-neutral #f3f4f0 (re-pinned 2026-11-13)')
+  for (const token of ['--surface-1', '--surface-2', '--surface-3', '--line', '--line-strong']) {
+    const value = lightBody.match(new RegExp(`${token}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1]
+    assert.ok(value && gLeads(value), `light: ${token} (${value}) keeps the green temperature — the G channel leads`)
+  }
+  const scrimLight = lightBody.match(/--scrim:\s*([^;]+);/)?.[1]
+  assert.ok(scrimLight && (alphaOf(scrimLight) ?? 1) < 0.5, `light: the dialog scrim is daylight-weight (${scrimLight})`)
+  const popoverLight = lightBody.match(/--oy-shadow-popover:\s*([^;]+);/)?.[1]
+  assert.ok(popoverLight && (alphaOf(popoverLight) ?? 1) < 0.3, `light: the popover shadow is daylight-weight (${popoverLight})`)
+  const dialogShadowLight = lightBody.match(/--dialog-shadow:\s*([^;]+);/)?.[1]
+  assert.ok(dialogShadowLight && (alphaOf(dialogShadowLight) ?? 1) < 0.4, `light: the dialog shadow is daylight-weight (${dialogShadowLight})`)
+  const rootBody = themes.slice(themes.indexOf(':root'), themes.indexOf('}', themes.indexOf(':root')))
+  assert.ok(/--scrim:\s*rgb\(3 8 12 \/ 78%\)/.test(rootBody), ':root pins the night scrim the dark themes render today')
+  assert.ok(/--dialog-shadow:\s*0 28px 90px rgb\(0 0 0 \/ 70%\)/.test(rootBody), ':root pins the night dialog shadow the dark themes render today')
+  const ui = readSource('src/components/ui/ui.css')
+  assert.ok(/\.ui-dialog-overlay\{[^}]*background:var\(--scrim/.test(ui), 'the dialog overlay uses the scrim vocabulary')
+  assert.ok(/\.ui-dialog-content\{[^}]*box-shadow:var\(--dialog-shadow/.test(ui), 'the dialog shadow uses the dialog-shadow vocabulary')
+  assert.ok(/html\[data-theme="light"\][^{]*::selection\s*\{/.test(themes), 'the light theme styles the selection highlight')
+  const shell = readSource('electron/nativeShellTheme.ts')
+  assert.ok(/light:\s*\{\s*backgroundColor:\s*'#f3f4f0'/.test(shell), 'the native shell ground matches the paper theme')
+  const mobile = readSource('src/MobileApp.tsx')
+  assert.ok(mobile.includes("light: '#f3f4f0'"), 'the mobile browser chrome matches the paper theme')
+}
+
 // ---- No self-referencing custom properties (Chromium poisons them) ----
 // `--x: var(--x)` — with or without a fallback — is a cycle: the declaration
 // computes to the guaranteed-invalid value and every usage silently falls
