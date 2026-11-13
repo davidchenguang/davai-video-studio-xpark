@@ -15,7 +15,15 @@ const imageSizes: Record<string, string[]> = {
   '9:16': ['576x1024', '768x1344', '864x1536', '1080x1920'],
 }
 
-export function RenderSize({ value, onChange, provider = 'minimax' }: { value: string; onChange(value: string): void; provider?: 'minimax' | 'ltx25' | 'zimage' }) {
+// H3-Image reaches 16MP natively, so this table carries print-grade rungs
+// instead of the Z-Image ladder (which stops at 1080p).
+const h3ImageSizes: Record<string, string[]> = {
+  '16:9': ['1024x576', '1344x768', '2048x1152', '4096x2304'],
+  '1:1': ['1024x1024', '1536x1536', '2048x2048', '4096x4096'],
+  '9:16': ['576x1024', '768x1344', '1152x2048', '2304x4096'],
+}
+
+export function RenderSize({ value, onChange, provider = 'minimax' }: { value: string; onChange(value: string): void; provider?: 'minimax' | 'ltx25' | 'zimage' | 'h3image' }) {
   const [w, h] = value.split('x').map(Number)
   const orientation: Orientation = w === h ? 'square' : w / h >= 2.1 ? 'ultrawide' : w > h ? 'landscape' : 'portrait'
   const resolutionOptions: Record<Orientation, readonly string[]> = provider === 'ltx25' ? LTX25_RESOLUTIONS : MINIMAX_VIDEO_RESOLUTION_GROUPS
@@ -30,20 +38,21 @@ export function RenderSize({ value, onChange, provider = 'minimax' }: { value: s
     }
     setCustom(!Object.values(resolutionOptions).some((options) => options.includes(value)))
   }, [resolutionOptions, value])
-  if (provider === 'zimage') {
-    const ratio = Object.entries(imageSizes).find(([, options]) => options.includes(value))?.[0] ?? (w === h ? '1:1' : w > h ? '16:9' : '9:16')
+  if (provider === 'zimage' || provider === 'h3image') {
+    const table = provider === 'h3image' ? h3ImageSizes : imageSizes
+    const ratio = Object.entries(table).find(([, options]) => options.includes(value))?.[0] ?? (w === h ? '1:1' : w > h ? '16:9' : '9:16')
     const area = w * h
     return <fieldset className="render-size image-render-size"><legend>图片画幅</legend>
       <label>宽高比<select value={ratio} onChange={(event) => {
-        const options = imageSizes[event.target.value]
+        const options = table[event.target.value]
         onChange(options.reduce((best, option) => {
           const [ow, oh] = option.split('x').map(Number)
           const [bw, bh] = best.split('x').map(Number)
           return Math.abs(ow * oh - area) < Math.abs(bw * bh - area) ? option : best
         }))
-      }}>{Object.keys(imageSizes).map((option) => <option key={option} value={option}>{imageRatioLabel(option)}</option>)}</select></label>
-      <label>分辨率<select value={value} onChange={(event) => onChange(event.target.value)}>{imageSizes[ratio].map((size) => <option key={size} value={size}>{size.replace('x', ' × ')} · {imageQualityLabel(size)}</option>)}</select></label>
-      <p className="field-help">Z-Image 画幅 · {(area / 1e6).toFixed(2)} 百万像素。画幅越大占用的 VRAM 越多，渲染耗时也越长。</p>
+      }}>{Object.keys(table).map((option) => <option key={option} value={option}>{imageRatioLabel(option)}</option>)}</select></label>
+      <label>分辨率<select value={value} onChange={(event) => onChange(event.target.value)}>{table[ratio].map((size) => <option key={size} value={size}>{size.replace('x', ' × ')} · {imageQualityLabel(size)}</option>)}</select></label>
+      <p className="field-help">{provider === 'h3image' ? 'H3-Image 画幅' : 'Z-Image 画幅'} · {(area / 1e6).toFixed(2)} 百万像素。画幅越大占用的 VRAM 越多，渲染耗时也越长。</p>
     </fieldset>
   }
   const maxPixels = provider === 'minimax' ? 1344 * 768 : LTX25_MAX_PIXELS

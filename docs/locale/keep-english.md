@@ -107,28 +107,28 @@
 
 提示词本体（`prop:prompt`，进入 `buildMiniMaxWorkflow` / `buildLtx25Workflow` 的 `prompt` 入参，受提示词 parity 保护）：
 
-- `src/components/SettingsView.tsx:content=A polished chrome sphere rotates slowly on a dark studio pedestal under one soft overhead light. Locked camera, clean reflections, ambient room tone, no dialogue, no text.` — Sol Engine 测试渲染的提示词本体，`submitPrompt` 原样发送（180 行）。
-- `src/components/SettingsView.tsx:content=GPU placement diagnostic. Static studio color chart, locked camera, ambient tone, no dialogue.` — GPU 放置诊断的测试提示词本体（198 行）。
-- `src/components/SettingsView.tsx:content=Describe the shot. Attach reference media in ComfyUI before queueing.` — Ref2VA 工作流导出模板的占位提示词，写入导出的 API JSON（217 行）。
-- `src/components/SettingsView.tsx:content=Describe one continuous cinematic shot.` — H3 与 LTX 2.5 工作流导出模板共用的占位提示词（220、232 行两处）。
+- `src/components/SettingsView.tsx:content=A polished chrome sphere rotates slowly on a dark studio pedestal under one soft overhead light. Locked camera, clean reflections, ambient room tone, no dialogue, no text.` — Sol Engine 测试渲染的提示词本体，`submitPrompt` 原样发送（182 行）。
+- `src/components/SettingsView.tsx:content=GPU placement diagnostic. Static studio color chart, locked camera, ambient tone, no dialogue.` — GPU 放置诊断的测试提示词本体（200 行）。
+- `src/components/SettingsView.tsx:content=Describe the shot. Attach reference media in ComfyUI before queueing.` — Ref2VA 工作流导出模板的占位提示词，写入导出的 API JSON（219 行）。
+- `src/components/SettingsView.tsx:content=Describe one continuous cinematic shot.` — H3 与 LTX 2.5 工作流导出模板共用的占位提示词（222、234 行两处）。
 
 逐字命令、路径与文件名（用户照抄到终端或 ComfyUI 节点图）：
 
-- `src/components/SettingsView.tsx:content=CUDA_VISIBLE_DEVICES=0,1 python main.py --use-ck-attention` — H3 Parallel 安装步骤的启动命令（265 行）。
-- `src/components/SettingsView.tsx:content=LTX-2.5-Licon-MSR-V1.safetensors` — 模型文件名（313 行）。
-- `src/components/SettingsView.tsx:content=ComfyUILTX25MSRICLoRALoader` — ComfyUI 节点类名（313 行）。
-- `src/components/SettingsView.tsx:content=ComfyUILTX25MSRMultiReferenceGuide` — ComfyUI 节点类名（313 行）。
-- `src/components/SettingsView.tsx:content=C:\Users\James\Documents\ComfyUI\.venv\Scripts\python.exe` — 用户机器上的真实解释器路径，逐字展示（349 行）。
-- `src/components/SettingsView.tsx:content=python -c "import sys; print(sys.executable)"` — 终端命令示例（350 行）。
-- `src/components/SettingsView.tsx:content=python -c "import torch; print(torch.__version__); print(torch.version.cuda); print(torch.cuda.get_device_name())"` — 终端命令示例（350 行）。
-- `src/components/SettingsView.tsx:content=python -c "import triton; print('Triton:', triton.__version__)"` — 终端命令示例（355 行）。
-- `src/components/SettingsView.tsx:content=correctness gate PASS` — Sol 自检输出中的逐字匹配串，用户需在日志里按原文查找（355 行）。
-- `src/components/SettingsView.tsx:content=MiniMaxH3Cache` — Sol 指南第 07 步要求检测到的注意力后端节点名（356 行）。
+- `src/components/SettingsView.tsx:content=CUDA_VISIBLE_DEVICES=0,1 python main.py --use-ck-attention` — H3 Parallel 安装步骤的启动命令（267 行）。
+- `src/components/SettingsView.tsx:content=LTX-2.5-Licon-MSR-V1.safetensors` — 模型文件名（321 行）。
+- `src/components/SettingsView.tsx:content=ComfyUILTX25MSRICLoRALoader` — ComfyUI 节点类名（321 行）。
+- `src/components/SettingsView.tsx:content=ComfyUILTX25MSRMultiReferenceGuide` — ComfyUI 节点类名（321 行）。
+- `src/components/SettingsView.tsx:content=C:\Users\James\Documents\ComfyUI\.venv\Scripts\python.exe` — 用户机器上的真实解释器路径，逐字展示（357 行）。
+- `src/components/SettingsView.tsx:content=python -c "import sys; print(sys.executable)"` — 终端命令示例（358 行）。
+- `src/components/SettingsView.tsx:content=python -c "import torch; print(torch.__version__); print(torch.version.cuda); print(torch.cuda.get_device_name())"` — 终端命令示例（358 行）。
+- `src/components/SettingsView.tsx:content=python -c "import triton; print('Triton:', triton.__version__)"` — 终端命令示例（363 行）。
+- `src/components/SettingsView.tsx:content=correctness gate PASS` — Sol 自检输出中的逐字匹配串，用户需在日志里按原文查找（363 行）。
+- `src/components/SettingsView.tsx:content=MiniMaxH3Cache` — Sol 指南第 07 步要求检测到的注意力后端节点名（364 行）。
 
 标识符与确认令牌：
 
-- `src/components/SettingsView.tsx:106` — `settingsSections` 数组的 id 半区 `'reset'`：DOM 锚点 / 滚动定位键（存储标识符，非界面文案；译文半区是「恢复出厂设置」）。
-- `src/components/SettingsView.tsx:340` — 恢复出厂设置确认词 `Reset`：必须与 `electron/main.ts` 的 `confirmation !== 'Reset'` 逐字匹配，用户需输入英文单词（与已有的 `electron/main.ts:435` 登记同一 token）。
+- `src/components/SettingsView.tsx:108` — `settingsSections` 数组的 id 半区 `'reset'`：DOM 锚点 / 滚动定位键（存储标识符，非界面文案；译文半区是「恢复出厂设置」）。
+- `src/components/SettingsView.tsx:348` — 恢复出厂设置确认词 `Reset`：必须与 `electron/main.ts` 的 `confirmation !== 'Reset'` 逐字匹配，用户需输入英文单词（与已有的 `electron/main.ts:435` 登记同一 token）。
 
 ## 批次 12：扫描器补强后的新登记
 

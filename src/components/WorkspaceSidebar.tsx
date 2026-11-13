@@ -1,4 +1,4 @@
-import { Aperture, Clapperboard, FileText, Film, HardDrive, Image as ImageIcon, ImagePlus, Library, ListVideo, MapPin, Menu, Music2, PanelLeftClose, Scan, Scissors, Settings, Shirt, SkipForward, Users, WandSparkles, Watch, type LucideIcon } from 'lucide-react'
+import { Aperture, Clapperboard, FileText, Film, HardDrive, Image as ImageIcon, ImagePlus, Library, ListVideo, MapPin, Menu, Music2, Paintbrush, PanelLeftClose, Scan, Scissors, Settings, Shirt, SkipForward, Users, WandSparkles, Watch, type LucideIcon } from 'lucide-react'
 import type { View } from '../types'
 
 type MusicEngine = 'acestep' | 'music3'
@@ -25,13 +25,14 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
   const groups: Array<{ label: string; items: SidebarItem[] }> = [
     { label: '创作', items: [
       { view: 'scratchpad', label: '草稿本', icon: FileText },
+      { view: 'h3image', label: 'H3 图片', icon: ImagePlus },
       { view: 'create', label: 'H3 视频', icon: WandSparkles },
       { view: 'continue', label: '续接', icon: SkipForward },
       { view: 'zimage', label: '生成图片', icon: ImageIcon },
       { view: 'referenceprep', label: '参考图准备', icon: Scan },
       { view: 'ltx25', label: 'LTX 2.5', icon: Aperture },
       { view: 'ltxripple', label: 'LTX Ripple', icon: Aperture },
-      { view: 'photoedit', label: '照片编辑', icon: ImagePlus },
+      { view: 'photoedit', label: '照片编辑', icon: Paintbrush },
       { view: 'music', engine: 'acestep', label: '音乐 · ACE-Step', icon: Music2 },
       { view: 'music', engine: 'music3', label: '音乐 · Music 3', icon: Music2 },
     ] },

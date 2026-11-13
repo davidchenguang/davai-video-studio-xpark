@@ -1,4 +1,4 @@
-export type View = 'create' | 'continue' | 'scratchpad' | 'ltx25' | 'ltxripple' | 'photoedit' | 'music' | 'zimage' | 'referenceprep' | 'characters' | 'hair' | 'wardrobes' | 'accessories' | 'locations' | 'queue' | 'library' | 'clipmaster' | 'movie' | 'settings'
+export type View = 'create' | 'continue' | 'scratchpad' | 'ltx25' | 'ltxripple' | 'photoedit' | 'music' | 'zimage' | 'h3image' | 'referenceprep' | 'characters' | 'hair' | 'wardrobes' | 'accessories' | 'locations' | 'queue' | 'library' | 'clipmaster' | 'movie' | 'settings'
 export type GenerationMode = 'text' | 'image' | 'frames' | 'reference'
 export type ModelKind = 'diffusion_models' | 'text_encoders' | 'vae' | 'loras' | 'vae_approx' | 'clip_vision'
 export type MediaKind = 'image' | 'video' | 'audio'
