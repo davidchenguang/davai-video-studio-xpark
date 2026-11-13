@@ -14,7 +14,7 @@ const anchorLabels: Record<string, string> = {
 const videoRoleLabels: Record<string, string> = { motion: '运动', structure: '结构', continuation: '续接', editing: '剪辑' }
 const audioRelationLabels: Record<string, string> = { reference: '仅参考', fully_copy: '完整复制', partially_copy: '部分复制', weak_reference: '弱参考' }
 const audioLayerLabels: Record<string, string> = { voice: '人声', ambience: '环境声', music: '音乐', soundtrack: '音轨' }
-const mediaKindLabels: Record<string, string> = { image: '图像', video: '视频', audio: '音频' }
+const mediaKindLabels: Record<string, string> = { image: '图片', video: '视频', audio: '音频' }
 const attributeLabels: Record<string, string> = {
   identity: '身份',
   face: '面部',
@@ -69,14 +69,14 @@ export function SceneSelectionInspector({ state, selection, onChange }: { state:
   if (shot) return <section className="scene-context-card selection-inspector">
     <header><div><small>已选镜头</small><strong>镜头 {shotIndex + 1}</strong></div><span>{shot.start.toFixed(2)}–{shot.end.toFixed(2)} 秒</span></header>
     <label>镜头动作<textarea rows={3} value={shot.description} placeholder="描述这个镜头中的动作" onChange={event => onChange({ ...state, shots: state.shots.map((item, index) => index === shotIndex ? { ...item, description: event.target.value } : item) })} /></label>
-    <div className="selection-camera-grid">{Object.entries(cameraOptions).map(([key, options]) => <label key={key}>{({ shotSize: '景别', angle: '机位角度', movement: '运镜', speed: '速度', stabilization: '稳定', amplitude: '幅度' } as Record<string, string>)[key]}<select value={camera[key as keyof Camera]?.value || ''} onChange={event => updateCamera(key as keyof Camera, event.target.value)}><option value="">取自场景</option>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>)}</div>
+    <div className="selection-camera-grid">{Object.entries(cameraOptions).map(([key, options]) => <label key={key}>{({ shotSize: '景别', angle: '机位角度', movement: '运镜', speed: '速度', stabilization: '稳定', amplitude: '运动幅度' } as Record<string, string>)[key]}<select value={camera[key as keyof Camera]?.value || ''} onChange={event => updateCamera(key as keyof Camera, event.target.value)}><option value="">取自场景</option>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>)}</div>
   </section>
 
   return <section className="scene-context-card selection-inspector">
     <header><div><small>场景上下文</small><strong>Ref2VA 方向</strong></div><span>{state.duration} 秒</span></header>
     <label>环境<input value={state.environment.value} placeholder="地点与物理环境" onChange={event => onChange({ ...state, environment: value(event.target.value) })} /></label>
     <label>灯光<input value={state.lighting.value} placeholder="光源、时间、氛围" onChange={event => onChange({ ...state, lighting: value(event.target.value) })} /></label>
-    <small>在此选择一张参考卡片或一个镜头，即可编辑其生产控制项。</small>
+    <small>在此选择一张参考卡片或一个镜头，即可编辑它的参考控制项。</small>
   </section>
 }
 

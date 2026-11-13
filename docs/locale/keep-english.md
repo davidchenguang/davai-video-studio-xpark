@@ -137,11 +137,16 @@
 下面这些是扩展后仍然保留英文的位置，逐条说明理由。
 
 - `src/lib/workspaceTips.ts:content=安装较新的本地 ComfyUI，并让它在设置中显示的地址上持续运行（默认 http://127.0.0.1:8188）。在「设置 → 模型位置」中，把 diffusion_models、text_encoders、vae、loras、vae_approx 与 clip_vision 指向你的 ComfyUI 模型文件夹，然后选择输出文件夹并点击「测试连接 / 重新扫描」。` — 首次配置引导正文里的 ComfyUI 模型目录名（`vae`、`vae_approx`、`loras`、`text_encoders`、`clip_vision` 等）必须与磁盘上的真实文件夹名逐字一致，术语表里的 `VAE` 是显示口径，目录名按实际写法保留小写。
-- `src/components/PhotoEditWorkspace.tsx:content=Turbo` — 照片编辑的渲染档位名。FireRed 的 Turbo 档与 H3 的 `Turbo 8 · 均衡`、`Turbo 4 · 实验` 是同一套档位命名，译成中文会与 H3 画质预设里的「极速」混淆，故保留英文并在此登记。
+- `src/components/PhotoEditWorkspace.tsx:content=Turbo` — 图片编辑（原「照片编辑」，2026-11-12 更名）的渲染档位名。FireRed 的 Turbo 档与 H3 的 `Turbo 8 · 均衡`、`Turbo 4 · 实验` 是同一套档位命名，译成中文会与 H3 画质预设里的「极速」混淆，故保留英文并在此登记。
 - `src/App.tsx:content=Euler ancestral` — ComfyUI 采样器名（`Euler ancestral`），显示在任务执行信息条上，与 H3 链路显示的 `euler + simple` 同属采样器 / 调度器标识符，保持英文。
 - `src/App.tsx:content=Official 8 + 3 sigmas` — LTX 官方两阶段工作流的调度器名（`Official 8 + 3 sigmas` / `Official distilled 8 sigmas` / `Simple · 8 steps`），是 ComfyUI 调度器标识符，保持英文。
 - `src/App.tsx:content=Simple · 8 steps` — 同上，LTX Ripple 链路的调度器名。
 - `src/App.tsx:content=Licon MSR` — LTX 放大 LoRA 型号名。
+
+## 中文修订轮（zh-locale-revision）新增登记
+
+- `src/App.tsx:content=Ctrl+F` — 标题栏搜索按钮的键盘快捷键标识（`<kbd>`），与 3471 行 aria/title 的 `Ctrl+F` 写法一致。`Ctrl` 与 `F` 是两个拉丁词，漏译判定会命中，按快捷键标识豁免。
+- `src/components/Ltx25Workspace.tsx:content=采样器 Euler ancestral · CFG 1` 等含「采样器 / 调度器」中文前缀的写法 — ComfyUI 采样器 / 调度器标识符，与批次 12 的 `src/App.tsx:content=Euler ancestral`、`Official 8 + 3 sigmas` 同族；中文前缀使其含 CJK、通过漏译判定，无需单独豁免，登记备查以免被误改回中文译名。
 
 ## 批次 12b：Music 3 提示词层
 

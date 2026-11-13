@@ -7,7 +7,7 @@ export function planRippleChunks(duration: number, chunkSeconds: number, overlap
   const outputFrames = rippleFramesForSeconds(chunkSeconds)
   const chunkSourceFrames = outputFrames - 1
   const overlapFrames = Math.round(overlapSeconds * 24)
-  if (!Number.isFinite(overlapSeconds) || overlapFrames < 0 || overlapFrames > 48 || overlapFrames >= chunkSourceFrames / 2) throw new Error('重叠时长请在 0 到 2 秒之间，且短于半个分段。')
+  if (!Number.isFinite(overlapSeconds) || overlapFrames < 0 || overlapFrames > 48 || overlapFrames >= chunkSourceFrames / 2) throw new Error('重叠时长请在 0 到 2 秒之间，且短于半个分块。')
   const totalSourceFrames = Math.ceil(Math.round(duration * 24) / 8) * 8
   const chunks: RippleChunk[] = []
   let startFrame = 0
@@ -19,7 +19,7 @@ export function planRippleChunks(duration: number, chunkSeconds: number, overlap
     chunks.push({ index: chunks.length, startFrame, sourceFrames, outputFrames: sourceFrames + 1, overlapFrames: chunks.length ? overlapFrames : 0 })
     if (startFrame + sourceFrames >= totalSourceFrames) break
     startFrame += sourceFrames - overlapFrames
-    if (chunks.length > 100) throw new Error('这段视频需要过多的 Ripple 分段。请增加分段长度。')
+    if (chunks.length > 100) throw new Error('这段视频需要过多的 Ripple 分块。请增加分块长度。')
   }
   return chunks
 }

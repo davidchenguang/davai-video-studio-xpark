@@ -6,7 +6,7 @@ export const characterAppearancePresets = [
   ['hero', '电影感主角', 'Adult cinematic lead with balanced facial proportions, expressive eyes, a clear silhouette, natural skin texture, and a fit believable build.'],
   ['character-actor', '特征演员', 'Adult character actor with memorable facial geometry, expressive asymmetry, lived-in skin detail, and a distinctive but believable silhouette.'],
   ['editorial', '时尚硬照模特', 'Adult editorial model with sculptural facial planes, long clean lines, controlled posture, and camera-ready natural skin texture.'],
-  ['everyday', '日常自然', 'Adult with approachable everyday features, realistic proportions, subtle facial asymmetry, natural skin texture, and an unforced posture.'],
+  ['everyday', '自然日常', 'Adult with approachable everyday features, realistic proportions, subtle facial asymmetry, natural skin texture, and an unforced posture.'],
   ['athletic', '运动型演员', 'Adult athletic performer with functional muscle definition, balanced proportions, grounded posture, and a physically capable silhouette.'],
   ['mature', '成熟戏剧感', 'Mature adult with age-authentic facial structure, fine lines, textured skin, confident posture, and strong dramatic presence.'],
   ['comedian', '夸张喜剧', 'Adult comedy performer with highly readable eyes and brows, flexible facial expression, approachable proportions, and energetic body language.'],

@@ -92,7 +92,7 @@ export function VideoReferenceClipper({ source, onClose, onCreate }: Props) {
           {error && <p className="clip-validation" role="alert">{error}</p>}
         </div>
       </div>
-      <footer><span>新的 MP4 会保存到你的输出文件夹，且只作为参考图使用。</span><div><button className="secondary-button" disabled={busy} onClick={onClose}>取消</button><button className="primary-button" disabled={!valid || busy} onClick={async () => { setBusy(true); setError(''); try { await onCreate(start, end) } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); setBusy(false) } }}>{busy ? <LoaderCircle className="spin" size={15} /> : <Scissors size={15} />}{busy ? '正在创建片段…' : '创建参考片段'}</button></div></footer>
+      <footer><span>新的 MP4 会保存到你的输出文件夹，且只作为参考使用。</span><div><button className="secondary-button" disabled={busy} onClick={onClose}>取消</button><button className="primary-button" disabled={!valid || busy} onClick={async () => { setBusy(true); setError(''); try { await onCreate(start, end) } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); setBusy(false) } }}>{busy ? <LoaderCircle className="spin" size={15} /> : <Scissors size={15} />}{busy ? '正在创建片段…' : '创建参考片段'}</button></div></footer>
     </section>
   </div>
 }

@@ -701,7 +701,7 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
       if (url.pathname === '/api/lan/upload' && request.method === 'POST') {
         const body = await readJson(request)
         const data = typeof body.data === 'string' ? body.data : ''
-        if (!data.startsWith('data:image/png;base64,') || data.length > 35_000_000) return sendJson(response, 400, { error: '无效的预处理图像。' })
+        if (!data.startsWith('data:image/png;base64,') || data.length > 35_000_000) return sendJson(response, 400, { error: '无效的预处理图片。' })
         const form = new FormData()
         form.append('image', new Blob([Buffer.from(data.split(',')[1], 'base64')], { type: 'image/png' }), `mobile-frame-${randomUUID()}.png`)
         form.append('type', 'input'); form.append('subfolder', 'minimax-mobile')
@@ -731,7 +731,7 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
       if (url.pathname === '/api/lan/ollama' && request.method === 'POST') {
         const body = await readJson(request, 80_000)
         const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : ''
-        if (!prompt || prompt.length > 50_000) return sendJson(response, 400, { error: '提示词助手请求过长，请缩短后重试。' })
+        if (!prompt || prompt.length > 50_000) return sendJson(response, 400, { error: '提示词助手请求无效或过长，请缩短后重试。' })
         const provider = settings.llmProvider ?? 'ollama'
         const llmUrl = provider === 'lmstudio' ? settings.lmStudioUrl : settings.ollamaUrl
         const llmModel = provider === 'lmstudio' ? settings.lmStudioModel : settings.ollamaModel
@@ -872,7 +872,7 @@ async function fitVideoForComfyUpload(source: string, limit: number, ffmpegPath:
   if ((await stat(source)).size <= budget) return { path: source, temporaryDirectory: null as string | null }
   const metadata = await probeClipVideoMetadata(source, ffmpegPath)
   const bitrate = Math.floor((budget * 8 / metadata.duration * 0.82 - 160_000) / 1000)
-  if (bitrate < 250) throw new Error('该视频对于 ComfyUI 的上传限制来说过长。请改用更短的素材，或调大 ComfyUI 的 --max-upload-size 设置。')
+  if (bitrate < 250) throw new Error('该视频超出了 ComfyUI 的上传限制。请改用更短的素材，或调大 ComfyUI 的 --max-upload-size 设置。')
   const temporaryDirectory = await mkdtemp(join(tmpdir(), 'davai-comfy-upload-'))
   const output = join(temporaryDirectory, `source-${randomUUID()}-24fps.mp4`)
   try {
@@ -1321,7 +1321,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('comfy:queue', (_event, url: string) => comfyFetch(url, '/queue', { signal: AbortSignal.timeout(10_000) }))
   ipcMain.handle('comfy:info', (_event, url: string) => comfyFetch(url, '/object_info', { signal: AbortSignal.timeout(30_000) }))
   ipcMain.handle('comfy:upload-data', async (_event, url: string, data: string) => {
-    if (!data.startsWith('data:image/png;base64,') || data.length > 64_000_000) throw new Error('无效的预处理图像。')
+    if (!data.startsWith('data:image/png;base64,') || data.length > 64_000_000) throw new Error('无效的预处理图片。')
     const form = new FormData()
     form.append('image', new Blob([Buffer.from(data.split(',')[1], 'base64')], { type: 'image/png' }), `frame-${randomUUID()}.png`)
     form.append('type', 'input')
@@ -1331,17 +1331,17 @@ app.whenReady().then(async () => {
   ipcMain.handle('comfy:output-image', async (_event, url: string, file: { filename: string; subfolder?: string; type?: string }) => {
     const query = new URLSearchParams({ filename: file.filename, subfolder: file.subfolder ?? '', type: file.type ?? 'output' })
     const response = await fetch(`${cleanUrl(url)}/view?${query}`)
-    if (!response.ok) throw new Error(`图像下载失败（${response.status}）。`)
+    if (!response.ok) throw new Error(`图片下载失败（${response.status}）。`)
     const mime = response.headers.get('content-type')?.split(';')[0] ?? ''
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(mime)) throw new Error('ComfyUI 未返回受支持的图像。')
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(mime)) throw new Error('ComfyUI 未返回受支持的图片。')
     return `data:${mime};base64,${Buffer.from(await response.arrayBuffer()).toString('base64')}`
   })
   ipcMain.handle('comfy:save-output-image', async (_event, url: string, file: { filename: string; subfolder?: string; type?: string }, requestedOutput: string, purpose: 'character' | 'photo-edit' | 'image-creation' = 'character') => {
     const settings = await loadSettings()
     const outputDirectory = normalize(requestedOutput)
-    if (outputDirectory.toLowerCase() !== normalize(settings.outputDirectory).toLowerCase()) throw new Error('图像必须保存在配置的输出文件夹内。')
+    if (outputDirectory.toLowerCase() !== normalize(settings.outputDirectory).toLowerCase()) throw new Error('图片必须保存在配置的输出文件夹内。')
     const folders = { character: 'MiniMax Character References', 'photo-edit': 'FireRed Photo Edits', 'image-creation': 'Created Images' }
-    if (!Object.hasOwn(folders, purpose)) throw new Error('未知的图像输出用途。')
+    if (!Object.hasOwn(folders, purpose)) throw new Error('未知的图片输出用途。')
     const local = resolveComfyOutput(outputDirectory, file)
     const localExtension = local ? extname(local).toLowerCase() : ''
     let imageBytes: Buffer | null = null
@@ -1352,10 +1352,10 @@ app.whenReady().then(async () => {
     } else {
       const query = new URLSearchParams({ filename: basename(file.filename), subfolder: file.subfolder ?? '', type: file.type ?? 'output' })
       const response = await fetch(`${cleanUrl(url)}/view?${query}`)
-      if (!response.ok) throw new Error(`图像下载失败（${response.status}）。`)
+      if (!response.ok) throw new Error(`图片下载失败（${response.status}）。`)
       const mime = response.headers.get('content-type')?.split(';')[0] ?? ''
       extension = mime === 'image/jpeg' ? '.jpg' : mime === 'image/webp' ? '.webp' : mime === 'image/png' ? '.png' : ''
-      if (!extension) throw new Error('ComfyUI 未返回受支持的图像。')
+      if (!extension) throw new Error('ComfyUI 未返回受支持的图片。')
       imageBytes = Buffer.from(await response.arrayBuffer())
     }
     const directory = join(outputDirectory, folders[purpose])
@@ -1631,7 +1631,7 @@ app.whenReady().then(async () => {
     const start = Math.max(0, Math.floor(Number(startFrame))); const end = Math.max(start, Math.floor(Number(endFrame))); const requestedRate = Number(fps)
     if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(requestedRate) || requestedRate <= 0) throw new Error('请选择有效的帧范围与帧率。')
     if (!isAbsolute(outputPath) || extname(outputPath).toLowerCase() !== '.mp4') throw new Error('请选择有效的 .mp4 导出位置。')
-    if (existsSync(outputPath)) throw new Error(`“${basename(outputPath)}”已存在。请选择新的带版本号的文件名，以免覆盖早前的导出。`)
+    if (existsSync(outputPath)) throw new Error(`「${basename(outputPath)}」已存在。请选择新的带版本号的文件名，以免覆盖早前的导出。`)
     const input = await resolveVideoSource(source)
     const metadata = await probeClipVideoMetadata(input, ffmpegPath)
     if (end >= metadata.frameCount) throw new Error(`结束帧 ${end} 超出了该片段范围。最后一帧是 ${metadata.frameCount - 1}。`)

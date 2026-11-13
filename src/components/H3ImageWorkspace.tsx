@@ -139,13 +139,13 @@ export function H3ImageWorkspace({
         if (entry?.status?.status_str === 'success') {
           completedWithoutOutputPolls += 1
           if (completedWithoutOutputPolls > 2) throw new Error('ComfyUI 已完成 H3-Image，但没有返回保存的图片。请检查 SaveImage 节点与 ComfyUI 日志。')
-          if (!disposed) setMessage('ComfyUI 已完成；正在收集保存的图片……')
+          if (!disposed) setMessage('ComfyUI 已完成；正在收集保存的图片…')
         } else if (!disposed) {
           // A job the engine no longer knows about — a restarted ComfyUI or a
           // cleared queue — must not leave the workspace waiting forever.
           missingPolls = entry ? 0 : missingPolls + 1
           if (missingPolls > 4 && !(await isJobQueued(job))) throw new Error('引擎已重启或队列被清空，本次渲染没有结果。请重新生成。')
-          if (!disposed) setMessage(liveProgressRef.current?.label ?? '正在 ComfyUI 中渲染图片……')
+          if (!disposed) setMessage(liveProgressRef.current?.label ?? '正在 ComfyUI 中渲染图片…')
         }
       } catch (caught) {
         if (!disposed) { setMessage(caught instanceof Error ? caught.message : String(caught)); setError(true); setBusy(false); liveProgressRef.current = null; setLiveProgress(null); updateJob(null) }
@@ -201,7 +201,7 @@ export function H3ImageWorkspace({
 
   const create = async () => {
     if (!connected || !available || !prompt.trim()) return
-    setBusy(true); setResult(null); setError(false); liveProgressRef.current = null; setLiveProgress(null); setMessage(`正在提交${H3_IMAGE_TIERS[tier].label}工作流……`)
+    setBusy(true); setResult(null); setError(false); liveProgressRef.current = null; setLiveProgress(null); setMessage(`正在提交${H3_IMAGE_TIERS[tier].label}工作流…`)
     try {
       const [width, height] = resolution.split('x').map(Number)
       const graph = buildH3Image(prompt.trim(), width, height, seed, { model, encoder, vae, lora: tier === 'fl2va' ? lora : undefined }, tier, steps, livePreview, gpuRouting)
@@ -226,7 +226,7 @@ export function H3ImageWorkspace({
 
   const enhance = async () => {
     if (!ollamaAvailable || !prompt.trim() || assisting) return
-    setAssisting(true); setError(false); setMessage('正在询问本地提示词助手……')
+    setAssisting(true); setError(false); setMessage('正在询问本地提示词助手…')
     try {
       const instruction = `Rewrite this as one polished still-image prompt for the MiniMax H3-Image model. Preserve the subject and intent while improving composition, lens, lighting, environment, texture, color, and clarity. If the prompt contains Chinese text to render, keep every character exactly as written. Do not describe motion, sound, timelines, or multiple shots. Return only the finished prompt.\n\nDRAFT:\n${prompt.trim()}`
       setPrompt(await window.minimax.generateWithOllama(ollamaUrl, ollamaModel, instruction, llmProvider))
@@ -254,7 +254,7 @@ export function H3ImageWorkspace({
         <p className="field-help">{H3_IMAGE_TIERS[tier].detail}</p>
         <div className="field-group">
           <div className="field-label"><label htmlFor="h3image-prompt">图片提示词</label><span>{prompt.length.toLocaleString()} 字符</span></div>
-          <SmartPromptEditor id="h3image-prompt" value={prompt} onChange={setPrompt} placeholder="描述主体、环境、构图、镜头、光线、色彩与需要渲染的中文文字……输入 // 可使用生产命令。" disabled={busy} />
+          <SmartPromptEditor id="h3image-prompt" value={prompt} onChange={setPrompt} placeholder="描述主体、环境、构图、镜头、光线、色彩与需要渲染的中文文字…输入 // 可使用制作指令。" disabled={busy} />
           <div className="zimage-prompt-actions"><button className="secondary-button" onClick={() => void enhance()} disabled={busy || assisting || !ollamaAvailable || !prompt.trim()} title={ollamaAvailable ? `用 ${ollamaModel} 润色` : '请在设置中配置本地 AI 助手'}>{assisting ? <LoaderCircle size={15} className="spin" /> : <WandSparkles size={15} />}用 {llmProvider === 'lmstudio' ? 'LM Studio' : 'Ollama'} 润色</button><small>{ollamaAvailable ? `${ollamaModel} · 本地` : `${llmProvider === 'lmstudio' ? 'LM Studio' : 'Ollama'} 不可用`}</small></div>
         </div>
 
@@ -271,7 +271,7 @@ export function H3ImageWorkspace({
         </details>
 
         {message && <div className={`zimage-message ${error ? 'error' : ''}`} role={error ? 'alert' : 'status'}>{busy && <LoaderCircle size={16} className="spin" />}<span>{message}</span></div>}
-        <div className="zimage-generate-bar">{busy && <button className="danger-button" onClick={() => void cancel()}><CircleStop size={16} />取消</button>}<button className="primary-button" disabled={busy || !connected || !available || !prompt.trim()} onClick={() => void create()}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? '正在生成图片……' : '生成图片'}</button></div>
+        <div className="zimage-generate-bar">{busy && <button className="danger-button" onClick={() => void cancel()}><CircleStop size={16} />取消</button>}<button className="primary-button" disabled={busy || !connected || !available || !prompt.trim()} onClick={() => void create()}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? '正在生成图片…' : '生成图片'}</button></div>
       </section>
 
       <PreviewPanel>

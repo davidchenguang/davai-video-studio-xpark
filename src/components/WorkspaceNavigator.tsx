@@ -32,7 +32,7 @@ export function WorkspaceNavigator({ open, onOpenChange, view, engine, onNavigat
       Array.from(document.querySelectorAll<HTMLButtonElement>('[data-workspace-trigger]')).find(button => button.getClientRects().length > 0)?.focus()
     }}>
       <header><DialogTitle>工作区</DialogTitle><DialogDescription>为下一步选择一个工具。当前位于「{workspaceLabel(view, engine)}」。</DialogDescription></header>
-      <label className="workspace-navigator-search"><Search size={18} /><input ref={input} type="search" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { moveFocus(event); if (event.key === 'Enter' && results[0]) { event.preventDefault(); run(() => onNavigate(results[0].view, results[0].engine)) } }} placeholder="查找工具或描述任务……" aria-label="搜索工作区" /></label>
+      <label className="workspace-navigator-search"><Search size={18} /><input ref={input} type="search" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { moveFocus(event); if (event.key === 'Enter' && results[0]) { event.preventDefault(); run(() => onNavigate(results[0].view, results[0].engine)) } }} placeholder="查找工具或描述任务…" aria-label="搜索工作区" /></label>
       <div className="workspace-navigator-results" ref={content} onKeyDown={moveFocus}>
         {groups.map(group => <section key={group} aria-label={group}><h2>{group}</h2><div>{results.filter(item => item.group === group).map(item => {
           const active = item.view === view && (!item.engine || item.engine === engine)

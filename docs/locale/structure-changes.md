@@ -190,3 +190,14 @@ jewelry/eyewear/watch/bag/headwear/prop/other 的显示词）、
 | `scripts/test-music3-vocabulary.cjs` | 测试脚本（`.cjs` 不在结构检查的扫描范围内） | A9 允许「审计 / 提取 / parity 工具」 |
 | `docs/locale/release-notes.md`（第 15 轮新增） | 发布说明素材：Linux 打包的 CJK 字体依赖说明（仓库内此前没有发布说明文件） | brief「发布说明注明 CJK 字体依赖」的落点；`docs/locale/` 下的文档不计入 A9 判定（§七） |
 | `docs/locale/evidence/walkthrough-batch12/` | 走查截图与 `report.json` | A9 允许的证据目录（§七） |
+
+## 九、中文修订轮（zh-locale-revision）的骨架变化
+
+2026-11-12 的译文精修轮（分支 `zh-locale-revision`）只改显示层中文字符串，但汇总行从 45 变为 44：
+`src/components/CreatePromptPanel.tsx` 从骨架差异列表中**消失**。
+
+原因：本地化提交在该文件里把 `{providerLabel} suggestions unavailable` 类 JSX 表达式后的空格丢了
+（`{providerLabel}建议不可用`），JSX 文本节点的前导空格属 trivia、参与骨架比对，于是基线与译文骨架
+在该处不同。修订轮把空格补回（`{providerLabel} 建议不可用`、`{providerLabel} 正在工作……`→`…` 后为
+单字符省略号）后，该文件骨架恢复为与英文基线**一致**——这是朝基线方向的改善，不是新的结构改动。
+其余 44 个文件（43 骨架差异 + 1 新增）与上一轮登记的归类一致，修订轮未引入任何新的骨架差异文件。

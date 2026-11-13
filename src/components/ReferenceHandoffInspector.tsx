@@ -8,13 +8,13 @@ type Inspection = { width: number; height: number; warnings: string[]; error?: s
 // referenceType / referenceRole values are the English storage enum that flows into
 // prompt binding labels; the maps below are their Chinese display layers.
 const referenceTypeLabels: Record<string, string> = {
-  master: '主身份',
-  face: '面部近景',
+  master: '主参考',
+  face: '面部特写',
   'full-body': '全身',
   'three-quarter': '四分之三侧',
   profile: '侧面',
   back: '背面',
-  detail: '身份细节',
+  detail: '特征细节',
   other: '其他角度',
 }
 const referenceRoleLabels: Record<string, string> = {
@@ -86,6 +86,6 @@ export function ReferenceHandoffInspector({ files, labels, resolution }: { files
   return <div className="reference-handoff-inspector">
     <div className={`reference-handoff-status ${warnings ? 'warning' : 'ready'}`}>{warnings ? <AlertTriangle size={15} /> : <Check size={15} />}<span><strong>{warnings ? `${warnings} 项交接警告` : '参考图交接就绪'}</strong><small>这里是即将上传的画面比例准备与槽位分配的最终形态。</small></span></div>
     <div className="reference-handoff-grid">{files.map((file, index) => <ReferenceHandoffCard key={`${file.path}-${index}`} file={file} label={labels[index] ?? file.name} index={index} width={width} height={height} onInspection={updateInspection} />)}</div>
-    {duplicates > 0 && <p className="reference-handoff-duplicate"><AlertTriangle size={13} />检测到 {duplicates} 个重复图片槽位。重复项会占用九张图片的配额，却不增加任何覆盖面。</p>}
+    {duplicates > 0 && <p className="reference-handoff-duplicate"><AlertTriangle size={13} />检测到 {duplicates} 个重复图片槽位。重复项会占用 9 张图片的配额，却不增加任何覆盖面。</p>}
   </div>
 }

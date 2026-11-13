@@ -50,7 +50,7 @@ const ggufSelection = inferFireRedSelection({ ...info, UnetLoaderGGUF: { input: 
 assert.equal(ggufSelection.model, 'FireRed-Image-Edit-1.1-transformer-q4_k_m.gguf')
 assert.equal(ggufSelection.modelLoader, 'UnetLoaderGGUF')
 assert.equal(buildFireRedEditWorkflow({ name: 'frame.png' }, 'Edit', 1, ggufSelection, 'quality', size)['1'].class_type, 'UnetLoaderGGUF')
-assert.throws(() => buildFireRedEditWorkflow({ name: 'frame.png' }, '  ', 42, selected, 'turbo', size), /请在渲染前填写照片编辑指令/)
+assert.throws(() => buildFireRedEditWorkflow({ name: 'frame.png' }, '  ', 42, selected, 'turbo', size), /请在渲染前填写图片编辑指令/)
 assert.throws(() => buildFireRedEditWorkflow({ name: 'frame.png' }, 'Edit', -1, selected, 'turbo', size), /有效的非负种子/)
 assert.throws(() => buildFireRedEditWorkflow({ name: 'frame.png' }, 'Edit', 1, { ...selected, lightningLora: '' }, 'turbo', size), /Turbo 需要/)
 assert.throws(() => buildFireRedEditWorkflow({ name: 'frame.png' }, 'Edit', 1, selected, 'quality', { width: 1024, height: 575 }), /按 32 像素对齐/)

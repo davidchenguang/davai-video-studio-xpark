@@ -31,13 +31,13 @@ export function inferFireRedSelection(info: ObjectInfo): FireRedSelection {
 }
 
 export function buildFireRedEditWorkflow(source: UploadedFile, prompt: string, seed: number, selection: FireRedSelection, mode: 'turbo' | 'quality', size: FrameSize, references: UploadedFile[] = []): ComfyPrompt {
-  if (!prompt.trim()) throw new Error('请在渲染前填写照片编辑指令。')
+  if (!prompt.trim()) throw new Error('请在渲染前填写图片编辑指令。')
   if (!selection.model || !selection.encoder || !selection.vae) throw new Error('需要 FireRed 模型、文本编码器和 VAE。')
   if (!Number.isSafeInteger(seed) || seed < 0) throw new Error('请选择有效的非负种子。')
   if (mode !== 'turbo' && mode !== 'quality') throw new Error('请选择 Turbo 或 Quality 模式。')
   if (mode === 'turbo' && !selection.lightningLora) throw new Error('Turbo 需要 FireRed 8-step Lightning LoRA。')
   if (!isValidFrameSize(size)) throw new Error('FireRed 尺寸必须为 256–2048 像素，并按 32 像素对齐。')
-  if (references.length > 2) throw new Error('除源照片外，FireRed 最多支持两张参考图片。')
+  if (references.length > 2) throw new Error('除源图片外，FireRed 最多支持两张参考图片。')
   const turbo = mode === 'turbo'
   const graph: ComfyPrompt = {
     '1': { class_type: selection.modelLoader, inputs: selection.modelLoader === 'UnetLoaderGGUF' ? { unet_name: selection.model } : { unet_name: selection.model, weight_dtype: 'default' } },

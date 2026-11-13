@@ -147,9 +147,9 @@ export function ZImageWorkspace({
         if (entry?.status?.status_str === 'success') {
           completedWithoutOutputPolls += 1
           if (completedWithoutOutputPolls > 2) throw new Error('ComfyUI 已完成 Z-Image，但没有返回保存的图片。请检查 SaveImage 节点与 ComfyUI 日志。')
-          if (!disposed) setMessage('ComfyUI 已完成；正在收集保存的图片……')
+          if (!disposed) setMessage('ComfyUI 已完成；正在收集保存的图片…')
         } else if (!disposed) {
-          setMessage(liveProgressRef.current?.label ?? '正在 ComfyUI 中渲染图片……')
+          setMessage(liveProgressRef.current?.label ?? '正在 ComfyUI 中渲染图片…')
         }
       } catch (caught) {
         if (!disposed) { setMessage(caught instanceof Error ? caught.message : String(caught)); setError(true); setBusy(false); liveProgressRef.current = null; setLiveProgress(null); updateJob(null) }
@@ -180,12 +180,12 @@ export function ZImageWorkspace({
   const fields = [
     { label: 'Z-Image 模型', value: model, set: setModel, node: 'UNETLoader', field: 'unet_name' },
     { label: '文本编码器', value: encoder, set: setEncoder, node: 'CLIPLoader', field: 'clip_name' },
-    { label: '图像 VAE', value: vae, set: setVae, node: 'VAELoader', field: 'vae_name' },
+    { label: '图片 VAE', value: vae, set: setVae, node: 'VAELoader', field: 'vae_name' },
   ]
 
   const create = async () => {
     if (!connected || !available || !prompt.trim()) return
-    setBusy(true); setResult(null); setError(false); liveProgressRef.current = null; setLiveProgress(null); setMessage(`正在提交${variant === 'turbo' ? ' Z-Image Turbo' : '原版 Z-Image'}工作流……`)
+    setBusy(true); setResult(null); setError(false); liveProgressRef.current = null; setLiveProgress(null); setMessage(`正在提交${variant === 'turbo' ? ' Z-Image Turbo ' : '原版 Z-Image '}工作流…`)
     try {
       const [width, height] = resolution.split('x').map(Number)
       const graph = buildZImage(prompt.trim(), width, height, seed, model, encoder, vae, steps, guidance, variant, variant === 'base' ? negativePrompt.trim() : '', attentionBackend, gpuRouting, livePreview)
@@ -210,7 +210,7 @@ export function ZImageWorkspace({
 
   const enhance = async () => {
     if (!ollamaAvailable || !prompt.trim() || assisting) return
-    setAssisting(true); setError(false); setMessage('正在询问本地提示词助手……')
+    setAssisting(true); setError(false); setMessage('正在询问本地提示词助手…')
     try {
       const instruction = `Rewrite this as one polished still-image prompt for ${variant === 'turbo' ? 'Z-Image Turbo' : 'the original Z-Image base model'}. Preserve the subject and intent while improving composition, lens, lighting, environment, texture, color, and clarity. Do not describe motion, sound, timelines, or multiple shots. Return only the finished prompt.\n\nDRAFT:\n${prompt.trim()}`
       setPrompt(await window.minimax.generateWithOllama(ollamaUrl, ollamaModel, instruction, llmProvider))
@@ -236,11 +236,11 @@ export function ZImageWorkspace({
         </fieldset>
         <div className="field-group">
           <div className="field-label"><label htmlFor="zimage-prompt">图片提示词</label><span>{prompt.length.toLocaleString()} 字符</span></div>
-          <SmartPromptEditor id="zimage-prompt" value={prompt} onChange={setPrompt} placeholder="描述主体、环境、构图、镜头、光线、色彩与开场画面细节……输入 // 可使用生产命令。" disabled={busy} />
+          <SmartPromptEditor id="zimage-prompt" value={prompt} onChange={setPrompt} placeholder="描述主体、环境、构图、镜头、光线、色彩与开场画面细节…输入 // 可使用制作指令。" disabled={busy} />
           <div className="zimage-prompt-actions"><button className="secondary-button" onClick={() => void enhance()} disabled={busy || assisting || !ollamaAvailable || !prompt.trim()} title={ollamaAvailable ? `用 ${ollamaModel} 润色` : `请在设置中配置 ${llmProvider === 'lmstudio' ? 'LM Studio' : 'Ollama'}`}>{assisting ? <LoaderCircle size={15} className="spin" /> : <WandSparkles size={15} />}用 {llmProvider === 'lmstudio' ? 'LM Studio' : 'Ollama'} 润色</button><small>{ollamaAvailable ? `${ollamaModel} · 本地` : `${llmProvider === 'lmstudio' ? 'LM Studio' : 'Ollama'} 不可用`}</small></div>
         </div>
 
-        {variant === 'base' && <div className="field-group zimage-negative-prompt"><div className="field-label"><label htmlFor="zimage-negative-prompt">反向提示词 <small>画质预设</small></label><span>{negativePrompt.length.toLocaleString()} 字符</span></div><textarea id="zimage-negative-prompt" value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} placeholder="描述要抑制的伪影或不需要的元素……" disabled={busy} /><p className="field-help">预填了一个兼顾伪影、解剖结构、几何与多余文字的过滤器。若这些元素是刻意为之，可编辑或清空。</p></div>}
+        {variant === 'base' && <div className="field-group zimage-negative-prompt"><div className="field-label"><label htmlFor="zimage-negative-prompt">反向提示词 <small>画质预设</small></label><span>{negativePrompt.length.toLocaleString()} 字符</span></div><textarea id="zimage-negative-prompt" value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} placeholder="描述要抑制的伪影或不需要的元素…" disabled={busy} /><p className="field-help">预填了一个兼顾伪影、解剖结构、几何与多余文字的过滤器。若这些元素是刻意为之，可编辑或清空。</p></div>}
 
         <RenderSize value={resolution} onChange={setResolution} provider="zimage" />
         <div className="field-group"><label className="video-checkbox"><input type="checkbox" checked={livePreview} onChange={(event) => setLivePreview(event.target.checked)} />生成时显示实时预览</label><small className="field-help">关闭后新渲染不再输出预览。进度与保存的图片仍可查看。</small></div>
@@ -255,12 +255,12 @@ export function ZImageWorkspace({
         </details>
 
         {message && <div className={`zimage-message ${error ? 'error' : ''}`} role={error ? 'alert' : 'status'}>{busy && <LoaderCircle size={16} className="spin" />}<span>{message}</span></div>}
-        <div className="zimage-generate-bar">{busy && <button className="danger-button" onClick={() => void cancel()}><CircleStop size={16} />取消</button>}<button className="primary-button" disabled={busy || !connected || !available || !prompt.trim()} onClick={() => void create()}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? '正在生成图片……' : '生成图片'}</button></div>
+        <div className="zimage-generate-bar">{busy && <button className="danger-button" onClick={() => void cancel()}><CircleStop size={16} />取消</button>}<button className="primary-button" disabled={busy || !connected || !available || !prompt.trim()} onClick={() => void create()}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? '正在生成图片…' : '生成图片'}</button></div>
       </section>
 
       <PreviewPanel>
         <div className="panel-heading"><div><span>输出</span><strong>图片预览</strong></div>{result && <span className="zimage-complete"><Check size={13} />就绪</span>}</div>
-        <div className="zimage-preview-stage">{result?.preview ? <img src={result.preview} alt="生成的 Z-Image 成果" /> : visibleLivePreview ? <figure className="live-preview zimage-live-preview"><img src={visibleLivePreview.url} alt="Z-Image 采样实时预览" /><figcaption>采样实时预览{visibleLivePreview.step && visibleLivePreview.totalSteps ? ` · 第 ${visibleLivePreview.step} 步，共 ${visibleLivePreview.totalSteps} 步` : ''}</figcaption></figure> : busy ? <div className="render-state"><ProductionLoading label={liveProgress?.label || '正在准备图片条件'}/><strong>正在生成你的图片</strong><span>{liveProgress?.label ?? `${resolution.replace('x', ' × ')} · ${livePreview ? '等待实时预览' : '渲染中（无实时预览）'}`}</span></div> : <div className="empty-preview"><div className="preview-icon"><ImagePlus size={28} /></div><strong>你的图片会显示在这里</strong><span>描述画面、选择画幅，然后在本地生成。</span></div>}</div>
+        <div className="zimage-preview-stage">{result?.preview ? <img src={result.preview} alt="生成的 Z-Image 输出" /> : visibleLivePreview ? <figure className="live-preview zimage-live-preview"><img src={visibleLivePreview.url} alt="Z-Image 采样实时预览" /><figcaption>采样实时预览{visibleLivePreview.step && visibleLivePreview.totalSteps ? ` · 第 ${visibleLivePreview.step} 步，共 ${visibleLivePreview.totalSteps} 步` : ''}</figcaption></figure> : busy ? <div className="render-state"><ProductionLoading label={liveProgress?.label || '正在准备图片条件'}/><strong>正在生成你的图片</strong><span>{liveProgress?.label ?? `${resolution.replace('x', ' × ')} · ${livePreview ? '等待实时预览' : '渲染中（无实时预览）'}`}</span></div> : <div className="empty-preview"><div className="preview-icon"><ImagePlus size={28} /></div><strong>你的图片会显示在这里</strong><span>描述画面、选择画幅，然后在本地生成。</span></div>}</div>
         <div className="zimage-preview-actions"><span>{result ? `${result.name} · ${resolution.replace('x', ' × ')}` : '已保存到 ComfyUI · MiniMax_first_frames'}</span><div><button className="secondary-button" disabled={!result} onClick={() => result && onUse(result, resolution)}><ImagePlus size={16} />发送到 MiniMax I2V</button><button className="primary-button" disabled={!result} onClick={() => result && onUseLtx(result)} title="载入保留身份特征的 LTX 图生视频提示词"><Film size={16} />发送到 LTX 2.5</button></div></div>
       </PreviewPanel>
     </div>
