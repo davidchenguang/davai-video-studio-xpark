@@ -150,7 +150,7 @@ export default function MobileApp() {
   // The phone page follows the studio theme (D14): fetch once at load; a refresh picks up changes.
   useEffect(() => {
     // The phone page follows the studio theme (D14): fetch once at load; a refresh picks up changes.
-    const themeColors: Record<string, string> = { green: '#0c100e', blue: '#0e1419', comfy: '#211927', light: '#f3f4f0' }
+    const themeColors: Record<string, string> = { green: '#0c100e', blue: '#0e1419', comfy: '#211927', light: '#e6e7e3' }
     lanFetch<{ theme: string }>('/api/lan/appearance').then(({ theme }) => {
       const normalized = normalizeTheme(theme)
       applyTheme(document.documentElement, normalized)

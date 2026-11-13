@@ -152,31 +152,76 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   assert.ok(accentInk, 'light block defines --accent-ink (deep green actions need light ink)')
 }
 
-// ---- Light theme: a paper-neutral daylight room ----
-// The light theme is the daylight half of a color-judging studio: the gray
-// ladder carries the brand's green temperature (the G channel leads) instead
-// of the legacy blue-gray, and the night-weight chrome (dialog scrim, dialog
-// and popover shadows) is re-derived for the pale ground — the same rule the
-// semantic hues already follow. The ground value was re-pinned by the
-// requirement holder (2026-11-13): paper-neutral over cool gray.
+// ---- Light theme: an aluminum desk with white paper on it ----
+// The light theme is the daylight half of a color-judging studio. The
+// requirement holder re-pinned it on 2026-11-13: the ground became an
+// aluminum desk a clear step below the panels, so a white panel reads as
+// paper on a desk instead of dissolving into a white-on-white page (the
+// light theme exists for strong ambient light, where a 2% step disappears);
+// the gray ladder carries no green temperature at all; the brand green stops
+// being the structure and becomes a seal — the only green on the page; and
+// the primary action is ink, not brand.
 {
   const themes = readSource('src/styles/themes.css')
   const lightStart = themes.indexOf('html[data-theme="light"]')
   const lightBody = themes.slice(lightStart, themes.indexOf('preview-popout-document'))
-  const gLeads = (hex) => {
-    const m = /^#([0-9a-f]{6})$/i.exec(hex)
-    if (!m) return false
-    const r = parseInt(m[1].slice(0, 2), 16)
-    const g = parseInt(m[1].slice(2, 4), 16)
-    const b = parseInt(m[1].slice(4, 6), 16)
-    return g >= r && g > b
+  const hexOf = (body, token) => body.match(new RegExp(`${token}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1]
+  const channelsOf = (hex) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(hex || '')
+    return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : null
+  }
+  const luminanceOf = (hex) => {
+    const [r, g, b] = channelsOf(hex).map((v) => v / 255).map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
   }
   const alphaOf = (value) => { const m = /\/\s*([\d.]+)%\s*\)/.exec(value); return m ? Number(m[1]) / 100 : null }
-  assert.ok(/--bg:\s*#f3f4f0 !important/.test(lightBody), 'the light ground is the paper-neutral #f3f4f0 (re-pinned 2026-11-13)')
-  for (const token of ['--surface-1', '--surface-2', '--surface-3', '--line', '--line-strong']) {
-    const value = lightBody.match(new RegExp(`${token}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1]
-    assert.ok(value && gLeads(value), `light: ${token} (${value}) keeps the green temperature — the G channel leads`)
+
+  // The desk is a clear step below the paper: a panel reads as a panel.
+  const bg = hexOf(lightBody, '--bg')
+  const surface = hexOf(lightBody, '--surface')
+  assert.ok(bg && /^#e6e7e3$/i.test(bg), `the light ground is the aluminum desk #e6e7e3, got ${bg}`)
+  assert.ok(surface && /^#ffffff$/i.test(surface), `the light panels stay white paper, got ${surface}`)
+  const paperL = luminanceOf(surface)
+  const deskL = luminanceOf(bg)
+  assert.ok(paperL - deskL >= 0.15, `the desk is a visible step below the paper (${(paperL - deskL).toFixed(3)})`)
+  // The ladder keeps its order: a raised surface, the desk, then the recessed steps.
+  const ladder = ['--surface-1', '--bg', '--surface-2', '--surface-3'].map((t) => luminanceOf(hexOf(lightBody, t)))
+  assert.ok(ladder[0] > ladder[1] && ladder[1] > ladder[2] && ladder[2] > ladder[3],
+    `the light ladder keeps its order (${ladder.map((v) => v.toFixed(3)).join(' > ')})`)
+
+  // No green temperature anywhere: the green channel never leads on the
+  // surfaces, and never leads at all on the inks (the old ladder carried the
+  // brand temperature into every step, down to the text color).
+  for (const token of ['--bg', '--surface-1', '--surface-2', '--surface-3', '--line', '--line-strong']) {
+    const value = hexOf(lightBody, token)
+    const c = channelsOf(value)
+    assert.ok(c, `light: ${token} is a hex (${value})`)
+    assert.ok(Math.max(...c) - Math.min(...c) <= 8, `light: ${token} (${value}) stays a neutral gray — no visible tint`)
+    assert.ok(c[1] <= Math.max(c[0], c[2]) + 1, `light: ${token} (${value}) carries no green cast — the G channel does not lead`)
   }
+  for (const token of ['--text', '--muted', '--muted-2']) {
+    const value = hexOf(lightBody, token)
+    const c = channelsOf(value)
+    assert.ok(c && c[1] <= Math.max(c[0], c[2]), `light: ${token} (${value}) is an ink with no green cast`)
+  }
+
+  // The brand green is a seal, not the structure: it keeps the focus, nav and
+  // selection roles, and the primary action is ink.
+  const accent = hexOf(lightBody, '--accent')
+  assert.ok(accent && /^#2f6417$/i.test(accent), `the brand green survives as the seal (${accent})`)
+  const actionFrom = hexOf(lightBody, '--action-from')
+  assert.ok(actionFrom && /^#2c3136$/i.test(actionFrom), `the primary action is graphite ink, not brand green (${actionFrom})`)
+  const actionChannels = channelsOf(actionFrom)
+  assert.ok(Math.max(...actionChannels) - Math.min(...actionChannels) <= 12, 'the primary action is achromatic')
+  // The desk is lit by a graphite sheen, not washed with green.
+  const pageGlow = lightBody.match(/--page-glow:\s*([^;]+);/)?.[1]
+  assert.ok(pageGlow && /rgb\(\s*44 49 54/.test(pageGlow), `the light page glow is a graphite sheen, not a green wash (${pageGlow})`)
+
+  // The canvas is still the charcoal monitor (D7), untouched by the re-pin.
+  const previewPanel = hexOf(lightBody, '--preview-panel')
+  assert.ok(previewPanel && /^#191a1b$/i.test(previewPanel), `the media canvas stays the charcoal monitor (${previewPanel})`)
+
+  // Daylight chrome weights are unchanged.
   const scrimLight = lightBody.match(/--scrim:\s*([^;]+);/)?.[1]
   assert.ok(scrimLight && (alphaOf(scrimLight) ?? 1) < 0.5, `light: the dialog scrim is daylight-weight (${scrimLight})`)
   const popoverLight = lightBody.match(/--oy-shadow-popover:\s*([^;]+);/)?.[1]
@@ -190,10 +235,13 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   assert.ok(/\.ui-dialog-overlay\{[^}]*background:var\(--scrim/.test(ui), 'the dialog overlay uses the scrim vocabulary')
   assert.ok(/\.ui-dialog-content\{[^}]*box-shadow:var\(--dialog-shadow/.test(ui), 'the dialog shadow uses the dialog-shadow vocabulary')
   assert.ok(/html\[data-theme="light"\][^{]*::selection\s*\{/.test(themes), 'the light theme styles the selection highlight')
+  assert.ok(/html\[data-theme="light"\] ::selection\s*\{[^}]*background:\s*rgb\(47 100 23/.test(themes), 'the light selection follows the seal green')
+  // The native shell and the mobile chrome follow the desk.
   const shell = readSource('electron/nativeShellTheme.ts')
-  assert.ok(/light:\s*\{\s*backgroundColor:\s*'#f3f4f0'/.test(shell), 'the native shell ground matches the paper theme')
+  assert.ok(/light:\s*\{\s*backgroundColor:\s*'#e6e7e3'/.test(shell), 'the native shell ground matches the aluminum desk')
+  assert.ok(/light:\s*\{[^}]*symbolColor:\s*'#121416'/.test(shell), 'the native shell glyphs follow the light ink')
   const mobile = readSource('src/MobileApp.tsx')
-  assert.ok(mobile.includes("light: '#f3f4f0'"), 'the mobile browser chrome matches the paper theme')
+  assert.ok(mobile.includes("light: '#e6e7e3'"), 'the mobile browser chrome matches the aluminum desk')
 }
 
 // ---- The monitor: one canvas for every media surface ----

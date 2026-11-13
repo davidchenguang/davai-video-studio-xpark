@@ -229,30 +229,34 @@ html[data-theme="comfy"] {
   color-scheme: dark;
 }
 
-/* Light — the daylight half of a color-judging studio: a paper-neutral ground
-   whose gray ladder carries the brand's green temperature (the G channel
-   leads), white raised panels, deep green accent per D5. Media color-judging
-   surfaces are pinned back to dark values (D7): preview panels keep their
-   near-black ground in every theme. */
+/* Light — the daylight half of a color-judging studio: an aluminum desk with
+   white paper on it. The ground is a clear step below the panels, so a white
+   panel reads as paper lying on a desk instead of dissolving into a
+   white-on-white page — the light theme exists for strong ambient light,
+   where a 2% step disappears. The gray ladder carries no temperature at all:
+   the brand green is a seal (focus, nav, selection, the one accent), not the
+   structure, and the primary action is ink rather than brand. Media
+   color-judging surfaces stay pinned to dark values (D7): preview panels keep
+   their charcoal ground in every theme. */
 html[data-theme="light"],
 html[data-theme="light"] .app-shell,
 html[data-theme="light"] .app-shell.studio-shell-active,
 html[data-theme="light"] .app-shell.video-shell-active,
 html[data-theme="light"] .video-workspace-shell,
 html[data-theme="light"] .minimax-workspace {
-  --bg: #f3f4f0 !important;
+  --bg: #e6e7e3 !important;
   --surface: #ffffff !important;
-  --surface-1: #f8f9f5 !important;
-  --surface-2: #eff1eb !important;
-  --surface-3: #e5e8e1 !important;
+  --surface-1: #f3f4f5 !important;
+  --surface-2: #d9dcdf !important;
+  --surface-3: #cdd1d5 !important;
   --surface-raised: #ffffff !important;
-  --line: #d8dcd2 !important;
-  --line-strong: #bdc4b4 !important;
-  --text: #1f2a24 !important;
-  --muted: #4e5c53 !important;
-  --muted-2: #4d5b52 !important;
-  --accent: #3c751d !important;
-  --accent-soft: rgb(60 117 29 / 10%) !important;
+  --line: #c1c5c9 !important;
+  --line-strong: #9ea2a6 !important;
+  --text: #121416 !important;
+  --muted: #464b4f !important;
+  --muted-2: #52575b !important;
+  --accent: #2f6417 !important;
+  --accent-soft: rgb(47 100 23 / 10%) !important;
   --accent-ink: #f4f6f8 !important;
   --titlebar-surface: #ffffff !important;
   /* Night chrome re-derived for the pale ground (same rule as the semantic
@@ -270,9 +274,12 @@ html[data-theme="light"] .minimax-workspace {
 }
 
 html[data-theme="light"] {
-  --action-from: #3e7a1e;
-  --action-to: #2f6317;
-  --action-soft: rgb(62 122 30 / 10%);
+  /* The primary action is ink, not brand: on a daylight desk a deep green
+     button read as the brand wallpaper all over again. The brand green stays
+     where it means something — focus, the active nav, the selection. */
+  --action-from: #2c3136;
+  --action-to: #1b1f23;
+  --action-soft: rgb(44 49 54 / 10%);
   --info-accent: #2f6317;
   --info-accent-soft: rgb(62 122 30 / 9%);
   /* Opaque: the emphasis ink is used as a text color. */
@@ -298,7 +305,7 @@ html[data-theme="light"] {
   /* The scratchpad glass follows the pale ground: the theme inks inside it
      (text, muted) have to read on a light panel. */
   --scratch-glass: #ffffff;
-  --scratch-field: #f1f4f6;
+  --scratch-field: #f0f2f3;
   --scratch-chip: #ffffff;
   /* The live monitor stays dark in every theme (D7): dark chrome, and the
      dark-surface accent so the kicker keeps reading. */
@@ -319,18 +326,21 @@ html[data-theme="light"] {
   --nav-active-line: #7aa85e;
   --nav-active-ink: #f4f6f8;
   --nav-active-svg: #a5d17e;
-  --sidebar-glow-from: #fbfcfb;
-  --sidebar-glow-to: #f0f2ec;
-  --page-glow: rgb(62 122 30 / 7%);
+  --sidebar-glow-from: #eceeef;
+  --sidebar-glow-to: #dfe1e3;
+  /* The desk is lit by a graphite sheen. A green wash would put the brand
+     temperature back into the ground the panels sit on. */
+  --page-glow: rgb(44 49 54 / 8%);
   --panel-glow-from: #ffffff;
-  --panel-glow-to: #f3f5ef;
+  --panel-glow-to: #eff0f2;
   color-scheme: light;
 }
 
-/* The paper theme highlights selections with the accent at daylight weight —
-   the default blue selection is the one color the theme does not own. */
+/* The paper theme highlights selections with the seal green at daylight
+   weight — the default blue selection is the one color the theme does not
+   own. */
 html[data-theme="light"] ::selection {
-  background: rgb(60 117 29 / 18%);
+  background: rgb(47 100 23 / 18%);
 }
 
 /* D7 — the detached media windows (preview popout and preview monitor) are
