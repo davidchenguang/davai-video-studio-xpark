@@ -663,3 +663,43 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   const original = readSource('src/original-theme.css')
   assert.ok(/\.empty-preview[^{]*\{[^}]*background:var\(--preview-empty-surface/.test(original), 'the preview empty-state card uses the preview empty surface token')
 }
+
+// ---- Music 3 keeps its writing-desk layout inside the studio shell ----
+// The studio shell's generator rule ("compact authoring inspector left, broad
+// output monitor right", align-items: stretch) was written for ACE-Step and
+// Z-Image. Music 3's DOM reuses .workspace-grid.ace-workspace-grid with the
+// editor first and the player second, so that rule flipped its columns and,
+// through align-items: stretch, stretched every control in the player to the
+// height of the whole page (measured: duration pills 129px, secondary buttons
+// 463px, the generate button 3.7 screens below the fold).
+{
+  const studioSystem = readSource('src/studio-system.css')
+  assert.ok(
+    !/\.workspace-grid\.ace-workspace-grid/.test(studioSystem),
+    'the studio-shell generator rule does not grab the Music 3 grid (it is scoped to real generator layouts)',
+  )
+  const features = readSource('src/styles/feature-workspaces.css')
+  // The Music 3 player keeps its own rhythm: its rows are packed at the top,
+  // not stretched by whatever column the shell thinks it has.
+  assert.ok(
+    /\.music3-player \{[^}]*align-content:\s*start/.test(features),
+    'the Music 3 player packs its rows at the top instead of stretching them',
+  )
+  // The listening panel is sticky, and it is taller than the content area
+  // (measured ~950px of rows against ~858px of viewport). A sticky panel
+  // taller than its viewport can never show its own tail — the generate
+  // button was unreachable while pinned. It scrolls within itself instead.
+  assert.ok(
+    /\.music3-player \{[^}]*max-height:\s*calc\(100dvh/.test(features),
+    'the pinned Music 3 player clamps to the viewport and scrolls inside itself',
+  )
+  assert.ok(
+    /\.music3-player \{[^}]*overscroll-behavior:\s*contain/.test(features),
+    'the Music 3 player does not trap the page wheel at its scroll ends',
+  )
+  const polish = readSource('src/studio-polish.css')
+  // The album art is a tile in a listening panel, not a poster: at 330px it
+  // cost 490px of the panel's height and pushed the transport off the fold.
+  const artWidth = polish.match(/\.music3-page \.music3-art \{ width: min\(100%, (\d+)px\)/)?.[1]
+  assert.ok(artWidth && Number(artWidth) <= 220, `the Music 3 album art stays a tile (measured ${artWidth}px, cap 220px)`)
+}

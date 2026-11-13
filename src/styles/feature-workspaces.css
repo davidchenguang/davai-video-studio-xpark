@@ -1106,7 +1106,7 @@
 .music3-page { background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 16%, var(--bg)), var(--bg) 38%); }
 .music3-page .music3-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, .85fr); align-items: start; gap: 24px; }
 .music3-editor { background: color-mix(in srgb, var(--surface) 88%, transparent); }
-.music3-page .music3-player { order: 0; position: sticky; top: 20px; display: grid; width: 100%; min-width: 0; gap: 16px; padding: 24px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: 0 16px 48px rgb(0 0 0 / 19%); }
+.music3-page .music3-player { order: 0; position: sticky; top: 20px; display: grid; align-content: start; width: 100%; min-width: 0; max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; gap: 16px; padding: 24px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: 0 16px 48px rgb(0 0 0 / 19%); }
 .music3-now-playing { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 28px; align-items: end; min-height: 230px; padding: 24px; border-radius: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 80%, var(--accent-soft)), var(--surface-2)); }
 .music3-art { display: grid; width: 190px; aspect-ratio: 1; place-items: center; border-radius: 10px; background: linear-gradient(135deg, var(--music-green, #1ed760) /* theme-exempt: music3 identity pin (D15) */, var(--music-green, #176d43) /* theme-exempt: music3 identity pin (D15) */); color: var(--bg); box-shadow: 0 16px 34px rgb(0 0 0 / 38%); }
 .music3-now-playing small, .music3-now-playing span { display: block; color: color-mix(in srgb, var(--text) 72%, transparent); font-size: 12px; }

@@ -336,7 +336,7 @@
 .music3-page .music3-lyric-helpers button { min-height: 30px; padding: 6px 10px; }
 .music3-page .music3-player { top: 16px; gap: 19px; padding: 26px; border-radius: 18px; }
 .music3-page .music3-now-playing { padding: 8px 0 25px; }
-.music3-page .music3-art { width: min(100%, 330px); box-shadow: 0 22px 48px rgba(0,0,0,.34); }
+.music3-page .music3-art { width: min(100%, 220px); box-shadow: 0 22px 48px rgba(0,0,0,.34); }
 .music3-page .music3-track-copy strong { margin-block: 12px 8px; }
 .music3-page .music3-audio-player { height: 44px; margin-top: 24px; }
 .music3-page .music3-player > .field-group { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }

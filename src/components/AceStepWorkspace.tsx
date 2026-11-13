@@ -88,7 +88,7 @@ export function AceStepWorkspace({ settings, models, connected, pipelineReady, m
       <div><p className="eyebrow">创作 · ACE‑STEP 1.5</p><h1>音乐创作</h1><p>用音乐方向、歌词与专注的音频控制塑造完整歌曲与纯音乐。</p></div>
       <div className="heading-state"><span className={modelReady ? 'ok' : 'warn'}>{modelReady ? <Check size={15} /> : <AlertCircle size={15} />}{modelReady ? `${state.model.toUpperCase()} 管线就绪` : missingNodes.length ? '请更新 ComfyUI' : '缺少 ACE-Step 模型'}</span></div>
     </div>
-    <div className="workspace-grid ace-workspace-grid">
+    <div className="workspace-grid ace-workspace-grid ace-generator-grid">
       <section className="composer-panel">
         <div className="provider-note ace-provider-note"><Music2 size={18} /><span><strong>ComfyUI 原生生成</strong><small>选择 XL SFT 或 XL Base。音乐设置与历史独立于视频项目。</small></span><button type="button" onClick={onSelectMusic3}>Music 3</button><button type="button" onClick={reset}><RotateCcw size={14} />重置音乐</button></div>
 
