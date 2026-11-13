@@ -4,6 +4,7 @@ import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, rename, rmdir, stat, u
 import { writeAtomicFile } from './atomicFile.js'
 import { cancelComfyPrompt } from './comfyCancellation.js'
 import { readGpuTelemetry } from './gpuTelemetry.js'
+import { PREVIEW_MONITOR_SHELL, shellFor, type NativeShell } from './nativeShellTheme.js'
 import { restoreLegacyLocalStorage } from './legacyBrowserStorage.js'
 import { buildPromptCompletionRequest } from './promptCompletion.js'
 import { lmStudioEndpoint, parseLmStudioModels } from './lmStudioApi.js'
@@ -64,6 +65,7 @@ type AppSettings = {
   clipMasterOutputDirectory: string
   ffmpegPath: string
   uiScale: number
+  theme: 'green' | 'blue' | 'comfy' | 'light'
   attentionBackend: 'automatic' | 'sol' | 'kitchen' | 'sage' | 'native'
   solAttnTau: number
   solCacheEnabled: boolean
@@ -165,6 +167,7 @@ function defaultSettings(): AppSettings {
     clipMasterOutputDirectory: join(app.getPath('documents'), 'ComfyUI', 'output', 'video'),
     ffmpegPath: existsSync('C:\\FFMPEG\\bin\\ffmpeg.exe') ? 'C:\\FFMPEG\\bin\\ffmpeg.exe' : 'ffmpeg',
     uiScale: 100,
+    theme: 'green',
     attentionBackend: 'automatic',
     solAttnTau: 1,
     solCacheEnabled: true,
@@ -415,6 +418,10 @@ async function loadLanToken() {
   return created
 }
 
+/** The persisted theme, remembered so windows can be created with the right
+ *  native chrome in one step (no green flash before the async re-theme). */
+let cachedShellTheme: AppSettings['theme'] = 'green'
+
 async function loadSettings(): Promise<AppSettings> {
   try {
     const raw = JSON.parse(await readFile(settingsPath(), 'utf8')) as Partial<AppSettings>
@@ -443,7 +450,10 @@ async function loadSettings(): Promise<AppSettings> {
     const rawRouting = raw.gpuRouting
     const validDevice = (value: unknown): GpuRouteDevice => typeof value === 'string' && (value === 'auto' || value === 'cpu' || /^gpu:\d+$/.test(value)) ? value as GpuRouteDevice : 'auto'
     const gpuRouting: GpuRoutingSettings = { ...defaults.gpuRouting, ...rawRouting, preset: rawRouting?.preset === 'single' || rawRouting?.preset === 'split' || rawRouting?.preset === 'custom' ? rawRouting.preset : 'automatic', strategy: rawRouting?.strategy === 'resident' || rawRouting?.strategy === 'cpu-fallback' ? rawRouting.strategy : 'sequential', diffusion: validDevice(rawRouting?.diffusion), textEncoder: validDevice(rawRouting?.textEncoder), videoVae: validDevice(rawRouting?.videoVae), audioVae: validDevice(rawRouting?.audioVae), previewVae: validDevice(rawRouting?.previewVae), allowOvercommit: rawRouting?.allowOvercommit === true, preloadDiffusionDuringTextEncoding: rawRouting?.preloadDiffusionDuringTextEncoding === true }
-    return { ...defaults, ...raw, outputDirectory, clipMasterOutputDirectory, uiScale, attentionBackend, solAttnTau, solCacheEnabled: raw.solCacheEnabled !== false, h3DiffusionPrecision: raw.h3DiffusionPrecision === 'nvfp4' ? 'nvfp4' : 'int8', gpuRouting, h3ParallelAttentionEnabled: raw.h3ParallelAttentionEnabled === true, queueDelaySeconds: Math.max(0, Math.min(600, Number(raw.queueDelaySeconds) || 0)), experimentalLtxMsrEnabled: raw.experimentalLtxMsrEnabled === true, blurNsfwLivePreviews: raw.blurNsfwLivePreviews === true, llmProvider: raw.llmProvider === 'lmstudio' ? 'lmstudio' : 'ollama', characterDetailReferencesEnabled: raw.characterDetailReferencesEnabled === true, renderSettingsPresets, paths: { ...defaults.paths, ...raw.paths }, generationDefaults }
+    const theme: AppSettings['theme'] = raw.theme === 'blue' || raw.theme === 'comfy' || raw.theme === 'light' ? raw.theme : 'green'
+    // Remember the theme for the synchronous window-creation path (popouts).
+    cachedShellTheme = theme
+    return { ...defaults, ...raw, outputDirectory, clipMasterOutputDirectory, uiScale, theme, attentionBackend, solAttnTau, solCacheEnabled: raw.solCacheEnabled !== false, h3DiffusionPrecision: raw.h3DiffusionPrecision === 'nvfp4' ? 'nvfp4' : 'int8', gpuRouting, h3ParallelAttentionEnabled: raw.h3ParallelAttentionEnabled === true, queueDelaySeconds: Math.max(0, Math.min(600, Number(raw.queueDelaySeconds) || 0)), experimentalLtxMsrEnabled: raw.experimentalLtxMsrEnabled === true, blurNsfwLivePreviews: raw.blurNsfwLivePreviews === true, llmProvider: raw.llmProvider === 'lmstudio' ? 'lmstudio' : 'ollama', characterDetailReferencesEnabled: raw.characterDetailReferencesEnabled === true, renderSettingsPresets, paths: { ...defaults.paths, ...raw.paths }, generationDefaults }
   } catch {
     return defaultSettings()
   }
@@ -698,6 +708,7 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
         }
       }
       if (url.pathname === '/api/lan/characters' && request.method === 'GET') return sendJson(response, 200, { characters: mobileCharacterLibrary })
+      if (url.pathname === '/api/lan/appearance' && request.method === 'GET') return sendJson(response, 200, { theme: settings.theme })
       if (url.pathname === '/api/lan/upload' && request.method === 'POST') {
         const body = await readJson(request)
         const data = typeof body.data === 'string' ? body.data : ''
@@ -997,34 +1008,62 @@ async function resolveVideoSource(source: string) {
 let movieEditorWindow: BrowserWindow | null = null
 let studioWindow: BrowserWindow | null = null
 
-function createMovieEditorWindow() {
+/** Full-screen themed windows (studio + movie editor). Popout chrome is decided
+ *  at creation time and never re-themed at runtime (the monitor stays dark, D7). */
+const themedWindows = new Set<BrowserWindow>()
+
+/** Windows that show media only. They are color-judging surfaces (D7): their
+ *  native chrome stays dark in every theme. */
+const MEDIA_WINDOW_FRAMES = new Set(['davai-video-studio-preview', 'davai-continuation', 'davai-video-preview'])
+
+function applyShellToWindow(window: BrowserWindow, shell: NativeShell) {
+  if (window.isDestroyed()) return
+  try { window.setBackgroundColor(shell.backgroundColor) } catch { /* pre-usage windows may reject late color changes */ }
+  try { window.setTitleBarOverlay(shell.titleBarOverlay) } catch { /* overlay needs hidden title bar support */ }
+}
+
+async function themeWindowShell(window: BrowserWindow, previewMonitor = false) {
+  const settings = await loadSettings()
+  const shell = previewMonitor ? PREVIEW_MONITOR_SHELL : shellFor(settings.theme)
+  applyShellToWindow(window, shell)
+  if (!previewMonitor) {
+    themedWindows.add(window)
+    window.once('closed', () => themedWindows.delete(window))
+  }
+  nativeTheme.themeSource = settings.theme === 'light' ? 'light' : 'dark'
+}
+
+async function createMovieEditorWindow() {
   if (movieEditorWindow && !movieEditorWindow.isDestroyed()) { movieEditorWindow.focus(); return }
-  nativeTheme.themeSource = 'dark'
+  const settings = await loadSettings()
+  const shell = shellFor(settings.theme)
   const window = new BrowserWindow({
     width: 1480, height: 940, minWidth: 980, minHeight: 680,
-    backgroundColor: '#171719', title: 'DavAi 影片剪辑',
+    backgroundColor: shell.backgroundColor, title: 'DavAi 影片剪辑',
     autoHideMenuBar: true,
     webPreferences: { preload: join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   })
   movieEditorWindow = window
   window.setMenuBarVisibility(false)
-  void loadSettings().then((settings) => window.webContents.setZoomFactor(settings.uiScale / 100))
+  void themeWindowShell(window).catch(() => undefined)
+  window.webContents.setZoomFactor(settings.uiScale / 100)
   window.on('closed', () => { if (movieEditorWindow === window) movieEditorWindow = null })
   const devUrl = process.env.VITE_DEV_SERVER_URL
   if (devUrl) void window.loadURL(`${devUrl}${devUrl.includes('?') ? '&' : '?'}movieEditor=1`)
   else void window.loadFile(join(__dirname, '..', 'dist', 'index.html'), { query: { movieEditor: '1' } })
 }
 
-function createWindow() {
-  nativeTheme.themeSource = 'dark'
+async function createWindow() {
+  const settings = await loadSettings()
+  const shell = shellFor(settings.theme)
   const window = new BrowserWindow({
     width: 1480,
     height: 940,
     minWidth: 860,
     minHeight: 620,
-    backgroundColor: '#071524',
+    backgroundColor: shell.backgroundColor,
     titleBarStyle: 'hidden',
-    titleBarOverlay: { color: '#243c53', symbolColor: '#d8ebff', height: 48 },
+    titleBarOverlay: { ...shell.titleBarOverlay },
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -1034,10 +1073,13 @@ function createWindow() {
   studioWindow = window
   window.on('closed', () => { if (studioWindow === window) studioWindow = null })
   window.setMenuBarVisibility(false)
-  void loadSettings().then((settings) => window.webContents.setZoomFactor(settings.uiScale / 100))
+  void themeWindowShell(window).catch(() => undefined)
+  window.webContents.setZoomFactor(settings.uiScale / 100)
   window.webContents.setWindowOpenHandler(({ url, frameName }) => {
     if (url !== 'about:blank') return { action: 'deny' }
     const isPreviewMonitor = frameName === 'davai-video-studio-preview' || frameName === 'davai-continuation'
+    const isMediaWindow = isPreviewMonitor || MEDIA_WINDOW_FRAMES.has(frameName)
+    const popoutShell = isMediaWindow ? PREVIEW_MONITOR_SHELL : shellFor(cachedShellTheme)
     return {
       action: 'allow',
       overrideBrowserWindowOptions: {
@@ -1049,9 +1091,11 @@ function createWindow() {
         minHeight: isPreviewMonitor ? 420 : 560,
         resizable: true,
         movable: true,
-        backgroundColor: isPreviewMonitor ? '#07100b' : '#071524',
+        // The chrome matches the theme from the first frame; the media windows
+        // stay dark in every theme (D7).
+        backgroundColor: popoutShell.backgroundColor,
         titleBarStyle: 'hidden',
-        titleBarOverlay: { color: '#243c53', symbolColor: '#d8ebff', height: 48 },
+        titleBarOverlay: { ...popoutShell.titleBarOverlay },
         webPreferences: {
           preload: join(__dirname, 'preload.js'),
           contextIsolation: true,
@@ -1060,7 +1104,13 @@ function createWindow() {
       },
     }
   })
-  window.webContents.on('did-create-window', (child) => child.setMenuBarVisibility(false))
+  window.webContents.on('did-create-window', (child, details) => {
+    child.setMenuBarVisibility(false)
+    // Popout chrome follows the theme at creation; the media windows (preview
+    // popout and preview monitor) stay dark (D7).
+    const isMediaWindow = MEDIA_WINDOW_FRAMES.has(details.frameName)
+    void loadSettings().then((settings) => applyShellToWindow(child, shellFor(settings.theme, isMediaWindow))).catch(() => undefined)
+  })
   const devUrl = process.env.VITE_DEV_SERVER_URL
   if (devUrl) void window.loadURL(devUrl)
   else void window.loadFile(join(__dirname, '..', 'dist', 'index.html'))
@@ -1177,8 +1227,8 @@ app.whenReady().then(async () => {
     target.setAlwaysOnTop(Boolean(enabled), 'floating')
     return target.isAlwaysOnTop()
   })
-  ipcMain.handle('window:open-studio', () => { if (!studioWindow || studioWindow.isDestroyed()) createWindow(); if (studioWindow?.isMinimized()) studioWindow.restore(); studioWindow?.show(); studioWindow?.focus() })
-  ipcMain.handle('window:open-movie-editor', () => { createMovieEditorWindow() })
+  ipcMain.handle('window:open-studio', () => { if (!studioWindow || studioWindow.isDestroyed()) { void createWindow(); return } if (studioWindow.isMinimized()) studioWindow.restore(); studioWindow.show(); studioWindow.focus() })
+  ipcMain.handle('window:open-movie-editor', () => { void createMovieEditorWindow() })
   ipcMain.handle('video:continuation-source', async (_event, sources: string[], throughTime: number | null, outputDirectory: string, ffmpegPath: string) => {
     if (!Array.isArray(sources) || !sources.length || sources.length > 8) throw new Error('请选择有效的续接来源。')
     if (throughTime !== null && (!Number.isFinite(throughTime) || throughTime < 0)) throw new Error('请选择有效的来源帧。')
@@ -1268,6 +1318,14 @@ app.whenReady().then(async () => {
     const value = Math.max(0.75, Math.min(1.5, Number(scale) || 1))
     target?.webContents.setZoomFactor(value)
     return Math.round(value * 100)
+  })
+  ipcMain.handle('theme:set-native-shell', (_event, theme: string) => {
+    const shell = shellFor(theme)
+    // Keep the creation-time shell in step with the live theme.
+    cachedShellTheme = theme === 'blue' || theme === 'comfy' || theme === 'light' ? theme : 'green'
+    nativeTheme.themeSource = theme === 'light' ? 'light' : 'dark'
+    for (const window of themedWindows) applyShellToWindow(window, shell)
+    return true
   })
   ipcMain.handle('dialog:directory', async (_event, initialPath?: string) => {
     const result = await dialog.showOpenDialog({
@@ -1835,9 +1893,9 @@ app.whenReady().then(async () => {
     const { shell } = await import('electron')
     shell.showItemInFolder(join(outputPath, '.'))
   })
-  createWindow()
+  void createWindow()
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) void createWindow()
   })
 }).catch((error) => {
   dialog.showErrorBox('DavAi Video Studio 启动失败', `窗口打开前启动失败：\n\n${error instanceof Error ? error.stack ?? error.message : String(error)}\n\n应用即将关闭。`)

@@ -96,7 +96,7 @@
 
 ## 确认令牌与诊断透传
 
-- `electron/main.ts:435` — 恢复出厂设置的确认令牌是英文字符串 `Reset`，与 `factoryResetSettings` 的 `confirmation !== 'Reset'` 程序判断及设置页输入框绑定，用户需逐字输入英文单词；译文保留该 token，豁免术语检查（reset→重置）。
+- `electron/main.ts:469` — 恢复出厂设置的确认令牌是英文字符串 `Reset`，与 `factoryResetSettings` 的 `confirmation !== 'Reset'` 程序判断及设置页输入框绑定，用户需逐字输入英文单词；译文保留该 token，豁免术语检查（reset→重置）。
 - `src/components/SettingsView.tsx:content=ollama pull qwen3:latest` — 需要用户复制到终端执行的命令示例。CLI 程序名在真实命令行中就是小写 `ollama`，改成术语表里的 `Ollama` 会让命令无法执行，因此按实际写法保留小写。
 
 `electron/main.ts` 中 `minimax-media://` 协议处理器各 `new Response(...)` 的错误正文（如 `Media file is empty`、`Thumbnail is unavailable`）只出现在浏览器网络层诊断里，不作为界面文案渲染；扫描器将其归为 neutral，无需豁免登记，保持英文。FFmpeg/FFprobe stderr、ComfyUI 服务器返回的 error 正文、异常堆栈与文件路径同样原样透传，不译。
@@ -127,8 +127,8 @@
 
 标识符与确认令牌：
 
-- `src/components/SettingsView.tsx:108` — `settingsSections` 数组的 id 半区 `'reset'`：DOM 锚点 / 滚动定位键（存储标识符，非界面文案；译文半区是「恢复出厂设置」）。
-- `src/components/SettingsView.tsx:348` — 恢复出厂设置确认词 `Reset`：必须与 `electron/main.ts` 的 `confirmation !== 'Reset'` 逐字匹配，用户需输入英文单词（与已有的 `electron/main.ts:435` 登记同一 token）。
+- `src/components/SettingsView.tsx:109` — `settingsSections` 数组的 id 半区 `'reset'`：DOM 锚点 / 滚动定位键（存储标识符，非界面文案；译文半区是「恢复出厂设置」）。
+- `src/components/SettingsView.tsx:349` — 恢复出厂设置确认词 `Reset`：必须与 `electron/main.ts` 的 `confirmation !== 'Reset'` 逐字匹配，用户需输入英文单词（与已有的 `electron/main.ts:469` 登记同一 token）。
 
 ## 批次 12：扫描器补强后的新登记
 

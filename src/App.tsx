@@ -10,6 +10,7 @@ import { ComfyActivityConsole, JobExecutionChips, JobsView, StatusBadge } from '
 import { WorkspaceNavigator } from './components/WorkspaceNavigator'
 import { WorkspaceSectionTabs, type WorkspaceSectionTab } from './components/WorkspaceSectionTabs'
 import { writeLocalJson } from './lib/localPersistence'
+import { applyTheme, normalizeTheme, writeThemeMirror } from './lib/theme'
 import { collectWorkspaceSearchEntries, compactSearchText, highlightWorkspaceSearchText, type WorkspaceSearchEntry } from './lib/workspaceSearch'
 import { H3_PREVIEW_FPS, compactJob, compactSceneState, randomH3Seed, readWorkspace, withoutPreview, workspaceDefaults, type PersistedWorkspace } from './lib/workspacePersistence'
 import { WORKSPACE_PROJECTS_KEY, loadWorkspaceProjects, type WorkspaceProject } from './lib/workspaceProjects'
@@ -739,6 +740,9 @@ function App() {
       activeLlmProvider.current = loaded.llmProvider
       activeLlmUrl.current = resolveLlmConnection(loaded).url
       loadedSettingsSnapshot.current = JSON.stringify(loaded)
+      // The settings file is authoritative: correct a stale first-paint mirror.
+      writeThemeMirror(loaded.theme)
+      applyTheme(document.documentElement, loaded.theme)
       setSettings(loaded)
       void Promise.all([scanModels(loaded), checkConnection(loaded.comfyUrl), refreshOllama(loaded)])
     }).catch((error: unknown) => {
@@ -756,6 +760,28 @@ function App() {
     }, 250)
     return () => window.clearTimeout(timer)
   }, [queueSettingsSave, settings])
+
+  // Theme changes apply immediately (like uiScale); the debounced autosave above persists them.
+  const activeTheme = settings?.theme
+  useEffect(() => {
+    if (!activeTheme) return
+    applyTheme(document.documentElement, activeTheme)
+    writeThemeMirror(activeTheme)
+    void window.minimax.setNativeTheme?.(activeTheme)
+  }, [activeTheme])
+
+  // In the LAN "complete studio" browser page (?desktop=1 / token link) the mock
+  // bridge has no real settings: read the theme once from the studio, read-only.
+  // The browser mock defines the same bridge shape as the preload, so the
+  // bridge cannot signal the runtime — the Electron user agent can.
+  useEffect(() => {
+    if (navigator.userAgent.includes('Electron') || !new URLSearchParams(location.search).has('token')) return
+    const token = new URLSearchParams(location.search).get('token') ?? localStorage.getItem('minimax.lan-token') ?? ''
+    fetch('/api/lan/appearance', { headers: { 'x-minimax-token': token } })
+      .then((response) => response.json() as Promise<{ theme?: string }>)
+      .then(({ theme }) => { if (theme) applyTheme(document.documentElement, normalizeTheme(theme)) })
+      .catch(() => undefined)
+  }, [])
 
   useEffect(() => {
     void window.minimax.getLegacyMigrationStatus().then(setLegacyMigration).catch(() => setLegacyMigration({ available: false, migrated: false, needsBrowserStorageRepair: false }))
@@ -3654,8 +3680,11 @@ function VideoWorkspaceShell(props: VideoShellProps) {
     props.setTurbo8Profile('balanced'); props.setSampler('res_multistep'); props.setScheduler('simple')
     props.setSigmaShiftMode('model'); props.setLoraStrength(1)
   }
-  const detach = () => { if (popoutRef.current && !popoutRef.current.closed) { popoutRef.current.focus(); return } const popup = window.open('', 'davai-video-preview', 'popup=yes,width=1080,height=720,resizable=yes'); if (!popup) return; popup.document.title = 'DavAi · 预览'; document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => popup.document.head.appendChild(node.cloneNode(true))); const root = popup.document.createElement('main'); popup.document.body.appendChild(root); popoutRef.current = popup; setPreviewPopoutRoot(root); popup.addEventListener('beforeunload', () => { popoutRef.current = null; setPreviewPopoutRoot(null) }, { once: true }) }
+  const detach = () => { if (popoutRef.current && !popoutRef.current.closed) { popoutRef.current.focus(); return } const popup = window.open('', 'davai-video-preview', 'popup=yes,width=1080,height=720,resizable=yes'); if (!popup) return; popup.document.title = 'DavAi · 预览'; popup.document.documentElement.className = 'preview-popout-document'; popup.document.documentElement.dataset.theme = document.documentElement.dataset.theme; document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => popup.document.head.appendChild(node.cloneNode(true))); const root = popup.document.createElement('main'); popup.document.body.appendChild(root); popoutRef.current = popup; setPreviewPopoutRoot(root); popup.addEventListener('beforeunload', () => { popoutRef.current = null; setPreviewPopoutRoot(null) }, { once: true }) }
   useEffect(() => () => popoutRef.current?.close(), [])
+  // The popout is held by handle: keep its data-theme in step with the main document
+  // after every render (a theme change re-renders the whole tree).
+  useEffect(() => { const popup = popoutRef.current; if (popup && !popup.closed && popup.document.documentElement.dataset.theme !== document.documentElement.dataset.theme) popup.document.documentElement.dataset.theme = document.documentElement.dataset.theme })
   const assetRail = <AssetRail props={props} onSelect={file => { setRailAsset(file); const ref = boundScene.references.find(item => item.file.path === file.path); setSelection(ref ? { kind: 'reference', id: ref.id } : { kind: 'scene' }); setActiveSection('settings') }} />
   return <div className="video-workspace-shell">
     <ModeBar projectName={props.projectName} onOpenProjects={props.onOpenProjects} connected={props.connected} modelReady={props.modelReady} onOpenSettings={props.onOpenSettings} onOpenCompare={props.onOpenCompare} compareOpen={props.compareOpen} onOpenNavigator={props.onOpenNavigator} onReset={props.onReset} />
@@ -3793,12 +3822,15 @@ export function LegacyCreateView(props: CreateViewProps) {
     window.requestAnimationFrame(() => dialogueTriggerRef.current?.focus())
   }, [])
   useEffect(() => () => { previewPopoutRef.current?.close() }, [])
+  // Same handle-write sync for the preview monitor popout.
+  useEffect(() => { const popup = previewPopoutRef.current; if (popup && !popup.closed && popup.document.documentElement.dataset.theme !== document.documentElement.dataset.theme) popup.document.documentElement.dataset.theme = document.documentElement.dataset.theme })
   const detachPreview = () => {
     if (previewPopoutRef.current && !previewPopoutRef.current.closed) { previewPopoutRef.current.focus(); return }
     const popup = window.open('', 'davai-video-studio-preview', 'popup=yes,width=1080,height=720,resizable=yes')
     if (!popup) return
     popup.document.title = 'DavAi Video Studio · 预览监视器'
     popup.document.documentElement.className = 'preview-popout-document'
+    popup.document.documentElement.dataset.theme = document.documentElement.dataset.theme
     popup.document.head.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => node.remove())
     document.querySelectorAll<HTMLLinkElement | HTMLStyleElement>('link[rel="stylesheet"], style').forEach((node) => {
       const clone = node.cloneNode(true) as HTMLLinkElement | HTMLStyleElement

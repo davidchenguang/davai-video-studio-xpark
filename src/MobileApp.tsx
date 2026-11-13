@@ -11,6 +11,7 @@ import { buildLtx25Workflow } from './lib/ltx25Workflow'
 import { buildZImage } from './lib/zimage'
 import { applyDialoguePolicy } from './lib/dialogPolicy'
 import { createId } from './lib/createId'
+import { applyTheme, normalizeTheme } from './lib/theme'
 import type { MediaFile, ModelFile } from './types'
 
 type Bootstrap = { connected: boolean; latencyMs: number; models: ModelFile[]; upscalers?: string[]; ltxModel?: string; ltxVae?: string; ltxUpscaleReady?: boolean; ltxUpscaleMissing?: string[]; ltxNativeReady?: boolean; ltxNativeMissing?: string[]; ollamaModels?: string[]; ollamaModel?: string; llmProvider?: 'ollama' | 'lmstudio'; llmModels?: string[]; llmModel?: string; error?: string }
@@ -39,6 +40,7 @@ async function lanFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (token === 'browser-preview') {
     if (path === '/api/lan/bootstrap') return { connected: true, latencyMs: 7, models: previewModels, upscalers: ['4x-UltraSharp.pth'], ltxModel: 'ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors', ltxVae: 'ltx-2.5-video-vae-bf16.safetensors', ltxUpscaleReady: true, ltxNativeReady: true, llmProvider: 'ollama', llmModels: ['qwen3:latest'], llmModel: 'qwen3:latest', ollamaModels: ['qwen3:latest'], ollamaModel: 'qwen3:latest' } as T
     if (path === '/api/lan/characters') return { characters: previewCharacters } as T
+    if (path === '/api/lan/appearance') return { theme: 'green' } as T
     if (path === '/api/lan/ollama') return { response: 'A polished cinematic shot with deliberate subject motion, stable camera movement, natural lighting, and synchronized ambient sound.' } as T
     throw new Error('生成功能需通过桌面应用展示的二维码链接进入后使用。')
   }
@@ -145,6 +147,16 @@ export default function MobileApp() {
   }
 
   useEffect(() => { void refresh() }, [])
+  // The phone page follows the studio theme (D14): fetch once at load; a refresh picks up changes.
+  useEffect(() => {
+    // The phone page follows the studio theme (D14): fetch once at load; a refresh picks up changes.
+    const themeColors: Record<string, string> = { green: '#0c100e', blue: '#0e1419', comfy: '#211927', light: '#e6e7e3' }
+    lanFetch<{ theme: string }>('/api/lan/appearance').then(({ theme }) => {
+      const normalized = normalizeTheme(theme)
+      applyTheme(document.documentElement, normalized)
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColors[normalized])
+    }).catch(() => undefined)
+  }, [])
   useEffect(() => {
     const capture = (event: Event) => { event.preventDefault(); setInstallPrompt(event as InstallPrompt) }
     window.addEventListener('beforeinstallprompt', capture)

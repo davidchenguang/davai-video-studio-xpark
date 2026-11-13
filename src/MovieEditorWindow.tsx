@@ -1,5 +1,6 @@
 import { MOVIE_HANDOFF_KEY } from './lib/movieHandoff'
 import { createId } from './lib/createId'
+import { applyTheme, normalizeTheme, THEME_STORAGE_KEY, writeThemeMirror } from './lib/theme'
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { MovieEditor } from './components/MovieEditor'
@@ -15,9 +16,12 @@ export function MovieEditorWindow() {
   const [jobs, setJobs] = useState<GenerationJob[]>(readJobs)
   const [notice, setNotice] = useState<string | null>(null)
   const [clipMasterClip, setClipMasterClip] = useState<ClipItem | null>(null)
-  useEffect(() => { document.title = 'DavAi 影片剪辑'; void window.minimax.getSettings().then(setSettings) }, [])
+  useEffect(() => { document.title = 'DavAi 影片剪辑'; void window.minimax.getSettings().then((loaded) => { writeThemeMirror(loaded.theme); applyTheme(document.documentElement, loaded.theme); setSettings(loaded) }) }, [])
   useEffect(() => {
-    const refresh = (event: StorageEvent) => { if (event.key === 'minimax.jobs') setJobs(readJobs()) }
+    const refresh = (event: StorageEvent) => {
+      if (event.key === 'minimax.jobs') setJobs(readJobs())
+      if (event.key === THEME_STORAGE_KEY) applyTheme(document.documentElement, normalizeTheme(event.newValue))
+    }
     window.addEventListener('storage', refresh)
     return () => { window.removeEventListener('storage', refresh) }
   }, [])

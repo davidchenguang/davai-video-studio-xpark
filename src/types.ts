@@ -1,4 +1,5 @@
 export type View = 'create' | 'continue' | 'scratchpad' | 'ltx25' | 'ltxripple' | 'photoedit' | 'music' | 'zimage' | 'h3image' | 'referenceprep' | 'characters' | 'hair' | 'wardrobes' | 'accessories' | 'locations' | 'queue' | 'library' | 'clipmaster' | 'movie' | 'settings'
+import type { Theme } from './lib/theme'
 export type GenerationMode = 'text' | 'image' | 'frames' | 'reference'
 export type ModelKind = 'diffusion_models' | 'text_encoders' | 'vae' | 'loras' | 'vae_approx' | 'clip_vision'
 export type MediaKind = 'image' | 'video' | 'audio'
@@ -89,6 +90,7 @@ export type AppSettings = {
   clipMasterOutputDirectory: string
   ffmpegPath: string
   uiScale: number
+  theme: Theme
   attentionBackend: AttentionBackendPreference
   solAttnTau: number
   solCacheEnabled: boolean
@@ -579,6 +581,7 @@ export type DesktopApi = {
   factoryResetSettings(confirmation: string): Promise<void>
   exportWorkflowJson(suggestedName: string, workflow: unknown): Promise<string | null>
   setUiScale(scale: number): Promise<number>
+  setNativeTheme(theme: AppSettings['theme']): Promise<void>
   openDevTools(): Promise<void>
   chooseDirectory(initialPath?: string): Promise<string | null>
   chooseMedia(type: MediaKind): Promise<{ path: string; name: string } | null>

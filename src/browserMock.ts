@@ -21,6 +21,7 @@ const settings: AppSettings = {
   clipMasterOutputDirectory: 'C:\\Users\\James\\Documents\\ComfyUI\\output\\video',
   ffmpegPath: 'C:\\FFMPEG\\bin\\ffmpeg.exe',
   uiScale: 100,
+  theme: 'green',
   attentionBackend: 'automatic',
   solAttnTau: 1,
   solCacheEnabled: true,
@@ -102,6 +103,7 @@ export function installBrowserMock() {
     getRenderBenchmarks: async () => [],
     saveRenderBenchmarks: async (benchmarks) => benchmarks,
     saveSettings: async (next) => (current = next),
+    setNativeTheme: async () => { /* Theme is CSS-driven in the renderer; no native side in the mock. */ },
     factoryResetSettings: async (confirmation) => {
       if (confirmation !== 'Reset') throw new Error('请准确输入 Reset 以确认恢复出厂设置。')
       current = structuredClone(settings)
