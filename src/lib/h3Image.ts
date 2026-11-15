@@ -31,8 +31,8 @@ export type H3ImageTierSpec = {
 export const H3_IMAGE_TIERS: Record<H3ImageTier, H3ImageTierSpec> = {
   dedicated: {
     label: 'H3-Image 专用模型',
-    summary: 'MiniMax 专用生图 DiT · 中文排版最稳 · 可出 4K',
-    detail: '专用图像 DiT（int8 约 21GB）+ 图像 VAE，6 步蒸馏、无 CFG 与反向提示词。需要 ComfyUI 0.45 及以上。',
+    summary: '官方 6 步 · 原生 16MP · 更快',
+    detail: 'MiniMax 官方图像 DiT（int8 约 21GB）+ 图像 VAE。6 步蒸馏、无 CFG 与反向提示词，可直出 4K；需要 ComfyUI 0.45 及以上。',
     steps: 6,
     model: 'minimax_h3_image_pruned_int8_convrot.safetensors',
     encoder: 'qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors',
@@ -41,8 +41,8 @@ export const H3_IMAGE_TIERS: Record<H3ImageTier, H3ImageTierSpec> = {
   },
   fl2va: {
     label: 'H3 视频同款模型',
-    summary: '复用 H3 视频 DiT · 零新增下载',
-    detail: '直接用 FL2VA 视频 DiT 加 8 步 Turbo LoRA 出静帧。已部署 H3 视频的客户无需再下载模型。',
+    summary: '兼容 · 复用视频权重 · 零下载',
+    detail: '复用 H3 视频 DiT 与 8 步 Turbo LoRA 出静帧：零新增下载、旧版 ComfyUI 可用；单帧经视频 VAE 解码可能偏软，适合兼容与预览场景。',
     steps: 8,
     model: 'minimax_h3_fl2va_pruned_int8_convrot.safetensors',
     encoder: 'qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors',
@@ -51,6 +51,11 @@ export const H3_IMAGE_TIERS: Record<H3ImageTier, H3ImageTierSpec> = {
     requiredNodes: H3_IMAGE_FL2VA_REQUIRED_NODES,
   },
 }
+
+// License attribution follows the weights that actually produced the image, so
+// the label is chosen from the job's tier snapshot, never the current selection.
+export const h3ImageTierAttribution = (tier: H3ImageTier) =>
+  tier === 'dedicated' ? '由 MiniMax-H3-Image 生成' : '由 MiniMax H3 视频模型生成'
 
 export type H3ImageComponents = {
   model: string
@@ -70,6 +75,67 @@ export const isH3Encoder = (name: string) => /qwen3vl_32b_minimax_h3/i.test(name
 
 export function h3ImageRequiredNodes(tier: H3ImageTier) {
   return H3_IMAGE_TIERS[tier].requiredNodes
+}
+
+// Single source of truth for "is this tier usable": object_info choices plus the
+// 0.45 conditioning-node gate. Badges, the status line, the generate gate and
+// auto tier selection all read from these two functions (A4).
+export type H3ImageEngineSignals = {
+  models: string[]
+  encoders: string[]
+  vaes: string[]
+  loras: string[]
+  dedicatedNodeReady: boolean
+}
+
+export function h3ImageTierReady(tier: H3ImageTier, signals: H3ImageEngineSignals) {
+  const spec = H3_IMAGE_TIERS[tier]
+  const encoderOk = signals.encoders.includes(spec.encoder) || signals.encoders.some(isH3Encoder)
+  if (tier === 'dedicated') {
+    return signals.models.some(isH3ImageModel) && signals.vaes.some(isH3ImageVae) && encoderOk && signals.dedicatedNodeReady
+  }
+  return signals.models.some(isH3Fl2vaModel) && signals.vaes.some(isH3VideoVae)
+    && encoderOk && Boolean(spec.lora) && signals.loras.some(isH3TurboLora)
+}
+
+// Auto selection: prefer the dedicated stack, fall back to the zero-download
+// stack, else report that nothing is usable. Callers on an offline/empty engine
+// must not re-evaluate (A3): keep the previous tier instead.
+export function resolveH3ImageTier(signals: H3ImageEngineSignals): { tier: H3ImageTier; usable: boolean } {
+  if (h3ImageTierReady('dedicated', signals)) return { tier: 'dedicated', usable: true }
+  if (h3ImageTierReady('fl2va', signals)) return { tier: 'fl2va', usable: true }
+  return { tier: 'dedicated', usable: false }
+}
+
+// The dedicated tier reaches 16MP natively; the video-model tier tops out at
+// 2048 (decision 10). Clamping keeps the aspect ratio and picks the
+// nearest-area rung from the workspace size table (B2).
+export const H3_IMAGE_WORKSPACE_SIZES: Record<string, string[]> = {
+  '16:9': ['1024x576', '1344x768', '2048x1152', '4096x2304'],
+  '1:1': ['1024x1024', '1536x1536', '2048x2048', '4096x4096'],
+  '9:16': ['576x1024', '768x1344', '1152x2048', '2304x4096'],
+}
+
+export const H3_IMAGE_TIER_MAX_EDGE: Record<H3ImageTier, number> = { dedicated: 4096, fl2va: 2048 }
+
+export function h3ImageSizesForTier(tier: H3ImageTier): Record<string, string[]> {
+  const maxEdge = H3_IMAGE_TIER_MAX_EDGE[tier]
+  return Object.fromEntries(Object.entries(H3_IMAGE_WORKSPACE_SIZES)
+    .map(([ratio, sizes]) => [ratio, sizes.filter((size) => size.split('x').every((edge) => Number(edge) <= maxEdge))]))
+}
+
+export function clampH3ImageResolution(tier: H3ImageTier, resolution: string): string {
+  const [width, height] = resolution.split('x').map(Number)
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return resolution
+  const ratio = width === height ? '1:1' : width > height ? '16:9' : '9:16'
+  const candidates = (h3ImageSizesForTier(tier)[ratio] ?? []).map((size) => {
+    const [w, h] = size.split('x').map(Number)
+    return { size, area: w * h }
+  })
+  if (!candidates.length) return resolution
+  const target = width * height
+  return candidates.reduce((best, option) =>
+    Math.abs(option.area - target) < Math.abs(best.area - target) ? option : best).size
 }
 
 // Dedicated route: the conditioning node produces both the positive conditioning
