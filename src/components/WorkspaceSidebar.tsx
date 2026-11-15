@@ -53,8 +53,7 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
   return <>
     {props.open && <button className="mobile-sidebar-backdrop" aria-label="关闭工作区菜单" onClick={props.onClose} />}
     <aside className="sidebar" aria-label="工作区侧边栏" onClick={event => { if (window.innerWidth <= 680 && (event.target as HTMLElement).closest('.nav-button')) props.onClose() }}>
-      <div className="sidebar-top"><button className="icon-button sidebar-toggle" onClick={props.onToggle} aria-label={props.open ? '收起侧边栏' : '展开侧边栏'}><PanelLeftClose size={18} /></button></div>
-      <div className="sidebar-brand"><span className="brand-mark" aria-hidden="true"><Film size={18} /></span><span className="sidebar-brand-text"><strong>DavAi Video Studio</strong><small>工作区</small></span></div>
+      <div className="sidebar-brand"><span className="brand-mark" aria-hidden="true"><Film size={18} /></span><span className="sidebar-brand-text"><strong>DavAi Video Studio</strong><small>工作区</small></span><button className="icon-button sidebar-toggle" onClick={props.onToggle} aria-label={props.open ? '收起侧边栏' : '展开侧边栏'}><PanelLeftClose size={18} /></button></div>
       <button className="sidebar-browse" type="button" data-workspace-trigger onClick={props.onBrowse} aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="浏览全部工作区（Ctrl+K）"><Menu size={16} /><span>浏览工作区</span></button>
       <nav className="sidebar-nav" aria-label="主导航">{groups.map(group => <div className="nav-group" key={group.label}><span className="nav-section-label">{group.label}</span>{group.items.map(item => {
         const Icon = item.icon

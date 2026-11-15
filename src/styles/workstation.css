@@ -33,7 +33,6 @@ body { background: var(--bg); }
 .connection-chip { min-height: 32px; background: var(--surface-2); }
 
 .sidebar { padding: 12px 10px 14px; background: var(--surface); border-right-color: var(--surface-3); }
-.sidebar-top { height: 34px; }
 .nav-group + .nav-group { margin-top: 20px; padding-top: 0; border-top: 0; }
 .nav-section-label { padding-inline: 12px; color: var(--muted); font-size: 9px; letter-spacing: .18em; }
 .nav-button { min-height: 40px; border-radius: 8px; color: var(--muted); }
