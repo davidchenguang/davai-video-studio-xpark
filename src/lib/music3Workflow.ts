@@ -3,6 +3,7 @@ import type { ComfyPrompt } from './workflow'
 
 export type Music3ModelSelection = { diffusion: string; textEncoder: string; vae: string }
 export type Music3GenerationOptions = { caption: string; lyrics: string; duration: number; seed: number; tiledDecode: boolean; filenamePrefix: string }
+export type Music3Language = 'zh' | 'en'
 export const MUSIC3_REQUIRED_NODES = ['UNETLoader', 'CLIPLoader', 'VAELoader', 'MiniMaxMusic3TextEncode', 'EmptyMiniMaxMusic3LatentAudio', 'ConditioningZeroOut', 'KSampler', 'VAEDecodeAudioTiled', 'SaveAudioAdvanced'] as const
 
 export function inferMusic3Selection(models: ModelFile[]): Music3ModelSelection {
@@ -25,9 +26,12 @@ export function buildMusic3Workflow(options: Music3GenerationOptions, models: Mu
   return graph
 }
 
-export function buildMusic3Caption(sections: { metadata: string; vocals: string; arrangement: string }) {
+const MUSIC3_LANGUAGE_LINES: Record<Music3Language, string> = { zh: 'Vocal language: Mandarin Chinese', en: 'Vocal language: English' }
+
+export function buildMusic3Caption(sections: { metadata: string; vocals: string; arrangement: string; language?: Music3Language }) {
   return [
     `### Global Metadata\n${sections.metadata.trim() || 'Unspecified; preserve the user’s explicit musical constraints.'}`,
+    `### Vocal Language\n${MUSIC3_LANGUAGE_LINES[sections.language ?? 'zh']}`,
     `### Vocal Details\n${sections.vocals.trim() || 'Vocal configuration unspecified; use a conservative treatment appropriate to the requested style.'}`,
     `### Arrangement\n${sections.arrangement.trim() || 'Develop a coherent section-by-section timeline around the tagged lyric structure.'}`,
   ].join('\n\n')

@@ -63,4 +63,27 @@ for (const key of Object.keys(music3KeywordLabels)) {
   )
 }
 
-console.log(`PASS: Music 3 双语层完整（${groups.reduce((sum, group) => sum + group.values.length, 0)} 个提示词值全部有中文显示标签，提示词层保持英文）`)
+// buildMusic3Caption 的演唱语言段：格式与位置都是验收口径，机器锁定。
+// music3Workflow.ts 顶部两个 import 均为 import type，transpile 后被擦除，
+// 可与词表一样用 vm 独立加载（无相对导入副作用）。
+const workflowExports = {}
+vm.runInNewContext(
+  ts.transpileModule(fs.readFileSync('src/lib/music3Workflow.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText,
+  { exports: workflowExports },
+)
+const { buildMusic3Caption } = workflowExports
+
+const zhCaption = buildMusic3Caption({ metadata: 'm', vocals: 'v', arrangement: 'a', language: 'zh' })
+const enCaption = buildMusic3Caption({ metadata: 'm', vocals: 'v', arrangement: 'a', language: 'en' })
+const defaultCaption = buildMusic3Caption({ metadata: 'm', vocals: 'v', arrangement: 'a' })
+for (const [label, caption] of [['zh', zhCaption], ['en', enCaption], ['default', defaultCaption]]) {
+  const sections = caption.split('\n\n')
+  assert.equal(sections.length, 4, `${label}: caption 应为四段`)
+  assert.ok(sections[1].startsWith('### Vocal Language\nVocal language: '), `${label}: 语言段格式不符：${sections[1]}`)
+}
+assert.ok(zhCaption.includes('### Vocal Language\nVocal language: Mandarin Chinese\n\n### Vocal Details'), 'zh: 语言段应位于 Global Metadata 与 Vocal Details 之间且正文为 Mandarin Chinese')
+assert.ok(enCaption.includes('### Vocal Language\nVocal language: English\n\n### Vocal Details'), 'en: 语言段应位于 Global Metadata 与 Vocal Details 之间且正文为 English')
+assert.ok(defaultCaption.includes('Vocal language: Mandarin Chinese'), '缺省 language 应回退 zh')
+assert.ok(!/[一-鿿]/.test(zhCaption) && !/[一-鿿]/.test(enCaption), 'caption 提示词层不能混入中文')
+
+console.log(`PASS: Music 3 双语层完整（${groups.reduce((sum, group) => sum + group.values.length, 0)} 个提示词值全部有中文显示标签，提示词层保持英文；演唱语言段 zh/en/缺省三态校验通过）`)

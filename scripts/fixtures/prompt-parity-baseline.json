@@ -5782,7 +5782,7 @@
           }
         }
       },
-      "music3Caption": "### Global Metadata\nrainy neon night\n\n### Vocal Details\nfemale spoken word\n\n### Arrangement\nambient synth with rain textures",
+      "music3Caption": "### Global Metadata\nrainy neon night\n\n### Vocal Language\nVocal language: Mandarin Chinese\n\n### Vocal Details\nfemale spoken word\n\n### Arrangement\nambient synth with rain textures",
       "aceStep": {
         "1": {
           "class_type": "UNETLoader",
