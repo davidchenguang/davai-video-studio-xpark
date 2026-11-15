@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   server: {
-    watch: { ignored: ['**/release/**', '**/dist-electron/**', '**/output/**'] },
+    watch: { ignored: ['**/release/**', '**/dist-electron/**', '**/output/**', '**/.worktrees/**'] },
     proxy: {
       // ComfyUI 0.45 rejects a WebSocket whose Host and Origin ports differ
       // (origin-only middleware → 403 before onopen). The dev page is served
