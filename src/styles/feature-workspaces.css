@@ -1012,7 +1012,7 @@
   color: var(--danger, #ff9eaa) /* theme-exempt: danger pin (D15) */;
   cursor: pointer;
 }
-.movie-media-remove:hover { border-color: rgb(255 127 127 / 70%); background: var(--danger, #321d24) /* theme-exempt: danger pin (D15) */; color: var(--danger, #ffd3d9) /* theme-exempt: danger pin (D15) */; }
+.movie-media-remove:hover { border-color: rgb(255 127 127 / 70%); background: color-mix(in srgb, var(--danger) 14%, rgb(21 15 18 / 92%)); color: var(--danger); }
 .movie-editor-projectbar .danger-button { border-color: rgb(255 127 127 / 32%); color: var(--danger, #ff9eaa) /* theme-exempt: danger pin (D15) */; }
 .movie-editor-projectbar .danger-button:hover { border-color: rgb(255 127 127 / 58%); background: rgb(255 127 127 / 10%); color: var(--danger, #ffd3d9) /* theme-exempt: danger pin (D15) */; }
 .movie-marker {
