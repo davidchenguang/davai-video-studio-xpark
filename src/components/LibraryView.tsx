@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bookmark, ExternalLink, Film, FolderOpen, Gauge, History, ImagePlus, LoaderCircle, Music2, Play, Scissors, Sparkles, Watch, X } from 'lucide-react'
+import { Bookmark, ExternalLink, Film, FolderOpen, Gauge, History, ImagePlus, LoaderCircle, Music2, Play, Scissors, Sparkles, Watch, X, ZoomIn } from 'lucide-react'
 import type { AppSettings, GenerationJob, MediaFile } from '../types'
 import { audioSourceLabel, generationModeLabels, imageSourceLabel, libraryPromptTitle, shortPrompt } from '../lib/jobPresentation'
 import { FrameBookmarkStudio, type BookmarkVideo } from './FrameBookmarkStudio'
@@ -62,7 +62,8 @@ export function LibraryView({ jobs, settings, onEdit, onCreate, onUseLtx, onUseL
       return <article className="library-card" key={job.id}>
         <button type="button" className="library-card-media" onClick={() => setLightbox(job)} aria-label={`预览 ${title}`}>
           {image ? <img src={job.outputUrl} alt="" /> : audio ? <Music2 size={40} /> : <MovieMediaThumbnail source={job.outputUrl!} posterUrl={job.thumbnailUrl} />}
-          <span className="library-media-play"><Play size={16} fill="currentColor" /></span>
+          {/* chip 必须按媒体类型换图标：Play 只留给真会播放的视频/音频，图片用 ZoomIn 表达「查看大图」，避免播放假承诺。 */}
+          <span className="library-media-play">{image ? <ZoomIn size={16} /> : <Play size={16} fill="currentColor" />}</span>
           {!image && !audio && <span className="library-media-duration">{job.duration} 秒</span>}
         </button>
         <div className="library-card-body">
