@@ -42,7 +42,7 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
       { view: 'wardrobes', label: '服装', icon: Shirt, tone: 'wardrobe' },
       { view: 'accessories', label: '配饰', icon: Watch },
       { view: 'locations', label: '地点', icon: MapPin, tone: 'location' },
-      { view: 'library', label: '视频库', icon: Library },
+      { view: 'library', label: '媒体库', icon: Library },
     ] },
     { label: '项目', items: [
       { view: 'queue', label: '队列', icon: ListVideo, count: props.pendingCount },

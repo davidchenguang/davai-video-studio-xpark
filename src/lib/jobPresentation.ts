@@ -19,6 +19,14 @@ export function imageSourceLabel(provider?: GenerationJob['provider']) {
   return '生成图片'
 }
 
+// 音频 job 的来源标签（裸标签）。队列展示时由 JobsView 拼「音乐 · 」前缀——兜底值
+// 「音乐」本身已含类别语义，调用方拼接前须先判断（避免「音乐 · 音乐」）。
+export function audioSourceLabel(provider?: GenerationJob['provider']) {
+  if (provider === 'music3') return 'Music 3'
+  if (provider === 'acestep') return 'ACE-Step'
+  return '音乐'
+}
+
 // 生图工作区在保存成功后用它登记一条已完成的图片任务。outputUrl 必须由调用方用
 // mediaUrl() 生成短 URL——getOutputImage 返回的 data URL 会把 localStorage 写爆，
 // 而 writeLocalJson 失败时静默返回 false。

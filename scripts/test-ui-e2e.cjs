@@ -267,7 +267,7 @@ async function main() {
   assert.ok(await clickText('队列'), 'Queue navigation is available')
   await until(() => evaluate(`document.querySelector('.job-list, .empty-page')?.getClientRects().length`), 'Queue view')
   assert.ok(await evaluate(`document.body.innerText.includes('还没有生成任务入队。')`), 'Empty Queue explains its state')
-  assert.ok(await clickText('视频库'), 'Render library navigation is available')
+  assert.ok(await clickText('媒体库'), 'Render library navigation is available')
   await until(() => evaluate(`Boolean(document.querySelector('.library-page')?.getClientRects().length)`), 'Render library')
   assert.ok(await evaluate(`document.querySelector('.library-page')?.innerText.includes('完成的渲染会出现在这里')`), 'Empty render library explains its state')
   assert.ok(await clickText('设置'), 'Settings navigation is available')

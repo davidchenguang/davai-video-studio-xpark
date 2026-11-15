@@ -9,32 +9,13 @@ Thumbs.db
 # The Comet phase-guard hook is registered with absolute paths to the active
 # checkout, so each worktree needs its own copy. Never shared.
 .claude/settings.local.json
-# >>> Comet managed project state >>>
-!/.comet/
-/.comet/*
-!/.comet/config.yaml
-.comet-archive-staging/
-.*.comet-archive-cas-*
-.*.comet-runtime-migration.json*
-.*.comet-runtime-source-*
-.*.comet-runtime-stage-*
-**/comet/changes/*/runtime
-**/comet/archive/*/runtime
-**/.comet/run-state.json
-**/.comet/pending-action.json
-**/.comet/trajectory.jsonl
-**/.comet/context.md
-**/.comet/artifacts.json
-**/.comet/checkpoint.json
-**/.comet/skill-snapshots
-**/.comet/checks
-**/.comet/coordination.json
-**/.comet/subagent-progress.md
-.comet-state.lock
-.comet-state-transaction.json
-# <<< Comet managed project state <<<
 .superpowers/
 # Local tool scratch output: Playwright MCP session logs and spec-workflow
 # specs/approvals/steering are per-machine working files, not project source.
 .playwright-mcp/
 .spec-workflow/
+# >>> Comet managed project state >>>
+!/.comet/
+/.comet/*
+!/.comet/config.yaml
+# <<< Comet managed project state <<<

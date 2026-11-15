@@ -36,7 +36,7 @@ const DESTINATIONS = [
   '草稿本', 'H3 视频', '续接', 'LTX 2.5', 'LTX Ripple',
   '图片编辑', '生成图片', '音乐 · ACE-Step', '音乐 · Music 3',
   '参考图准备', '角色', '发型', '服装', '配饰', '地点',
-  '队列', '视频库', '影片剪辑', '片段工坊', '设置',
+  '队列', '媒体库', '影片剪辑', '片段工坊', '设置',
 ]
 
 // Strings that earlier batches missed because they sat in positions the

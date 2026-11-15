@@ -1145,7 +1145,7 @@ function App() {
     const outputFile = job.outputUrl ? outputFileFromUrl(job.outputUrl) : undefined
     const resolvedOutput = outputFile ? await window.minimax.resolveOutput(activeOutputDirectory, outputFile) : null
     const candidates = continuationSourceCandidates(job, resolvedOutput)
-    if (!candidates.length) throw new Error('这个已完成的任务没有已保存的视频位置。请在视频库中打开该视频，并确认其输出仍然存在。')
+    if (!candidates.length) throw new Error('这个已完成的任务没有已保存的视频位置。请在媒体库中打开该视频，并确认其输出仍然存在。')
     let lastError = ''
     for (const source of candidates) {
       try {

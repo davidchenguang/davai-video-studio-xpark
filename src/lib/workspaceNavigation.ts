@@ -21,7 +21,7 @@ export const workspaceDestinations: WorkspaceDestination[] = [
   { view: 'accessories', label: '配饰', description: '准备道具与配饰。', group: '准备素材' },
   { view: 'locations', label: '地点', description: '建立可复用的场景与环境参考。', group: '准备素材' },
   { view: 'queue', label: '队列', description: '跟踪生成进度、停止任务、查看错误。', group: '查看与编辑' },
-  { view: 'library', label: '视频库', description: '回看完成的视频与参考静帧，收藏帧画面。', group: '查看与编辑' },
+  { view: 'library', label: '媒体库', description: '回看完成的视频与图片，收藏帧画面。', group: '查看与编辑' },
   { view: 'movie', label: '影片剪辑', description: '在时间线上组装片段与音频（DavAi Movie）。', group: '查看与编辑' },
   { view: 'clipmaster', label: '片段工坊', description: '修剪、检查、精修单个片段。', group: '查看与编辑' },
   { view: 'settings', label: '设置', description: '连接 ComfyUI、配置模型、排查环境问题。', group: '配置' },
