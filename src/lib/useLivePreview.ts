@@ -38,6 +38,20 @@ function binaryPreviewImage(data: ArrayBuffer) {
   return null
 }
 
+// ComfyUI 0.45 rejects a WebSocket whose Host and Origin ports differ
+// (server.py origin-only middleware → 403 before onopen). In dev the page is
+// served by Vite on 5173 while the engine listens on 8188, so the socket must
+// go through Vite's same-origin proxy (`/comfy-ws` → target, ws passthrough,
+// changeOrigin off) instead of dialing the engine directly.
+export function comfyEventSocketUrl(engineUrl: string, devOrigin: boolean, clientId: string) {
+  if (devOrigin) return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/comfy-ws?clientId=${encodeURIComponent(clientId)}`
+  const address = new URL(engineUrl)
+  address.protocol = address.protocol === 'https:' ? 'wss:' : 'ws:'
+  address.pathname = `${address.pathname.replace(/\/$/, '')}/ws`
+  address.search = `clientId=${encodeURIComponent(clientId)}`
+  return address.href
+}
+
 export function useLivePreview(url: string | undefined, enabled: boolean, onProgress: (id: string, update: LiveProgress) => void) {
   const [clientId] = useState(createId)
   const [preview, setPreview] = useState<LivePreview | null>(null)
@@ -66,11 +80,7 @@ export function useLivePreview(url: string | undefined, enabled: boolean, onProg
       setPreview(next)
     }
     const connect = () => {
-      const address = new URL(url)
-      address.protocol = address.protocol === 'https:' ? 'wss:' : 'ws:'
-      address.pathname = `${address.pathname.replace(/\/$/, '')}/ws`
-      address.search = new URLSearchParams({ clientId }).toString()
-      socket = new WebSocket(address)
+      socket = new WebSocket(comfyEventSocketUrl(url, import.meta.env.DEV, clientId))
       socket.binaryType = 'arraybuffer'
       socket.onopen = () => setConnected(true)
       socket.onerror = () => setConnected(false)

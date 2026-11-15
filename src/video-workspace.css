@@ -194,6 +194,7 @@
 .video-preview-empty strong { color: var(--preview-ink); font-size: 15px; font-weight: 500; }
 .video-preview-empty span { max-width: 85%; font-size: 12px; }
 .video-preview-empty .progress { width: min(260px,70%); }
+.video-preview-socket-warning { max-width: 85%; color: var(--preview-ink); font-size: 11px; opacity: 0.75; }
 .video-preview-failed { box-sizing: border-box; height: auto; max-width: 520px; max-height: 100%; padding: 22px; overflow: auto; }
 .video-preview-failed > svg { color: var(--danger, #f0a79b); /* theme-exempt: danger pin (D15) */ }
 .video-preview-failed strong { color: var(--danger, #ffe1d8); /* theme-exempt: danger pin (D15) */ font-weight: 650; }
