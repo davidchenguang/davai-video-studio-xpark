@@ -751,3 +751,23 @@ const readSource = (path) => fs.readFileSync(path, 'utf8')
   const artWidth = polish.match(/\.music3-page \.music3-art \{ width: min\(100%, (\d+)px\)/)?.[1]
   assert.ok(artWidth && Number(artWidth) <= 220, `the Music 3 album art stays a tile (measured ${artWidth}px, cap 220px)`)
 }
+
+// ---- The studio shell's compacted generate bar keeps its full-bleed inset ----
+// The studio shell compacts .zimage-composer padding to 14px while the generate
+// bar keeps visual-system.css's -22px full-bleed margin. Its sticky rule zeroed
+// the bar's inline padding, so the primary button sat flush with the panel edge
+// and 8px of it was clipped by the composer's overflow: hidden (measured at
+// 1913x1118: button right edge 653px against a 645px clip edge).
+{
+  const studioSystem = readSource('src/studio-system.css')
+  const rule = studioSystem.match(/\.studio-shell-active \.zimage-generate-bar \{[^}]*\}/)?.[0]
+  assert.ok(rule, 'the studio shell restyles the generator generate bar')
+  assert.ok(
+    /margin-inline:\s*-14px/.test(rule),
+    'the studio-shell generate bar bleed matches the compacted 14px composer padding',
+  )
+  assert.ok(
+    /padding:\s*10px 14px 0/.test(rule),
+    'the studio-shell generate bar insets its actions by the composer padding instead of clipping them',
+  )
+}

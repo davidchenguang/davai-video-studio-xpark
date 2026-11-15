@@ -134,7 +134,7 @@
 .studio-shell-active .zimage-preview-stage:has(.empty-preview),
 .studio-shell-active .ace-preview-stage:has(.empty-preview) { min-height: max(420px, 62vh); }
 .studio-shell-active .zimage-preview-stage > img { max-height: 70vh; }
-.studio-shell-active .zimage-generate-bar { position: sticky; bottom: 0; padding: 10px 0 0; background: var(--surface); }
+.studio-shell-active .zimage-generate-bar { position: sticky; bottom: 0; margin-inline: -14px; padding: 10px 14px 0; background: var(--surface); }
 
 /* Asset studios keep their project rail, but use Video's narrow, flat asset rows. */
 .studio-shell-active .character-studio-grid { grid-template-columns: 220px minmax(0, 1fr); min-height: calc(100dvh - 154px); }
