@@ -27,6 +27,11 @@ pnpm build:web
 
 For UI changes, also exercise the affected screen in the Electron app at its smallest supported layout and a typical desktop size. Verify empty, loading, success, failure, and disabled states when applicable.
 
+## Engine-side dependencies for the H3 animated live preview
+
+- Custom node pack: `ComfyUI-MiniMaxH3-PreviewOverride` (simsim9-stack), pinned at commit `d1eb17b`, in `custom_nodes/`. The renderer only speaks this pack's preview protocol (event `minimax_h3_preview_override` carrying `image/mime/fps/step/total`).
+- Preview decoder: `models/vae_approx/taeh3_decoder.safetensors` must be the 12-channel TAEHV-format file from madebyollin/taehv (`sha256 4fd022bf…`, 22,709,752 bytes). The decoder bundled in the pack's `minivae/` does NOT load under ComfyUI 0.45.3 (`comfy.sd.VAE`'s H3 branch expects a 12-channel tail conv; the bundled one is 3-channel) — copying it into `vae_approx` silently falls back to Latent2RGB, which is the upstream issue #1 "preview stuck at thumbnail size" symptom. Do not reinstall it.
+
 ## Known follow-up audit items
 
 - TODO(movie-editor): replace the current primary-track-only export with a compositor that honors gaps, overlays, transforms, titles, and mixed audio; complete when exported output matches the visible timeline.
@@ -35,6 +40,7 @@ For UI changes, also exercise the affected screen in the Electron app at its sma
 - TODO(accessibility): complete a keyboard and screen-reader pass on the dense editor/studio screens and document the supported shortcut map in-product.
 - TODO(image-models): decide whether the H3 图片 workspace replaces Z-Image as the default still-image generator. The H3-Image workspace is additive for now — Z-Image keeps its sidebar entry and still owns the scratchpad's "生成静帧" handoff; complete when H3-Image's Chinese text rendering and 4K output are validated on customer hardware, and the scratchpad handoff plus the Z-Image entry point are either switched or explicitly kept.
 - TODO(h3-image-edit): the local H3-Image dedicated DiT renders T2I stills correctly but produced garbled frames in reference-edit mode; complete when a verified local edit path exists (FL2VA plus the p-h3-image LoRA, or a documented cloud-only route) and the H3 图片 workspace can expose it.
+- TODO(live-preview): re-fetch engine `object_info` and the model inventory when the event socket (`liveConnected`) transitions from down to up, so an engine restart or custom-node install is picked up without a manual "测试连接"; complete when installing a node and restarting the engine makes it appear in the app after the socket reconnects alone.
 
 <comet-ambient-resume>
 <!-- Managed by Comet. Edits inside this block may be replaced by comet init/update. -->
