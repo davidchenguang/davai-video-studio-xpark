@@ -1,7 +1,12 @@
 import type { ObjectInfo } from "./comfyInfo"
 
 export function findH3PreviewOverrideNode(info: ObjectInfo) {
-  return Object.keys(info).find((name) => name === 'MiniMaxH3PreviewOverrideCS')
+  // The renderer only speaks the un-suffixed node's preview protocol (event
+  // `<name>_override` carrying image/mime/fps/step/total). The CS-suffixed
+  // Director node reuses the same class name but emits a frames array on a
+  // different event, so it must never shadow the compatible node.
+  return Object.keys(info).find((name) => name === 'MiniMaxH3PreviewOverride')
+    ?? Object.keys(info).find((name) => name === 'MiniMaxH3PreviewOverrideCS')
     ?? Object.keys(info).find((name) => /minimax.*h3.*preview.*override/i.test(name))
 }
 
