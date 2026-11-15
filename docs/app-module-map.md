@@ -14,7 +14,7 @@
 | `src/components/LibraryView.tsx` and `src/components/VideoPlayer.tsx` | Render library filtering, output cards, and media playback controls. |
 | `src/components/SettingsView.tsx` and `src/components/FormFields.tsx` | Settings panels and shared labeled input controls. |
 | `src/lib/h3Diagnostics.ts` and `src/lib/h3NodeDetection.ts` | H3 benchmark persistence, model stack reports (video and H3-Image), and ComfyUI node detection. |
-| `src/lib/h3Image.ts` and `src/components/H3ImageWorkspace.tsx` | MiniMax H3-Image still-image graphs (the dedicated image DiT tier and the zero-download FL2VA tier) and the H3 图片 workspace: tier picker, model components, local prompt assist, and handoff into the H3 and LTX video workspaces. |
+| `src/lib/h3Image.ts` and `src/components/H3ImageWorkspace.tsx` | MiniMax H3-Image still-image graphs (the dedicated image DiT tier and the zero-download FL2VA tier) and the H3 图片 workspace: automatic tier selection with an advanced-options override, single readiness signals shared by badges/gate/auto, tier-clamped size table, tier attribution, local prompt assist, and handoff into the H3 and LTX video workspaces. |
 | `src/components/CreatePromptPanel.tsx`, `src/lib/promptPresets.ts`, and `src/lib/promptAutoTags.ts` | Create prompt tools, shared `//` command search, and deterministic H3 section tagging. |
 | `electron/promptCompletion.ts` | Bounded Ollama and LM Studio inline suggestion request contracts; privileged transport stays in Electron main. |
 | `src/lib/comfyJobState.ts` | Interpret ComfyUI queue/history state and guard terminal updates against cancellation races. |

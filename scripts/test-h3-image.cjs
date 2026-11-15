@@ -2,9 +2,10 @@ const assert = require('node:assert/strict')
 const { load } = require('./test-ts-loader.cjs')
 
 const {
-  buildH3Image, H3_IMAGE_TIERS, H3_IMAGE_SAVE_PREFIX,
+  buildH3Image, clampH3ImageResolution, H3_IMAGE_TIERS, H3_IMAGE_SAVE_PREFIX,
+  h3ImageTierAttribution, h3ImageTierReady, h3ImageSizesForTier,
   isH3Encoder, isH3Fl2vaModel, isH3ImageModel, isH3ImageVae, isH3TurboLora, isH3VideoVae,
-  h3ImageRequiredNodes,
+  h3ImageRequiredNodes, resolveH3ImageTier,
 } = load('src/lib/h3Image.ts')
 const { h3ImageStackReport } = load('src/lib/h3Diagnostics.ts')
 const { snapMiniMaxResolution, snapResolutionString } = load('src/lib/videoResolutions.ts')
@@ -111,4 +112,43 @@ assert.equal(snapResolutionString('4096x2304'), '1344x768', 'A 4K landscape keep
 assert.equal(snapResolutionString('768x1344'), '768x1344', 'A legal portrait rung stays untouched')
 assert.equal(snapMiniMaxResolution(0, 0), '608x352', 'An invalid size falls back to the first legal rung')
 
-console.log('PASS: H3-Image graph builder, tier detection, model self-check and video-resolution snapping')
+// Tier readiness and auto selection share one signal source (A4).
+const dedicatedSignals = {
+  models: ['minimax_h3_image_pruned_int8_convrot.safetensors'],
+  encoders: ['qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors'],
+  vaes: ['minimax_h3_image_vae_fp16.safetensors'],
+  loras: [],
+  dedicatedNodeReady: true,
+}
+assert.equal(h3ImageTierReady('dedicated', dedicatedSignals), true, 'A complete dedicated stack with the 0.45 node is ready')
+assert.equal(h3ImageTierReady('fl2va', dedicatedSignals), false, 'The video tier needs the video DiT, VAE and Turbo LoRA')
+assert.deepEqual(plain(resolveH3ImageTier(dedicatedSignals)), { tier: 'dedicated', usable: true })
+
+const noNodeSignals = { ...dedicatedSignals, dedicatedNodeReady: false }
+assert.equal(h3ImageTierReady('dedicated', noNodeSignals), false, 'Without the 0.45 node the dedicated tier is gated')
+
+const videoSignals = {
+  models: ['minimax_h3_fl2va_pruned_int8_convrot.safetensors'],
+  encoders: ['qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors'],
+  vaes: ['minimax_h3_video_vae_fp16.safetensors'],
+  loras: ['minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors'],
+  dedicatedNodeReady: false,
+}
+assert.deepEqual(plain(resolveH3ImageTier(videoSignals)), { tier: 'fl2va', usable: true }, 'A video customer auto-falls back to the zero-download tier')
+
+assert.deepEqual(plain(resolveH3ImageTier({ models: [], encoders: [], vaes: [], loras: [], dedicatedNodeReady: false })), { tier: 'dedicated', usable: false }, 'An empty engine reports nothing usable')
+
+// The video tier caps at 2048 and clamps keep the aspect ratio (decision 10, B2).
+assert.equal(h3ImageSizesForTier('fl2va')['16:9'].includes('4096x2304'), false, 'The 4K rung is dedicated-only')
+assert.equal(h3ImageSizesForTier('dedicated')['16:9'].includes('4096x2304'), true, 'The dedicated tier keeps its print-grade rungs')
+assert.equal(clampH3ImageResolution('fl2va', '4096x2304'), '2048x1152', 'A stored 4K size clamps to the same-ratio rung')
+assert.equal(clampH3ImageResolution('fl2va', '4096x4096'), '2048x2048')
+assert.equal(clampH3ImageResolution('fl2va', '2304x4096'), '1152x2048')
+assert.equal(clampH3ImageResolution('fl2va', '1344x768'), '1344x768', 'A legal size stays untouched')
+assert.equal(clampH3ImageResolution('dedicated', '4096x2304'), '4096x2304', 'The dedicated tier keeps 4K')
+
+// Attribution follows the generating tier, not the current selection (A1).
+assert.equal(h3ImageTierAttribution('dedicated'), '由 MiniMax-H3-Image 生成')
+assert.equal(h3ImageTierAttribution('fl2va'), '由 MiniMax H3 视频模型生成')
+
+console.log('PASS: H3-Image graph builder, tier detection/readiness, resolution clamping, attribution and video-resolution snapping')

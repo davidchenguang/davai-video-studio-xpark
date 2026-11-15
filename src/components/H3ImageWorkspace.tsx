@@ -1,7 +1,10 @@
 import { PreviewPanel, ProductionLoading } from './Workspace'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Check, CircleStop, Dices, Film, Gauge, ImagePlus, LoaderCircle, Sparkles, WandSparkles } from 'lucide-react'
-import { buildH3Image, H3_IMAGE_TIERS, isH3Fl2vaModel, isH3ImageModel, isH3TurboLora, type H3ImageTier } from '../lib/h3Image'
+import {
+  buildH3Image, clampH3ImageResolution, h3ImageTierAttribution, h3ImageTierReady, H3_IMAGE_TIERS,
+  isH3Fl2vaModel, isH3ImageModel, resolveH3ImageTier, type H3ImageEngineSignals, type H3ImageTier,
+} from '../lib/h3Image'
 import { buildImageJob } from '../lib/jobPresentation'
 import { choices, hasInput, type ObjectInfo } from '../lib/comfyInfo'
 import { RenderSize } from './RenderSize'
@@ -12,39 +15,44 @@ import { useLivePreview, type LiveProgress } from '../lib/useLivePreview'
 type StoredWorkspace = {
   prompt: string
   resolution: string
-  tier: H3ImageTier
+  // A persisted tier is always treated as an explicit override (decision 11):
+  // the auto rule only re-claims control once the stored tier became unusable.
+  tierOverride: H3ImageTier | null
   model: string
   encoder: string
   vae: string
   lora: string
   seed: number
-  steps: number
   livePreview: boolean
 }
 
 const defaults: StoredWorkspace = {
   prompt: '',
   resolution: '1344x768',
-  tier: 'dedicated',
+  tierOverride: null,
   model: H3_IMAGE_TIERS.dedicated.model,
   encoder: H3_IMAGE_TIERS.dedicated.encoder,
   vae: H3_IMAGE_TIERS.dedicated.vae,
   lora: H3_IMAGE_TIERS.fl2va.lora ?? '',
   seed: Math.floor(Math.random() * 1_000_000_000),
-  steps: H3_IMAGE_TIERS.dedicated.steps,
   livePreview: true,
 }
 
 function readWorkspace(): StoredWorkspace {
   try {
-    const saved = JSON.parse(localStorage.getItem('minimax.h3image-workspace') ?? '{}') as Partial<StoredWorkspace>
-    const tier: H3ImageTier = saved.tier === 'fl2va' ? 'fl2va' : 'dedicated'
-    return { ...defaults, ...saved, tier, steps: Number(saved.steps) > 0 ? Number(saved.steps) : H3_IMAGE_TIERS[tier].steps }
+    const saved = JSON.parse(localStorage.getItem('minimax.h3image-workspace') ?? '{}') as Partial<StoredWorkspace & { tier?: H3ImageTier }>
+    // Older shapes stored a plain tier; both values migrate to explicit
+    // overrides so nobody's past choice is silently reverted (decision 11).
+    const tierOverride: H3ImageTier | null = saved.tierOverride === 'fl2va' || saved.tierOverride === 'dedicated'
+      ? saved.tierOverride
+      : saved.tier === 'fl2va' || saved.tier === 'dedicated' ? saved.tier : null
+    const base: StoredWorkspace = { ...defaults, ...saved, tierOverride }
+    return { ...base, model: base.model || defaults.model, encoder: base.encoder || defaults.encoder, vae: base.vae || defaults.vae, lora: base.lora || defaults.lora }
   }
   catch { return defaults }
 }
 
-type H3ImageJob = { id: string; url: string; resolution: string; prompt: string }
+type H3ImageJob = { id: string; url: string; resolution: string; prompt: string; tier: H3ImageTier }
 type HistoryEntry = {
   status?: { status_str?: string }
   outputs?: Record<string, { images?: Array<{ filename: string; subfolder?: string; type?: string }> }>
@@ -78,16 +86,17 @@ export function H3ImageWorkspace({
   const initial = useMemo(readWorkspace, [])
   const [prompt, setPrompt] = useState(initial.prompt)
   const [resolution, setResolution] = useState(initial.resolution)
-  const [tier, setTier] = useState<H3ImageTier>(initial.tier)
+  const [tierOverride, setTierOverride] = useState<H3ImageTier | null>(initial.tierOverride)
+  const [tier, setTier] = useState<H3ImageTier>(initial.tierOverride ?? 'dedicated')
   const [model, setModel] = useState(initial.model)
   const [encoder, setEncoder] = useState(initial.encoder)
   const [vae, setVae] = useState(initial.vae)
   const [lora, setLora] = useState(initial.lora)
   const [seed, setSeed] = useState(initial.seed)
-  const [steps, setSteps] = useState(initial.steps)
   const [livePreview, setLivePreview] = useState(initial.livePreview)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [job, setJob] = useState<H3ImageJob | null>(null)
-  const [result, setResult] = useState<{ file: MediaFile; resolution: string } | null>(null)
+  const [result, setResult] = useState<{ file: MediaFile; resolution: string; tier: H3ImageTier } | null>(null)
   const [busy, setBusy] = useState(false)
   const [assisting, setAssisting] = useState(false)
   const [message, setMessage] = useState('')
@@ -116,8 +125,8 @@ export function H3ImageWorkspace({
   // listen to the shared event: otherwise it would silently steal the prompt
   // from Z-Image while staying hidden.
   useEffect(() => {
-    localStorage.setItem('minimax.h3image-workspace', JSON.stringify({ prompt, resolution, tier, model, encoder, vae, lora, seed, steps, livePreview }))
-  }, [encoder, livePreview, lora, model, prompt, resolution, seed, steps, tier, vae])
+    localStorage.setItem('minimax.h3image-workspace', JSON.stringify({ prompt, resolution, tierOverride, tier, model, encoder, vae, lora, seed, livePreview }))
+  }, [encoder, livePreview, lora, model, prompt, resolution, seed, tier, tierOverride, vae])
 
   useEffect(() => {
     if (!job) return
@@ -144,7 +153,7 @@ export function H3ImageWorkspace({
           // anything deferred behind a `disposed` check would be dropped.
           const outputUrl = await window.minimax.mediaUrl(saved.path).catch(() => null)
           if (!disposed) {
-            setResult({ file: { ...saved, preview, kind: 'image' }, resolution: job.resolution })
+            setResult({ file: { ...saved, preview, kind: 'image' }, resolution: job.resolution, tier: job.tier })
             updateJob(null); setBusy(false); setError(false); liveProgressRef.current = null; setLiveProgress(null); setMessage('图片已生成，可以使用。')
             const [width, height] = job.resolution.split('x').map(Number)
             if (outputUrl) registerJobRef.current?.(buildImageJob({ provider: 'h3image', promptId: job.id, prompt: job.prompt, width, height, outputUrl, localOutputPath: saved.path }))
@@ -172,34 +181,84 @@ export function H3ImageWorkspace({
     return () => { disposed = true; clearTimeout(timer) }
   }, [job, outputDirectory, updateJob])
 
-  const installedModels = choices(info, 'UNETLoader', 'unet_name')
-  const installedEncoders = choices(info, 'CLIPLoader', 'clip_name')
-  const installedVaes = choices(info, 'VAELoader', 'vae_name')
-  const installedLoras = choices(info, 'LoraLoaderModelOnly', 'lora_name')
-  const dedicatedInstalled = installedModels.some(isH3ImageModel)
-  const fl2vaInstalled = installedModels.some(isH3Fl2vaModel) && installedLoras.some(isH3TurboLora)
-  // The dedicated route needs the ComfyUI 0.45 conditioning node; without it the
-  // engine answers with an "unknown node type" error, so we gate it up front.
-  const engineReady = tier === 'fl2va' ? true : hasInput(info, 'MiniMaxH3ImageConditioning', 'prompt')
-  const modelMatchesTier = tier === 'dedicated' ? isH3ImageModel(model) : isH3Fl2vaModel(model)
-  const available = installedModels.includes(model) && modelMatchesTier
-    && installedEncoders.includes(encoder)
-    && installedVaes.includes(vae)
-    && (tier === 'fl2va' ? Boolean(lora) && installedLoras.includes(lora) : true)
-    && engineReady
+  // Single readiness source (A4): object_info choices plus the 0.45 node gate,
+  // shared by the badges, the status line, the generate gate and auto selection.
+  const signals: H3ImageEngineSignals = useMemo(() => ({
+    models: choices(info, 'UNETLoader', 'unet_name'),
+    encoders: choices(info, 'CLIPLoader', 'clip_name'),
+    vaes: choices(info, 'VAELoader', 'vae_name'),
+    loras: choices(info, 'LoraLoaderModelOnly', 'lora_name'),
+    dedicatedNodeReady: hasInput(info, 'MiniMaxH3ImageConditioning', 'prompt'),
+  }), [info])
+  const dedicatedReady = h3ImageTierReady('dedicated', signals)
+  const fl2vaReady = h3ImageTierReady('fl2va', signals)
 
-  const switchTier = (next: H3ImageTier) => {
-    if (busy || next === tier) return
-    const spec = H3_IMAGE_TIERS[next]
+  // Auto selection only re-evaluates on a connected engine with fresh signals
+  // (A3): a restart leaves info briefly empty, and re-running auto on that would
+  // flip the tier and trigger an irreversible resolution clamp.
+  const engineUsable = connected && signals.models.length > 0
+  const applyTier = useCallback((next: H3ImageTier) => {
     setTier(next)
+    const spec = H3_IMAGE_TIERS[next]
     setModel(spec.model)
     setEncoder(spec.encoder)
     setVae(spec.vae)
     setLora(spec.lora ?? '')
-    setSteps(spec.steps)
-    setMessage(next === 'dedicated' ? '已选择 H3-Image 专用模型：中文排版最稳，可直出 4K。' : '已选择 H3 视频同款模型：复用视频 DiT，无需新增下载。')
+  }, [])
+  useEffect(() => {
+    if (!engineUsable || busy) return
+    const resolved = resolveH3ImageTier(signals)
+    if (tierOverride) {
+      // A persisted override is respected while usable; once its stack
+      // disappears we fall back silently, without discarding it for future
+      // sessions.
+      if (h3ImageTierReady(tierOverride, signals) || resolved.tier === tier) return
+    } else if (resolved.tier === tier) return
+    applyTier(resolved.tier)
+    // Startup/resume path (A2): a stored size above the new tier's cap clamps
+    // to the same-ratio rung, so the size select never renders a bare value.
+    const clamped = clampH3ImageResolution(resolved.tier, resolution)
+    if (clamped !== resolution) setResolution(clamped)
+  }, [applyTier, busy, engineUsable, resolution, signals, tier, tierOverride])
+
+  // The dedicated route needs the ComfyUI 0.45 conditioning node; without it the
+  // engine answers with an "unknown node type" error, so we gate it up front.
+  const modelMatchesTier = tier === 'dedicated' ? isH3ImageModel(model) : isH3Fl2vaModel(model)
+  const tierReady = h3ImageTierReady(tier, signals)
+  const modelSelected = signals.models.includes(model)
+  const available = modelSelected && modelMatchesTier
+    && signals.encoders.includes(encoder)
+    && signals.vaes.includes(vae)
+    && (tier === 'fl2va' ? Boolean(lora) && signals.loras.includes(lora) : true)
+    && tierReady
+
+  const switchTier = (next: H3ImageTier) => {
+    if (busy || next === tier) return
+    applyTier(next)
+    setTierOverride(next)
+    const clamped = clampH3ImageResolution(next, resolution)
+    if (clamped !== resolution) {
+      setResolution(clamped)
+      setMessage(`已切换到${H3_IMAGE_TIERS[next].label}；画幅超出该档位上限，已调整到 ${clamped.replace('x', ' × ')}。`)
+    } else {
+      setMessage(next === 'dedicated' ? '已选择 H3-Image 专用模型：官方 6 步，可直出 4K。' : '已选择 H3 视频同款模型：复用视频权重，零新增下载。')
+    }
     setError(false)
   }
+
+  const autoTier = !tierOverride && engineUsable ? resolveH3ImageTier(signals).tier : null
+  // B3: when a persisted override lost its stack and auto moved on, say so
+  // instead of presenting the fallback as if it were the user's choice.
+  const fallbackFromOverride = tierOverride !== null && tierOverride !== tier && !h3ImageTierReady(tierOverride, signals)
+  const statusLine = !connected
+    ? '引擎离线'
+    : fallbackFromOverride && tierOverride !== null
+      ? `已按手动选择尝试${H3_IMAGE_TIERS[tierOverride].label}，因缺${tierOverride === 'dedicated' ? '专用模型或 ComfyUI 0.45 节点' : '视频权重或 Turbo LoRA'}临时使用${H3_IMAGE_TIERS[tier].label}`
+      : !tierReady && engineUsable
+        ? (tier === 'dedicated'
+          ? (signals.dedicatedNodeReady ? '未检测到专用模型权重' : '当前 ComfyUI 缺少 0.45 的专用模型节点')
+          : '未检测到视频同款权重')
+        : `当前：${H3_IMAGE_TIERS[tier].label} · ${tier === 'dedicated' ? '官方 6 步 · 最高 16MP' : '8 步 · 最高 2048'}${!tierOverride && engineUsable ? ' · 自动选择' : ''}${autoTier === tier && tier === 'fl2va' && !dedicatedReady ? '（未检测到专用模型）' : ''}`
 
   const fields = tier === 'dedicated'
     ? [
@@ -219,11 +278,11 @@ export function H3ImageWorkspace({
     setBusy(true); setResult(null); setError(false); liveProgressRef.current = null; setLiveProgress(null); setMessage(`正在提交${H3_IMAGE_TIERS[tier].label}工作流…`)
     try {
       const [width, height] = resolution.split('x').map(Number)
-      const graph = buildH3Image(prompt.trim(), width, height, seed, { model, encoder, vae, lora: tier === 'fl2va' ? lora : undefined }, tier, steps, livePreview, gpuRouting)
+      const graph = buildH3Image(prompt.trim(), width, height, seed, { model, encoder, vae, lora: tier === 'fl2va' ? lora : undefined }, tier, H3_IMAGE_TIERS[tier].steps, livePreview, gpuRouting)
       const response = await window.minimax.submitPrompt(url, graph, live.clientId)
       live.registerWorkflow(response.prompt_id, graph, livePreview)
       if (gpuRouting) console.info('[GPU Routing] H3-Image component routing enabled.', gpuRouting)
-      updateJob({ id: response.prompt_id, url, resolution, prompt: prompt.trim() })
+      updateJob({ id: response.prompt_id, url, resolution, prompt: prompt.trim(), tier })
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : String(caught)); setError(true); setBusy(false)
     }
@@ -251,38 +310,40 @@ export function H3ImageWorkspace({
   }
 
   const visibleLivePreview = livePreview && busy && job && live.preview?.promptId === job.id ? live.preview : null
-  const tierInstalled = tier === 'dedicated' ? dedicatedInstalled : fl2vaInstalled
 
   return <div className="standard-page h3image-workspace">
     <div className="page-heading">
-      <div><p className="eyebrow">创作 · H3‑IMAGE</p><h1>图片 · H3-Image</h1><p>用 MiniMax H3-Image 生成中文排版精准的静帧，可直接发往 H3 与 LTX 视频。</p><p className="h3image-attribution">由 MiniMax-H3-Image 生成</p></div>
-      <div className="heading-state"><span className={connected && available ? 'ok' : 'warn'}>{connected ? available ? <Check size={15} /> : <AlertCircle size={15} /> : <AlertCircle size={15} />}{connected ? available ? '模型就绪' : !engineReady ? '需要 ComfyUI 0.45+' : '需要模型' : '引擎离线'}</span></div>
+      <div><p className="eyebrow">创作 · H3‑IMAGE</p><h1>图片 · H3-Image</h1><p>生成可直接发往 H3 与 LTX 视频的静帧；推荐使用 MiniMax 官方 H3-Image 模型。</p><p className="h3image-attribution">{result ? h3ImageTierAttribution(result.tier) : h3ImageTierAttribution(tier)}</p></div>
+      <div className="heading-state"><span className={connected ? (available ? 'ok' : 'warn') : 'warn'}>{connected ? available ? <Check size={15} /> : <AlertCircle size={15} /> : <AlertCircle size={15} />}{connected ? available ? '模型就绪' : !tierReady ? '需要模型或 0.45' : '需要选择模型' : '引擎离线'}</span></div>
     </div>
 
     <div className="zimage-workspace-grid">
       <section className="zimage-composer">
-        <fieldset className="zimage-mode-picker" disabled={busy}>
-          <legend>生成模式</legend>
-          <label className={tier === 'dedicated' ? 'selected' : ''}><input type="radio" name="h3image-tier" checked={tier === 'dedicated'} onChange={() => switchTier('dedicated')} /><Sparkles size={18} /><span><strong>{H3_IMAGE_TIERS.dedicated.label}</strong><small>{H3_IMAGE_TIERS.dedicated.summary}</small></span><em className={dedicatedInstalled ? 'installed' : ''}>{dedicatedInstalled ? '已安装' : '需要模型'}</em></label>
-          <label className={tier === 'fl2va' ? 'selected' : ''}><input type="radio" name="h3image-tier" checked={tier === 'fl2va'} onChange={() => switchTier('fl2va')} /><Gauge size={18} /><span><strong>{H3_IMAGE_TIERS.fl2va.label}</strong><small>{H3_IMAGE_TIERS.fl2va.summary}</small></span><em className={fl2vaInstalled ? 'installed' : ''}>{fl2vaInstalled ? '已安装' : '需要模型'}</em></label>
-        </fieldset>
-        <p className="field-help">{H3_IMAGE_TIERS[tier].detail}</p>
+        <div className="field-group h3image-engine-status"><span className="field-label"><label>模型来源</label></span><p className="field-help">{statusLine}</p>{(!tierOverride || available) && <button className="text-button" onClick={() => {
+          setAdvancedOpen(true)
+          document.getElementById('h3image-advanced')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }}>在高级选项中切换</button>}</div>
         <div className="field-group">
           <div className="field-label"><label htmlFor="h3image-prompt">图片提示词</label><span>{prompt.length.toLocaleString()} 字符</span></div>
           <SmartPromptEditor id="h3image-prompt" value={prompt} onChange={setPrompt} placeholder="描述主体、环境、构图、镜头、光线、色彩与需要渲染的中文文字…输入 // 可使用制作指令。" disabled={busy} />
           <div className="zimage-prompt-actions"><button className="secondary-button" onClick={() => void enhance()} disabled={busy || assisting || !ollamaAvailable || !prompt.trim()} title={ollamaAvailable ? `用 ${ollamaModel} 润色` : '请在设置中配置本地 AI 助手'}>{assisting ? <LoaderCircle size={15} className="spin" /> : <WandSparkles size={15} />}用 {llmProvider === 'lmstudio' ? 'LM Studio' : 'Ollama'} 润色</button><small>{ollamaAvailable ? `${ollamaModel} · 本地` : `${llmProvider === 'lmstudio' ? 'LM Studio' : 'Ollama'} 不可用`}</small></div>
         </div>
 
-        <RenderSize value={resolution} onChange={setResolution} provider="h3image" />
+        <RenderSize value={resolution} onChange={setResolution} provider="h3image" h3ImageTier={tier} />
         <div className="field-group"><label className="video-checkbox"><input type="checkbox" checked={livePreview} onChange={(event) => setLivePreview(event.target.checked)} />生成时显示实时预览</label><small className="field-help">关闭后新渲染不再输出预览。进度与保存的图片仍可查看。</small></div>
         <div className="zimage-seed-row"><label>种子<input type="number" min="0" max="999999999999" value={seed} disabled={busy} onChange={(event) => setSeed(Number(event.target.value))} /></label><button className="secondary-button" disabled={busy} onClick={() => setSeed(Math.floor(Math.random() * 1_000_000_000))}><Dices size={15} />随机</button></div>
 
-        <details className="zimage-model-settings">
+        <details className="zimage-model-settings" open={advancedOpen} id="h3image-advanced">
           <summary>模型组件 <small>高级</small></summary>
-          <div className="zimage-quality-controls"><label>采样步数<input type="number" min="4" max="12" value={steps} disabled={busy} onChange={(event) => { setSteps(Math.max(4, Math.min(12, Number(event.target.value)))) }} /></label></div>
-          <p className="field-help">H3-Image 是无 CFG 的蒸馏模型：引导强度固定为 1，也不使用反向提示词。步数建议保持默认（专用模型 6 步、视频同款 8 步）。</p>
+          <fieldset className="zimage-mode-picker" disabled={busy}>
+            <legend>模型来源</legend>
+            <label className={tier === 'dedicated' ? 'selected' : ''}><input type="radio" name="h3image-tier" checked={tier === 'dedicated'} onChange={() => switchTier('dedicated')} /><Sparkles size={18} /><span><strong>{H3_IMAGE_TIERS.dedicated.label}</strong><small>{H3_IMAGE_TIERS.dedicated.summary}</small></span><em className={dedicatedReady ? 'installed' : ''}>{dedicatedReady ? '已安装' : '需要模型'}</em></label>
+            <label className={tier === 'fl2va' ? 'selected' : ''}><input type="radio" name="h3image-tier" checked={tier === 'fl2va'} onChange={() => switchTier('fl2va')} /><Gauge size={18} /><span><strong>{H3_IMAGE_TIERS.fl2va.label}</strong><small>{H3_IMAGE_TIERS.fl2va.summary}</small></span><em className={fl2vaReady ? 'installed' : ''}>{fl2vaReady ? '已安装' : '需要模型'}</em></label>
+          </fieldset>
+          <p className="field-help">{H3_IMAGE_TIERS[tier].detail}</p>
+          {tierOverride === 'fl2va' && dedicatedReady && <p className="field-help">已手动选择视频同款，但专用模型已就绪：它更快、可直出 4K。</p>}
           <div className="zimage-models">{fields.map((field) => <label key={field.label}>{field.label}<select value={field.value} disabled={busy} onChange={(event) => field.set(event.target.value)}>{!choices(info, field.node, field.field).includes(field.value) && <option value={field.value}>{field.value} · 不可用</option>}{choices(info, field.node, field.field).map((name) => <option key={name}>{name}</option>)}</select></label>)}</div>
-          {!available && <p className="field-help">{!engineReady ? '当前 ComfyUI 缺少 MiniMaxH3ImageConditioning 节点，请升级到 0.45 或更高版本后使用 H3-Image 专用模型；「H3 视频同款模型」无需该节点。' : tierInstalled ? '请选择 ComfyUI 中已注册、与之匹配的模型文件。' : `请在 ComfyUI 中安装 ${tier === 'dedicated' ? 'H3-Image DiT 与图像 VAE' : 'H3 视频 DiT、Turbo LoRA 与视频 VAE'}。`}</p>}
+          {!available && <p className="field-help">{!engineUsable ? '引擎离线或尚未加载模型清单。' : !tierReady ? (tier === 'dedicated' ? (signals.dedicatedNodeReady ? '请在 ComfyUI 中安装 H3-Image DiT 与图像 VAE（文本编码器与视频共用）。' : '当前 ComfyUI 缺少 MiniMaxH3ImageConditioning 节点，请升级到 0.45 或更高版本后使用 H3-Image 专用模型；「H3 视频同款模型」无需该节点。') : `请在 ComfyUI 中安装 H3 视频 DiT、视频 VAE、文本编码器与 Turbo 8 步 LoRA。`) : '请选择 ComfyUI 中已注册、与之匹配的模型文件。'}</p>}
         </details>
 
         {message && <div className={`zimage-message ${error ? 'error' : ''}`} role={error ? 'alert' : 'status'}>{busy && <LoaderCircle size={16} className="spin" />}<span>{message}</span></div>}
