@@ -1,0 +1,814 @@
+schema: comet.native.v4
+name: image-library-bridge
+language: zh-CN
+phase: archive
+status: done
+state_version: 11
+brief: brief.md
+document_constraints_version: 3
+shape_confirmation_hash: 496eb60d0b2f9b3180c2cb5748d678bccbcd35b0126f087db676e7a65fa9c6d4
+spec_changes:
+  - capability: image-library-bridge
+    operation: create
+    source: specs/image-library-bridge/spec.md
+workspace:
+  isolation: worktree
+  change_branch: comet/image-library-bridge
+  target_branch: main
+  finish: keep
+loop:
+  stage: done
+  goal_cycle: 2
+  iteration: 1
+  attempt: 1
+  retry_epoch: 0
+  failed_iteration_count: 0
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: null
+acceptance:
+  - id: A1
+    source: brief.md
+    text: H3-Image 工作区生成一张图片并保存成功后，App 的 jobs 状态新增 provider 为 h3image、mediaType 为
+      image、status 为 completed 的记录，localOutputPath 指向 Created Images
+      留存，outputUrl 是 minimax-media 短 URL（非 data URL），视频库图片筛选与队列历史出现该条目且提示词可搜索命中。
+    result: passed
+    reason:
+      text: 在隔离浏览器上下文（端口 5211，独立 localStorage）mock ComfyUI 桥接后真实驱动 H3-Image
+        工作区：提交→轮询→getOutputImage→saveComfyOutputImage→mediaUrl 全链路跑通，jobs 持久化中新增
+        {provider:'h3image', mediaType:'image', status:'completed',
+        mode:'image', progress:100, duration:0, promptId:'h3-probe-1',
+        prompt:'h3probe original prompt', width:1344, height:768,
+        localOutputPath:'C:\out\Created Images\created-image-h3probe.png',
+        outputUrl:'minimax-media://selected?path=...'};outputUrl 为 minimax-media
+        短 URL，localStorage 中不含 base64/data
+        URL；视频库图片筛选与队列视图均出现该条目，搜索提示词可命中。代码路径核对：App.registerCompletedImageJob
+        (useCallback 空依赖) 按 localOutputPath 幂等去重，H3ImageWorkspace 通过
+        registerJobRef 调用（不进轮询 effect 依赖）。
+      truncated: false
+  - id: A2
+    source: brief.md
+    text: Z-Image 工作区生成一张图片并保存成功后，App 的 jobs 状态新增 provider 为 zimage、mediaType 为
+      image 的完成记录；登记的 prompt
+      与宽高来自提交时捕获的快照（生成期间改动提示词或尺寸不影响登记值），视频库与队列历史可见且可搜索，宽高非 0。
+    result: passed
+    reason:
+      text: Z-Image 实测：提交前把分辨率设为 1920x1080、提交后（渲染进行中）把提示词改为 'zprobe CHANGED prompt
+        after submit'、分辨率改为 1024x576；登记条目仍为 prompt='zprobe original prompt',
+        width=1920, height=1080，证明登记取提交时快照（updateJob 在 create() 中写入
+        {id,url,prompt,width,height}，poll 分支只读 job.*）。宽高非
+        0，条目在视频库与队列历史可见、提示词搜索可命中。
+      truncated: false
+  - id: A3
+    source: brief.md
+    text: FireRed 图片编辑完成并保存成功后，App 的 jobs 状态新增 provider 为 firered、mediaType 为 image
+      的完成记录，localOutputPath 指向 FireRed Photo Edits 留存。
+    result: passed
+    reason:
+      text: FireRed 照片编辑实测跑通（选源图→画质模式→编辑图片→saveComfyOutputImage
+        purpose='photo-edit'→mediaUrl），jobs 新增 {provider:'firered',
+        mediaType:'image', status:'completed', localOutputPath:'C:\out\FireRed
+        Photo Edits\photo-edit-probe.png', prompt:'frprobe replace the jacket',
+        width:768, height:768}；保存目录与 electron/main.ts 的 folders 映射
+        'photo-edit'→'FireRed Photo Edits' 一致。
+      truncated: false
+  - id: A4
+    source: brief.md
+    text: 图片卡片的「在文件夹中显示」调用 showOutput(localOutputPath)，资源管理器打开并选中该 job
+      留存文件；localOutputPath 缺失的旧图片卡片不显示该按钮且不报错；目标文件已被移走时点击不创建同名目录。
+    result: passed
+    reason:
+      text: 视频库图片卡片实测：点击「在文件夹中显示」后 window.minimax.showOutput 被调用且参数为该 job 的
+        localOutputPath（'C:/out/Created Images/h3.png'）；localOutputPath
+        缺失的旧图片卡片（seed-old）与未知 provider 卡片均不渲染该按钮（DOM 断言
+        hasRevealBtn=false），不报错。electron 侧守卫用真实源码（从 electron/main.ts 抽取
+        shell:show-output handler，在临时目录以 stubbed shell
+        执行）验证：带扩展名且不存在的文件不会创建同名目录也不调用 showItemInFolder；存在的文件与目录调用行为不变。
+      truncated: false
+  - id: A5
+    source: brief.md
+    text: saveComfyOutputImage 失败时 jobs 不新增记录，工作区按既有路径展示保存失败错误；一次完成只登记一次（StrictMode
+      双挂载与 App 重渲染均不产生重复条目，轮询计时器不被重置）。
+    result: passed
+    reason:
+      text: saveComfyOutputImage 抛错实测：jobs 条目数前后均为 10，含 'failure path' 的条目 0
+        条，工作区沿用既有路径显示错误文案 'probe save failure'，未登记。幂等实测：一次完成期间 6 轮 App 级重渲染（连接检查
+        + 视图切换）后 saved 调用 1 次、轮询计数 2（running→success，计时器未被重置）、jobs 中该
+        localOutputPath 只有 1 条；另在 StrictMode 下从 localStorage 恢复旧 shape 的 FireRed
+        job 触发双挂载，saved 仍为 1 次、登记 1 条。
+      truncated: false
+  - id: A6
+    source: brief.md
+    text: 重启应用后，已持久化的生图条目仍在视频库图片筛选下可见，readSavedJobs 不因新增 provider 字段丢弃旧条目，persisted
+      jobs 中无 data URL 级 outputUrl。
+    result: passed
+    reason:
+      text: 把已登记的 zimage 条目写入 localStorage 后 reload 应用（模拟重启）：登记条目与全部旧条目（含无 provider
+        的历史条目 seed-old）都仍在 persisted jobs 中，视频库图片筛选下 7 张图片卡片可见，提示词搜索
+        'restartprobe' 命中该 Z-Image 条目，队列历史首行即该条目；persisted jobs 全文不含
+        base64/data:image。readSavedJobs 代码核对：展开 {...job} 保留全部旧字段，新增 provider
+        值不会被丢弃（既有 test-job-persistence 套件亦通过）。
+      truncated: false
+  - id: A7
+    source: brief.md
+    text: H3-Image 与 Z-Image 工作区无结果时，输出面板占位文案同时提及 MiniMax_first_frames 与 Created
+      Images 两个存储位置。
+    result: passed
+    reason:
+      text: 实测两工作区无结果时输出面板占位文案均为『生成后保存到 ComfyUI · MiniMax_first_frames，并留存到 App ·
+        Created Images』，同时包含 MiniMax_first_frames 与 Created Images 两个存储位置。
+      truncated: false
+  - id: A8
+    source: brief.md
+    text: 生成进行中不产生库条目；完成登记不影响工作区现有 result 状态与发送到 MiniMax I2V、发送到 LTX 2.5 按钮行为。
+    result: passed
+    reason:
+      text: 生成进行中实测：轮询处于 running 阶段时 persisted jobs 中不含该提示词条目、save 未被调用；完成后 result
+        正常显示（预览 img 出现、文案 'created-image-mid.png · 1024 × 576'），『发送到 MiniMax
+        I2V』『发送到 LTX 2.5』按钮保持 enabled，点击 I2V 后 App 切到 MiniMax H3 工作区并提示『H3-Image
+        帧已载入 MiniMax I2V 工作区。』，既有交互未被登记破坏。
+      truncated: false
+  - id: A9
+    source: brief.md
+    text: 同一条生图 job 在队列视图与视频库显示相同来源标签；H3-Image、Z-Image、FireRed 图片编辑、Ref2VA
+      静帧各显示对应标签，未知 provider 的图片显示中性兜底标签而非误标。
+    result: passed
+    reason:
+      text: 同一批条目在视频库与队列视图显示相同来源标签：H3-Image、Z-Image、FireRed 图片编辑、Ref2VA
+        静帧（provider=minimax 与无 provider 的历史条目均保持 Ref2VA 静帧）、未知
+        provider(ltx25)→中性兜底『生成图片』，未误标为 Ref2VA；两处均消费 src/lib/jobPresentation.ts
+        的 imageSourceLabel 同一映射函数，lightbox 图片 alt 也随来源变化（实测 FireRed 卡片
+        alt='FireRed 图片编辑'）。
+      truncated: false
+  - id: A10
+    source: brief.md
+    text: pnpm typecheck 与 pnpm lint 通过；pnpm build:web 通过；pnpm test 链中除 test:locale
+      外全部套件通过；test:locale 输出 FAIL 计数与 main 基线（47）持平，未新增失败。
+    result: passed
+    reason:
+      text: "pnpm typecheck、pnpm lint、pnpm build:web 均 exit 0（本人复跑）；Runtime 绑定证据显示其余
+        26 个套件全通过、test:job-presentation 新套件通过（本人复跑 PASS）；pnpm test:locale 单独运行
+        exit 1 且摘要行『FAIL: locale audit 在已认领文件发现 47 处问题』，与 main 基线 47 持平，且本次改动的 5
+        个源文件在 locale 输出中无任何 FAIL 行，未新增失败。"
+      truncated: false
+builder_handoff:
+  candidate_id: d5760ac2-4f81-46c0-8312-0d898cadbcc7
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:dc739d72-3e10-4de6-9d4e-03c35cd0d178
+  iteration: 1
+  summary:
+    text: 把 H3-Image、Z-Image、FireRed 图片编辑三类生图成果登记进共享 jobs：三个工作区在
+      saveComfyOutputImage 成功返回后，用 mediaUrl(saved.path) 的短 minimax-media URL 构造
+      mediaType=image 的 completed GenerationJob 并交给 App 的
+      registerCompletedImageJob。 登记回调 useCallback 空依赖并经 ref 传入工作区，不进入 2s 轮询
+      effect 的 deps，App 侧按 localOutputPath 幂等去重（StrictMode 与保存重试都不会重复）。 Z-Image
+      与 FireRed 的提交快照（prompt/width/height）在 create()/render() 写入 job，登记值不取完成时
+      state；FireRed 的旧持久化 job 形状在 readDraft 中归一化。 共享标签映射
+      imageSourceLabel（h3image/zimage/firered/Ref2VA/未知兜底）替换 LibraryView 与
+      JobsView 两处硬编码；图片卡片新增「在文件夹中显示」（showOutput(localOutputPath)，仅 image 且有
+      localOutputPath 时显示）；shell:show-output 增加 extname 存在性守卫，文件被移走后不再 mkdir。
+      H3-Image 与 Z-Image 的输出占位文案改为同时提及 MiniMax_first_frames 与 Created Images。新增
+      scripts/test-job-presentation.cjs 并入 pnpm test 链（test:locale 之前）。
+      本轮实际运行：pnpm typecheck、pnpm lint、pnpm build:web、pnpm build:electron
+      全部通过；test 链除 test:locale 外 26 个套件逐个运行全部 OK；test:locale 单独运行报 47 处 FAIL，与
+      main 基线 47 持平。另用 dev:web（browserMock）+ Playwright 在 renderer DOM
+      实测视频库/队列标签、lightbox alt、文件夹按钮显隐与 showOutput 入参。
+    truncated: false
+  addressed_acceptance_ids:
+    - A1
+    - A2
+    - A3
+    - A4
+    - A5
+    - A6
+    - A7
+    - A8
+    - A9
+    - A10
+  acceptance_review:
+    - id: A1
+      status: implemented-with-evidence
+      evidence:
+        - src/components/H3ImageWorkspace.tsx:139-151 — 保存成功后 await
+          mediaUrl(saved.path) 再调用 buildImageJob（provider h3image）并交
+          registerJobRef，随后才更新 result/清除 job
+        - src/lib/jobPresentation.ts:25-52 — buildImageJob 生成
+          mediaType/mode=image、status=completed、progress=100、provider、prompt
+          快照、width/height、outputUrl、localOutputPath、promptId
+        - src/App.tsx:1716-1721, 3349 — registerCompletedImageJob（useCallback
+          空依赖）把 job 前插进 jobs；App.tsx:851-867 的持久化写入 minimax.jobs
+        - src/types.ts:551 — provider 联合类型新增 h3image|zimage|firered
+      note: H3-Image 完成即登记一条 completed 图片 job，localOutputPath 为 Created Images
+        留存路径，outputUrl 由 mediaUrl 生成短 URL（不使用 getOutputImage 的 data URL）。
+    - id: A2
+      status: implemented-with-evidence
+      evidence:
+        - src/components/ZImageWorkspace.tsx:56-61 — ZImageJob 增加
+          prompt/width/height 提交快照
+        - src/components/ZImageWorkspace.tsx:212 — create() 用本次提交的 prompt.trim()
+          与 resolution 宽高写入 job
+        - src/components/ZImageWorkspace.tsx:147-161 — 完成时用
+          job.prompt/job.width/job.height（非完成时 state）构造 provider=zimage 的 job
+        - scripts/test-job-presentation.cjs — 断言 buildImageJob 保留
+          prompt/width/height；已运行 PASS
+      note: 登记的 prompt 与宽高来自提交快照；生成期间改动 RenderSize 或提示词不影响登记值，宽高非 0（resolution 由
+        RenderSize 提供）。
+    - id: A3
+      status: implemented-with-evidence
+      evidence:
+        - src/components/PhotoEditWorkspace.tsx:12-22 — EditJob 增加
+          prompt/width/height，readDraft 归一化旧持久化 job 形状
+        - src/components/PhotoEditWorkspace.tsx:126-138 — photo-edit 保存成功后
+          mediaUrl 再登记 provider=firered，localOutputPath 指向 FireRed Photo Edits
+          留存
+        - src/components/PhotoEditWorkspace.tsx:213 — render() 提交时写入 prompt 与
+          outputSize 宽高快照
+        - src/App.tsx:3314 — PhotoEditWorkspace 挂载点传入 registerCompletedImageJob
+      note: FireRed 完成登记 mediaType=image 的 completed job，保存失败沿用既有 saveProblem
+        重试路径，重试成功后才登记。
+    - id: A4
+      status: implemented-with-evidence
+      evidence:
+        - src/components/LibraryView.tsx:42-45, 73 — revealOutput 调用
+          window.minimax.showOutput(job.localOutputPath)；按钮仅在 mediaType=image 且
+          localOutputPath 存在时渲染
+        - electron/main.ts:1891-1900 — shell:show-output 仅在目标无扩展名时 mkdir，缺失文件直接返回
+        - renderer DOM 实测（dev:web + Playwright, 127.0.0.1:5199）：点击 H3-Image
+          卡片按钮捕获 showOutput('C:/out/Created Images/created-image-h3.png')；无
+          localOutputPath 的旧图片卡片不渲染该按钮且点击流程无报错
+      note: 按钮只出现在有留存路径的图片卡片；文件被移走后 IPC 不再造同名目录。资源管理器真实打开动作由 shell.showItemInFolder
+        负责，mock 桥只能验证 IPC 参数。
+    - id: A5
+      status: implemented-with-evidence
+      evidence:
+        - src/components/H3ImageWorkspace.tsx:139-151、src/components/ZImageWorkspace.tsx:147-161、src/components/PhotoEditWorkspace.tsx:126-138
+          — 登记代码全部位于 saveComfyOutputImage 成功之后；抛错路径保持原有错误提示，不登记
+        - src/App.tsx:1716-1721 — 按 localOutputPath 幂等去重，重复登记返回原数组
+        - src/components/H3ImageWorkspace.tsx:108-112、src/components/ZImageWorkspace.tsx:116-120、src/components/PhotoEditWorkspace.tsx:87-91
+          — 回调经 ref 同步，轮询 effect 的 deps 未加入登记回调（仍为 [job, outputDirectory,
+          updateJob] / [job, outputDirectory, saveProblem]）
+      note: 保存失败不产生条目；StrictMode 双挂载、App 高频重渲染与 PhotoEdit 保存重试都不会重复登记或重置 2s 轮询。
+    - id: A6
+      status: implemented-with-evidence
+      evidence:
+        - src/lib/jobPersistence.ts:19-45 — readSavedJobs 以 ...job 透传
+          provider/localOutputPath，无 provider 白名单，旧缺失 provider 的条目保持 undefined
+        - src/lib/workspacePersistence.ts:122-128 — compactJob 仅去除 preview，保留新字段
+        - src/App.tsx:256-259, 851-867 — 初始化读取 minimax.jobs，状态变化后写回（slice 100）
+        - renderer DOM 实测：写入 6 条含新 provider 的 jobs 后重载，视频库仍显示 6 张卡片，provider 与
+          localOutputPath 均保留
+      note: 重启后条目仍在；persisted outputUrl 由 mediaUrl 生成 minimax-media 短
+        URL（实测数据为人工种子，未走生成路径）。
+    - id: A7
+      status: implemented-with-evidence
+      evidence:
+        - src/components/H3ImageWorkspace.tsx:295 — 占位文案改为「生成后保存到 ComfyUI ·
+          MiniMax_first_frames，并留存到 App · Created Images」
+        - src/components/ZImageWorkspace.tsx:281 — 同一句文案同步修改
+      note: 两处无结果占位文案都同时提及两个存储位置；FireRed 工作区无此文案，未新增。
+    - id: A8
+      status: implemented-with-evidence
+      evidence:
+        - src/components/H3ImageWorkspace.tsx:139-151、src/components/ZImageWorkspace.tsx:147-161、src/components/PhotoEditWorkspace.tsx:126-138
+          — 登记只在完成分支执行，生成中不产生 jobs 条目
+        - src/components/H3ImageWorkspace.tsx:293-295、src/components/ZImageWorkspace.tsx:279-281
+          — result 展示与「发送到 MiniMax I2V」「发送到 LTX 2.5」按钮代码未改动
+        - renderer DOM 实测：队列视图新增条目显示已完成 meta 与共享标签，操作区仍只有 打开/移除
+      note: 生图完成前库中不出现条目；登记模板与按钮行为保持原样。
+    - id: A9
+      status: implemented-with-evidence
+      evidence:
+        - src/lib/jobPresentation.ts:14-20 —
+          imageSourceLabel：h3image→H3-Image、zimage→Z-Image、firered→FireRed
+          图片编辑、undefined/minimax→Ref2VA 静帧、其余→生成图片
+        - src/components/LibraryView.tsx:66, 79 — 卡片标签与 lightbox alt 使用共享映射
+        - src/components/JobsView.tsx:59-60 — 缩略图 alt 与 meta 标签使用同一映射
+        - scripts/test-job-presentation.cjs — 全部映射与兜底断言 PASS
+        - renderer DOM 实测：视频库 6 张卡片标签依次为 生成图片/Ref2VA 静帧/Ref2VA 静帧/FireRed
+          图片编辑/Z-Image/H3-Image；队列同一 job 显示相同标签与相同 alt
+      note: 队列与库共用同一映射函数，标签一致；未知 provider 使用中性兜底。
+    - id: A10
+      status: implemented-with-evidence
+      evidence:
+        - 本轮实跑 pnpm typecheck（src + tsconfig.electron.json）通过
+        - 本轮实跑 pnpm lint（--max-warnings 0）通过
+        - 本轮实跑 pnpm build:web 与 pnpm build:electron 通过
+        - 本轮逐个运行 pnpm test 链除 test:locale 外的 26 个套件（含新增 test:job-presentation）全部
+          OK
+        - "pnpm test:locale 单独运行输出「FAIL: locale audit 在已认领文件发现 47 处问题」，与 main 基线
+          47 持平，未新增失败"
+        - package.json:20, 23-24 — 链中插入 pnpm test:job-presentation
+      note: 验证命令按修订版 A10 拆解：非 locale 套件逐套件跑；locale 单独计数对比基线。
+  checks:
+    - name:
+        text: pnpm typecheck
+        truncated: false
+      result: passed
+      note:
+        text: src 与 electron tsconfig 均无错误
+        truncated: false
+    - name:
+        text: pnpm lint
+        truncated: false
+      result: passed
+      note:
+        text: --max-warnings 0 无输出
+        truncated: false
+    - name:
+        text: pnpm build:web
+        truncated: false
+      result: passed
+      note:
+        text: vite build 成功
+        truncated: false
+    - name:
+        text: pnpm build:electron
+        truncated: false
+      result: passed
+      note:
+        text: tsc -p tsconfig.electron.json 成功
+        truncated: false
+    - name:
+        text: pnpm test:job-presentation
+        truncated: false
+      result: passed
+      note:
+        text: 新增套件 PASS
+        truncated: false
+    - name:
+        text: pnpm test 链（排除 test:locale）
+        truncated: false
+      result: passed
+      note:
+        text: 26 个套件逐个运行均 OK
+        truncated: false
+    - name:
+        text: pnpm test:locale
+        truncated: false
+      result: passed
+      note:
+        text: 47 处 FAIL，与 main 基线 47 持平，无新增
+        truncated: false
+    - name:
+        text: renderer DOM 检查（dev:web + Playwright）
+        truncated: false
+      result: passed
+      note:
+        text: 库/队列标签、lightbox alt、文件夹按钮显隐与 showOutput 入参均符合预期
+        truncated: false
+  checks_truncated: false
+  known_limits:
+    - text: 未在真实 Electron 窗口连接 ComfyUI 跑端到端生图：登记路径以代码、单测与 renderer
+        DOM（browserMock）实测覆盖；资源管理器实际打开动作只能确认 IPC 参数。
+      truncated: false
+    - text: test:locale 在本分支仍为基线失败（47 处），本 change 不修复；A10 以计数对比为准。
+      truncated: false
+    - text: 注册到 jobs 的条目不经过 queued/running 状态，只在完成后一次性出现（与 brief 一致）。
+      truncated: false
+    - text: 工作区 .gitignore 存在与本需求无关的既有未提交改动（Comet managed 区块被精简），不属于本 change 的实现内容。
+      truncated: false
+  known_limits_truncated: false
+  review: null
+  submitted_at: 2026-11-15T09:16:48.457Z
+blockers: []
+verification:
+  candidate_id: d5760ac2-4f81-46c0-8312-0d898cadbcc7
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:b7a50fed-29de-4115-82a4-7d0f92a3be43
+  iteration: 1
+  attempt: 1
+  assurance: skill-coordinated
+  verdict: pass
+  checks:
+    - id: typecheck
+      name:
+        text: pnpm typecheck
+        truncated: false
+      argv_display:
+        - text: typecheck
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 7181
+    - id: lint
+      name:
+        text: pnpm lint
+        truncated: false
+      argv_display:
+        - text: lint
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 3574
+    - id: build-web
+      name:
+        text: pnpm build:web
+        truncated: false
+      argv_display:
+        - text: build:web
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 3791
+    - id: build-electron
+      name:
+        text: pnpm build:electron
+        truncated: false
+      argv_display:
+        - text: build:electron
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 1406
+    - id: suite-navigation
+      name:
+        text: pnpm test:navigation
+        truncated: false
+      argv_display:
+        - text: test:navigation
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 794
+    - id: suite-scene
+      name:
+        text: pnpm test:scene
+        truncated: false
+      argv_display:
+        - text: test:scene
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 912
+    - id: suite-character-library
+      name:
+        text: pnpm test:character-library
+        truncated: false
+      argv_display:
+        - text: test:character-library
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 816
+    - id: suite-prompt-auto-tags
+      name:
+        text: pnpm test:prompt-auto-tags
+        truncated: false
+      argv_display:
+        - text: test:prompt-auto-tags
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 801
+    - id: suite-lm-studio-api
+      name:
+        text: pnpm test:lm-studio-api
+        truncated: false
+      argv_display:
+        - text: test:lm-studio-api
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 796
+    - id: suite-llm-stream
+      name:
+        text: pnpm test:llm-stream
+        truncated: false
+      argv_display:
+        - text: test:llm-stream
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 805
+    - id: suite-preload-sandbox
+      name:
+        text: pnpm test:preload-sandbox
+        truncated: false
+      argv_display:
+        - text: test:preload-sandbox
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 800
+    - id: suite-workflows
+      name:
+        text: pnpm test:workflows
+        truncated: false
+      argv_display:
+        - text: test:workflows
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 935
+    - id: suite-h3-image
+      name:
+        text: pnpm test:h3-image
+        truncated: false
+      argv_display:
+        - text: test:h3-image
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 891
+    - id: suite-h3-node-detection
+      name:
+        text: pnpm test:h3-node-detection
+        truncated: false
+      argv_display:
+        - text: test:h3-node-detection
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 790
+    - id: suite-model-inventory
+      name:
+        text: pnpm test:model-inventory
+        truncated: false
+      argv_display:
+        - text: test:model-inventory
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 916
+    - id: suite-ltx-ripple
+      name:
+        text: pnpm test:ltx-ripple
+        truncated: false
+      argv_display:
+        - text: test:ltx-ripple
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 894
+    - id: suite-fire-red-edit
+      name:
+        text: pnpm test:fire-red-edit
+        truncated: false
+      argv_display:
+        - text: test:fire-red-edit
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 902
+    - id: suite-continuation
+      name:
+        text: pnpm test:continuation
+        truncated: false
+      argv_display:
+        - text: test:continuation
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 921
+    - id: suite-atomic-saves
+      name:
+        text: pnpm test:atomic-saves
+        truncated: false
+      argv_display:
+        - text: test:atomic-saves
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 7709
+    - id: suite-movie-editor
+      name:
+        text: pnpm test:movie-editor
+        truncated: false
+      argv_display:
+        - text: test:movie-editor
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 821
+    - id: suite-comfy-cancel
+      name:
+        text: pnpm test:comfy-cancel
+        truncated: false
+      argv_display:
+        - text: test:comfy-cancel
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 853
+    - id: suite-comfy-job-state
+      name:
+        text: pnpm test:comfy-job-state
+        truncated: false
+      argv_display:
+        - text: test:comfy-job-state
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 797
+    - id: suite-live-preview-socket
+      name:
+        text: pnpm test:live-preview-socket
+        truncated: false
+      argv_display:
+        - text: test:live-preview-socket
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 821
+    - id: suite-job-persistence
+      name:
+        text: pnpm test:job-persistence
+        truncated: false
+      argv_display:
+        - text: test:job-persistence
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 795
+    - id: suite-job-presentation
+      name:
+        text: pnpm test:job-presentation
+        truncated: false
+      argv_display:
+        - text: test:job-presentation
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 804
+    - id: suite-legacy-browser-storage
+      name:
+        text: pnpm test:legacy-browser-storage
+        truncated: false
+      argv_display:
+        - text: test:legacy-browser-storage
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 832
+    - id: suite-workspace-persistence
+      name:
+        text: pnpm test:workspace-persistence
+        truncated: false
+      argv_display:
+        - text: test:workspace-persistence
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 815
+    - id: suite-music3-vocabulary
+      name:
+        text: pnpm test:music3-vocabulary
+        truncated: false
+      argv_display:
+        - text: test:music3-vocabulary
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 801
+    - id: suite-prompt-parity
+      name:
+        text: pnpm test:prompt-parity
+        truncated: false
+      argv_display:
+        - text: test:prompt-parity
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 981
+    - id: suite-theme
+      name:
+        text: pnpm test:theme
+        truncated: false
+      argv_display:
+        - text: test:theme
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 838
+  summary:
+    text: A1–A10 全部通过。实现与 brief/spec 一致：三个生图工作区在 saveComfyOutputImage 成功后以
+      mediaUrl(saved.path) 的 minimax-media 短 URL 构造 mediaType=image 的 completed
+      GenerationJob，经 App 侧稳定的 registerCompletedImageJob（useCallback 空依赖 + 按
+      localOutputPath 幂等）登记，登记不进入轮询 effect 依赖数组。证据覆盖：Z-Image/H3-Image/FireRed
+      三条登记链路在隔离浏览器上下文中以真实工作区组件 + mock 桥接驱动实测（含 Z-Image
+      提交时快照语义、保存失败不登记、StrictMode/重渲染幂等、生成中不入库、完成后 result
+      与发送按钮不受影响）；视频库与队列标签一致、来源兜底正确、文件夹按钮仅对有 localOutputPath 的图片卡片显示且调用
+      showOutput(localOutputPath)；electron shell:show-output
+      守卫用真实源码在临时目录执行验证（文件被移走不建同名目录）。命令类检查 typecheck/lint/build:web
+      通过，test:locale 计数 47 与 main 基线持平且改动文件零新增 FAIL。
+    truncated: false
+  risks:
+    - text: 未在真实 Electron + ComfyUI 上做端到端生图：登记链路是在 dev:web(browserMock) 上以真实工作区组件 +
+        mock 桥接 API 驱动验证的，资源管理器真实打开动作只确认到 IPC 参数与 electron handler 源码语义；真实
+        ComfyUI 引擎下的输出节点选择未复核。
+      truncated: false
+    - text: H3-Image 的 width/height 由 job.resolution
+        字符串拆分得到（'1344x768'→1344/768），若分辨率字符串格式非 'WxH' 会得到 NaN；当前 RenderSize 只产出
+        'WxH' 格式，未构造异常输入验证。
+      truncated: false
+    - text: 工作树 .gitignore 存在与本需求无关的 Comet 工具改动（Comet managed 忽略区块被精简），由 Comet 建
+        worktree 时产生，未回退以免破坏 Comet 状态。
+      truncated: false
+    - text: 浏览器验证期间发现另一个并行会话占用 5199 端口并共用同一浏览器上下文写 localStorage，导致首次注入的种子被覆盖；最终改用独立端口
+        5211 + 独立 isolated context 完成全部观察，5199 进程未触碰。
+      truncated: false
+  risks_truncated: false
+  completed_at: 2026-11-15T09:46:28.759Z
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 0
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Native confirmed acceptance criteria changed
+      truncated: false
+    completed_at: 2026-11-15T05:24:54.309Z
+  - goal_cycle: 2
+    iteration: 1
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: A1–A10 全部通过。实现与 brief/spec 一致：三个生图工作区在 saveComfyOutputImage 成功后以
+        mediaUrl(saved.path) 的 minimax-media 短 URL 构造 mediaType=image 的
+        completed GenerationJob，经 App 侧稳定的 registerCompletedImageJob（useCallback
+        空依赖 + 按 localOutputPath 幂等）登记，登记不进入轮询 effect
+        依赖数组。证据覆盖：Z-Image/H3-Image/FireRed 三条登记链路在隔离浏览器上下文中以真实工作区组件 + mock
+        桥接驱动实测（含 Z-Image 提交时快照语义、保存失败不登记、StrictMode/重渲染幂等、生成中不入库、完成后 result
+        与发送按钮不受影响）；视频库与队列标签一致、来源兜底正确、文件夹按钮仅对有 localOutputPath 的图片卡片显示且调用
+        showOutput(localOutputPath)；electron shell:show-output
+        守卫用真实源码在临时目录执行验证（文件被移走不建同名目录）。命令类检查 typecheck/lint/build:web
+        通过，test:locale 计数 47 与 main 基线持平且改动文件零新增 FAIL。
+      truncated: false
+    completed_at: 2026-11-15T09:46:28.759Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pass
+verification_report: verification.md
+archived: true
+created_at: 2026-11-15T04:33:31.391Z
