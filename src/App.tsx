@@ -591,7 +591,7 @@ function App() {
   // The official H3 Turbo adapters stay automatic. The larryvrh 4-step file
   // needs its own LoRA node, so it is not offered as a manual adapter either.
   const userLoraChoices = useMemo(() => models.filter((model) => model.kind === 'loras' && !/^minimax_h3_(?:fl2v|ref2v)_turbo_/i.test(model.name) && !/^minimax_h3_turbo_/i.test(model.name)).map((model) => model.name).sort((a, b) => a.localeCompare(b)), [models])
-  const turbo4Available = useMemo(() => hasTurbo4Lora(models), [models])
+  const turbo4Available = useMemo(() => hasTurbo4Lora(models, mode), [models, mode])
   const h3Report = useMemo(() => h3StackReport(models), [models])
   const h3ImageReport = useMemo(() => h3ImageStackReport(models), [models])
   const ltxSelection = useMemo(() => inferLtx25Selections(models, choices(info, 'LatentUpscaleModelLoader', 'model_name')), [models, info])

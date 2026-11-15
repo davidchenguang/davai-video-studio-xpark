@@ -54,15 +54,16 @@ export function inferSelections(files: ModelFile[], turbo: 'off' | '4' | '8' | '
 }
 
 /**
- * Turbo 4 needs a 4-step Turbo LoRA. The lightx2v 4-step adapters the app was
- * built against were withdrawn upstream, and the larryvrh 4-step file needs its
- * own LoRA node, so Turbo 4 is only offered when a usable adapter is installed.
+ * Turbo 4 needs a 4-step Turbo LoRA matching the current mode: FL2V adapters
+ * drive text/image/frames renders, the Ref2V adapter drives reference renders.
+ * A repo-local presence check must be per-mode so installing one adapter never
+ * unlocks a mode whose adapter is still missing.
  */
-export function hasTurbo4Lora(files: ModelFile[]) {
-  return Boolean(findModel(files, 'loras', [
-    /^minimax_h3_fl2v_turbo_4step.*\.safetensors$/i,
-    /^minimax_h3_ref2v_turbo_4step.*\.safetensors$/i,
-  ]))
+export function hasTurbo4Lora(files: ModelFile[], mode: 'text' | 'image' | 'frames' | 'reference' = 'reference') {
+  const expressions = mode === 'reference'
+    ? [/^minimax_h3_ref2v_turbo_4step.*\.safetensors$/i]
+    : [/^minimax_h3_fl2v_turbo_4step.*\.safetensors$/i]
+  return Boolean(findModel(files, 'loras', expressions))
 }
 
 export function inferLtx25Selections(files: ModelFile[], latentUpscalers: string[]): Ltx25ModelSelection {

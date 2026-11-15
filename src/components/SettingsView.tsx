@@ -74,7 +74,7 @@ export function SettingsView({ settings, setSettings, info, models, jobs, gpu, h
     { kind: 'clip_vision', label: '视觉编码器', note: '可选的参考图编码器' },
   ]
   const defaults = settings.generationDefaults
-  const turbo4Available = hasTurbo4Lora(models)
+  const turbo4Available = hasTurbo4Lora(models, 'text') || hasTurbo4Lora(models, 'reference')
   const llm = resolveLlmConnection(settings)
   const activeModelField = settings.llmProvider === 'lmstudio' ? 'lmStudioModel' : 'ollamaModel'
   const activeUrlField = settings.llmProvider === 'lmstudio' ? 'lmStudioUrl' : 'ollamaUrl'
