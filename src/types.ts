@@ -548,7 +548,7 @@ export type GenerationJob = {
   naturalMovement?: boolean
   loraStrength?: number
   userLoras?: AppliedLora[]
-  provider?: 'minimax' | 'ltx25' | 'ltxripple' | 'acestep' | 'music3'
+  provider?: 'minimax' | 'ltx25' | 'ltxripple' | 'acestep' | 'music3' | 'h3image' | 'zimage' | 'firered'
   mediaType?: 'video' | 'audio' | 'image'
   movieLink?: { projectId: string; sceneId: string; shotId: string }
   characterProjectId?: string

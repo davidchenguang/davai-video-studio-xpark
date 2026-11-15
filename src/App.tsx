@@ -1709,6 +1709,17 @@ function App() {
     setNotice({ tone: 'neutral', text: '已从队列历史中移除该生成。已渲染的文件保留不变。' })
   }
 
+  // Image workspaces register exactly once per saved file. The callback identity
+  // must stay stable: it is passed to workspaces whose polling effects must not
+  // restart on App re-renders. Dedupe by saved path so a StrictMode double mount
+  // or a retried save cannot add the same image twice.
+  const registerCompletedImageJob = useCallback((job: GenerationJob) => {
+    setJobs((current) => {
+      if (job.localOutputPath && current.some((item) => item.localOutputPath === job.localOutputPath)) return current
+      return [job, ...current]
+    })
+  }, [])
+
   const loadReferenceAccessory = async (accessoryId: string) => {
     const accessory = loadAccessoryProjects().find((item) => item.id === accessoryId)
     if (!accessory?.referenceImage) {
@@ -3300,6 +3311,7 @@ function App() {
           onConsumeIncoming={() => setPhotoEditIncomingSource(null)}
           onUseRipple={(file, size) => { setRippleIncomingReplacement({ file, size }); setView('ltxripple'); setNotice({ tone: 'success', text: 'FireRed 编辑已按渲染尺寸作为 Ripple 替换帧载入。' }) }}
           onOpenRipple={() => setView('ltxripple')}
+          onRegisterJob={registerCompletedImageJob}
         />}
         {view === 'music' && musicEngine === 'acestep' && <AceStepWorkspace key={`acestep-${aceResetKey}`}
           settings={settings}
@@ -3331,10 +3343,10 @@ function App() {
         />}
         <div hidden={view !== 'zimage'}><ZImageWorkspace key={`first-frame-${zImageResetKey}`} url={settings.comfyUrl} info={info} connected={status.connected} ollamaAvailable={ollamaModels.length > 0} llmProvider={llmConnection.provider} ollamaUrl={llmConnection.url} ollamaModel={llmConnection.model} outputDirectory={settings.outputDirectory} attentionBackend={resolvedH3AttentionBackend} gpuRouting={h3GpuRouting?.workflow} onUse={(file, frameResolution) => {
           setFirstFrame(file); setResolution(snapResolutionString(frameResolution)); setMode('image'); setActiveJobId(null); setView('create'); setNotice({ tone: 'success', text: 'Z-Image 帧已载入 MiniMax I2V 工作区。' })
-        }} onUseLtx={(file) => void sendGeneratedStillToLtx(file)} /></div>
+        }} onUseLtx={(file) => void sendGeneratedStillToLtx(file)} onRegisterJob={registerCompletedImageJob} /></div>
         <div hidden={view !== 'h3image'}><H3ImageWorkspace key={`h3-image-${h3ImageResetKey}`} url={settings.comfyUrl} info={info} connected={status.connected} ollamaAvailable={ollamaModels.length > 0} llmProvider={llmConnection.provider} ollamaUrl={llmConnection.url} ollamaModel={llmConnection.model} outputDirectory={settings.outputDirectory} gpuRouting={h3GpuRouting?.workflow} onUse={(file, frameResolution) => {
           setFirstFrame(file); setResolution(snapResolutionString(frameResolution)); setMode('image'); setActiveJobId(null); setView('create'); setNotice({ tone: 'success', text: 'H3-Image 帧已载入 MiniMax I2V 工作区。' })
-        }} onUseLtx={(file) => void sendGeneratedStillToLtx(file)} /></div>
+        }} onUseLtx={(file) => void sendGeneratedStillToLtx(file)} onRegisterJob={registerCompletedImageJob} /></div>
         {view === 'referenceprep' && <ReferencePrepStudio settings={settings} info={info} connected={status.connected} onUseCutout={(file) => {
           setReferenceImages((current) => current.some((item) => item.path === file.path) ? current : [...current, file].slice(0, 9))
           setMode('reference'); setActiveJobId(null); setView('create')

@@ -2,10 +2,11 @@ import { PreviewPanel, ProductionLoading } from './Workspace'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Check, CircleStop, Dices, Film, Gauge, ImagePlus, LoaderCircle, Sparkles, WandSparkles } from 'lucide-react'
 import { buildZImage, ZIMAGE_DEFAULT_NEGATIVE_PROMPT, type ZImageVariant } from '../lib/zimage'
+import { buildImageJob } from '../lib/jobPresentation'
 import { choices, type ObjectInfo } from '../lib/comfyInfo'
 import { RenderSize } from './RenderSize'
 import { SmartPromptEditor } from './SmartPromptEditor'
-import type { MediaFile, WorkflowGpuRouting } from '../types'
+import type { GenerationJob, MediaFile, WorkflowGpuRouting } from '../types'
 import { useLivePreview, type LiveProgress } from '../lib/useLivePreview'
 
 type StoredWorkspace = {
@@ -55,14 +56,17 @@ const isBaseModel = (name: string) => isZImageModel(name) && !/turbo/i.test(name
 const preferredModel = (models: string[], variant: ZImageVariant) => models.find(variant === 'turbo' ? isTurboModel : isBaseModel)
   ?? (variant === 'turbo' ? 'z_image_turbo_bf16.safetensors' : 'z_image_bf16.safetensors')
 
-type ZImageJob = { id: string; url: string }
+// prompt and the submitted width/height are captured at submit time: RenderSize
+// stays editable while a render is in flight, so reading them after completion
+// would record a different image than the one actually produced.
+type ZImageJob = { id: string; url: string; prompt: string; width: number; height: number }
 type HistoryEntry = {
   status?: { status_str?: string }
   outputs?: Record<string, { images?: Array<{ filename: string; subfolder?: string; type?: string }> }>
 }
 
 export function ZImageWorkspace({
-  url, info, connected, ollamaAvailable, llmProvider, ollamaUrl, ollamaModel, outputDirectory, attentionBackend, gpuRouting, onUse, onUseLtx,
+  url, info, connected, ollamaAvailable, llmProvider, ollamaUrl, ollamaModel, outputDirectory, attentionBackend, gpuRouting, onUse, onUseLtx, onRegisterJob,
 }: {
   url: string
   info: ObjectInfo
@@ -76,6 +80,7 @@ export function ZImageWorkspace({
   gpuRouting?: WorkflowGpuRouting
   onUse(file: MediaFile, resolution: string): void
   onUseLtx(file: MediaFile): void
+  onRegisterJob?(job: GenerationJob): void
 }) {
   const initial = useMemo(readWorkspace, [])
   const [prompt, setPrompt] = useState(initial.prompt)
@@ -108,6 +113,12 @@ export function ZImageWorkspace({
     setJob(next)
   }, [])
 
+  // Keep the registration callback out of the polling effect's dependencies: App
+  // re-renders while a render is in flight, and a changing callback identity would
+  // reset the 2s poll timer and the saved image would never be picked up.
+  const registerJobRef = useRef(onRegisterJob)
+  useEffect(() => { registerJobRef.current = onRegisterJob }, [onRegisterJob])
+
   useEffect(() => {
     const loadPrompt = (event: Event) => {
       const value = (event as CustomEvent<string>).detail
@@ -138,9 +149,15 @@ export function ZImageWorkspace({
         if (image) {
           const preview = await window.minimax.getOutputImage(job.url, image)
           const saved = await window.minimax.saveComfyOutputImage(job.url, image, outputDirectory, 'image-creation')
+          // Resolve the short URL before the state update below: registerJob is
+          // the App-level callback and stays valid across this workspace's
+          // teardown, but updateJob(null) re-runs this effect's cleanup, so
+          // anything deferred behind a `disposed` check would be dropped.
+          const outputUrl = await window.minimax.mediaUrl(saved.path).catch(() => null)
           if (!disposed) {
             setResult({ ...saved, preview, kind: 'image' })
             updateJob(null); setBusy(false); setError(false); liveProgressRef.current = null; setLiveProgress(null); setMessage('图片已生成，可以使用。')
+            if (outputUrl) registerJobRef.current?.(buildImageJob({ provider: 'zimage', promptId: job.id, prompt: job.prompt, width: job.width, height: job.height, outputUrl, localOutputPath: saved.path }))
           }
           return
         }
@@ -192,7 +209,7 @@ export function ZImageWorkspace({
       const response = await window.minimax.submitPrompt(url, graph, live.clientId)
       live.registerWorkflow(response.prompt_id, graph, livePreview)
       if (gpuRouting) console.info('[GPU Routing] Z-Image component routing enabled.', gpuRouting)
-      updateJob({ id: response.prompt_id, url })
+      updateJob({ id: response.prompt_id, url, prompt: prompt.trim(), width, height })
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : String(caught)); setError(true); setBusy(false)
     }
@@ -261,7 +278,7 @@ export function ZImageWorkspace({
       <PreviewPanel>
         <div className="panel-heading"><div><span>输出</span><strong>图片预览</strong></div>{result && <span className="zimage-complete"><Check size={13} />就绪</span>}</div>
         <div className="zimage-preview-stage">{result?.preview ? <img src={result.preview} alt="生成的 Z-Image 输出" /> : visibleLivePreview ? <figure className="live-preview zimage-live-preview"><img src={visibleLivePreview.url} alt="Z-Image 采样实时预览" /><figcaption>采样实时预览{visibleLivePreview.step && visibleLivePreview.totalSteps ? ` · 第 ${visibleLivePreview.step} 步，共 ${visibleLivePreview.totalSteps} 步` : ''}</figcaption></figure> : busy ? <div className="render-state"><ProductionLoading label={liveProgress?.label || '正在准备图片条件'}/><strong>正在生成你的图片</strong><span>{liveProgress?.label ?? `${resolution.replace('x', ' × ')} · ${livePreview ? '等待实时预览' : '渲染中（无实时预览）'}`}</span></div> : <div className="empty-preview"><div className="preview-icon"><ImagePlus size={28} /></div><strong>你的图片会显示在这里</strong><span>描述画面、选择画幅，然后在本地生成。</span></div>}</div>
-        <div className="zimage-preview-actions"><span>{result ? `${result.name} · ${resolution.replace('x', ' × ')}` : '已保存到 ComfyUI · MiniMax_first_frames'}</span><div><button className="secondary-button" disabled={!result} onClick={() => result && onUse(result, resolution)}><ImagePlus size={16} />发送到 MiniMax I2V</button><button className="primary-button" disabled={!result} onClick={() => result && onUseLtx(result)} title="载入保留身份特征的 LTX 图生视频提示词"><Film size={16} />发送到 LTX 2.5</button></div></div>
+        <div className="zimage-preview-actions"><span>{result ? `${result.name} · ${resolution.replace('x', ' × ')}` : '生成后保存到 ComfyUI · MiniMax_first_frames，并留存到 App · Created Images'}</span><div><button className="secondary-button" disabled={!result} onClick={() => result && onUse(result, resolution)}><ImagePlus size={16} />发送到 MiniMax I2V</button><button className="primary-button" disabled={!result} onClick={() => result && onUseLtx(result)} title="载入保留身份特征的 LTX 图生视频提示词"><Film size={16} />发送到 LTX 2.5</button></div></div>
       </PreviewPanel>
     </div>
   </div>

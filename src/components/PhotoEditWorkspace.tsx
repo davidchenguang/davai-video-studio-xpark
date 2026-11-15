@@ -1,15 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, ImagePlus, LoaderCircle, RotateCcw, Sparkles, X } from 'lucide-react'
-import type { MediaFile } from '../types'
+import type { GenerationJob, MediaFile } from '../types'
 import type { ObjectInfo } from '../lib/comfyInfo'
 import { buildFireRedEditWorkflow, FIRE_RED_REQUIRED_NODES, inferFireRedSelection } from '../lib/fireRedEditWorkflow'
 import { queuePromptState } from '../lib/comfyJobState'
+import { buildImageJob } from '../lib/jobPresentation'
 import { defaultFrameResolution, resolveFrameSize, type FrameResolution, type FrameSize } from '../lib/frameResolution'
 import { FrameResolutionControl } from './FrameResolutionControl'
 import './photo-edit.css'
 
 const storageKey = 'oyama.photo-edit.workspace.v1'
-type EditJob = { id: string; url: string }
+// prompt and the submitted frame size are captured at submit time, because a
+// draft restored after a reload must not be recorded with whatever instruction
+// or size the user has typed since.
+type EditJob = { id: string; url: string; prompt: string; width: number; height: number }
 type Draft = { source: MediaFile | null; references: MediaFile[]; prompt: string; seed: number; mode: 'turbo' | 'quality'; resolution: FrameResolution; result: MediaFile | null; job: EditJob | null }
 type HistoryEntry = { status?: { status_str?: string }; outputs?: Record<string, { images?: Array<{ filename: string; subfolder?: string; type?: string }> }> }
 
@@ -17,7 +21,7 @@ function readDraft(): Draft {
   const fresh: Draft = { source: null, references: [], prompt: '', seed: Math.floor(Math.random() * 1_000_000_000), mode: 'turbo', resolution: defaultFrameResolution, result: null, job: null }
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey) ?? '{}') as Partial<Draft>
-    return { ...fresh, ...saved, references: Array.isArray(saved.references) ? saved.references.filter((file): file is MediaFile => typeof file?.path === 'string' && Boolean(file.path)).slice(0, 2) : [], resolution: saved.resolution?.mode ? saved.resolution : defaultFrameResolution, mode: saved.mode === 'quality' ? 'quality' : 'turbo', source: saved.source?.path ? saved.source : null, result: saved.result?.path ? saved.result : null, job: saved.job?.id && saved.job.url ? saved.job : null }
+    return { ...fresh, ...saved, references: Array.isArray(saved.references) ? saved.references.filter((file): file is MediaFile => typeof file?.path === 'string' && Boolean(file.path)).slice(0, 2) : [], resolution: saved.resolution?.mode ? saved.resolution : defaultFrameResolution, mode: saved.mode === 'quality' ? 'quality' : 'turbo', source: saved.source?.path ? saved.source : null, result: saved.result?.path ? saved.result : null, job: saved.job?.id && saved.job.url ? { id: saved.job.id, url: saved.job.url, prompt: typeof saved.job.prompt === 'string' ? saved.job.prompt : '', width: Number(saved.job.width) || 0, height: Number(saved.job.height) || 0 } : null }
   } catch { return fresh }
 }
 
@@ -37,7 +41,7 @@ function ReferenceImage({ file, number, disabled, onReplace, onRemove }: { file:
   </div>
 }
 
-export function PhotoEditWorkspace({ url, info, connected, outputDirectory, incomingSource, onConsumeIncoming, onUseRipple, onOpenRipple }: {
+export function PhotoEditWorkspace({ url, info, connected, outputDirectory, incomingSource, onConsumeIncoming, onUseRipple, onOpenRipple, onRegisterJob }: {
   url: string
   info: ObjectInfo
   connected: boolean
@@ -46,6 +50,7 @@ export function PhotoEditWorkspace({ url, info, connected, outputDirectory, inco
   onConsumeIncoming(): void
   onUseRipple(file: MediaFile, size: FrameSize): void
   onOpenRipple(): void
+  onRegisterJob?(job: GenerationJob): void
 }) {
   const initial = useMemo(readDraft, [])
   const [source, setSource] = useState<MediaFile | null>(incomingSource?.file ?? initial.source)
@@ -78,6 +83,12 @@ export function PhotoEditWorkspace({ url, info, connected, outputDirectory, inco
     ...(connected && mode === 'turbo' && !selected.lightningLora ? ['Turbo 需要 FireRed 8-step Lightning LoRA。切换到画质模式可在没有它的情况下渲染。'] : []),
   ]
   const busy = preparing || Boolean(job && !saveProblem)
+
+  // Keep the registration callback out of the polling effect's dependencies: App
+  // re-renders while an edit is in flight, and a changing callback identity would
+  // reset the 2s poll timer and the saved image would never be picked up.
+  const registerJobRef = useRef(onRegisterJob)
+  useEffect(() => { registerJobRef.current = onRegisterJob }, [onRegisterJob])
 
   useEffect(() => { if (incomingSource) onConsumeIncoming() }, [incomingSource, onConsumeIncoming])
   useEffect(() => {
@@ -116,7 +127,15 @@ export function PhotoEditWorkspace({ url, info, connected, outputDirectory, inco
           const saved = await window.minimax.saveComfyOutputImage(job.url, image, outputDirectory, 'photo-edit').catch(reason => {
             throw new Error(`FireRed 已完成，但图片未能保存到本地。请重试保存，或从 ComfyUI 输出中选择完成的图片。${reason instanceof Error ? reason.message : String(reason)}`)
           })
-          if (active) { setResult({ ...saved, kind: 'image' }); setJob(null); setMessage('图片编辑完成。满意后发送到 Ripple。'); setError(false) }
+          // Resolve the short URL before the state update below: registerJob is
+          // the App-level callback and stays valid across this workspace's
+          // teardown, but setJob(null) re-runs this effect's cleanup, so
+          // anything deferred behind an `active` check would be dropped.
+          const outputUrl = await window.minimax.mediaUrl(saved.path).catch(() => null)
+          if (active) {
+            setResult({ ...saved, kind: 'image' }); setJob(null); setMessage('图片编辑完成。满意后发送到 Ripple。'); setError(false)
+            if (outputUrl) registerJobRef.current?.(buildImageJob({ provider: 'firered', promptId: job.id, prompt: job.prompt, width: job.width, height: job.height, outputUrl, localOutputPath: saved.path }))
+          }
           return
         }
         if (entry?.status?.status_str === 'success') {
@@ -191,7 +210,7 @@ export function PhotoEditWorkspace({ url, info, connected, outputDirectory, inco
       }
       const graph = buildFireRedEditWorkflow(uploaded, prompt, seed, selected, mode, outputSize, uploadedReferences)
       const response = await window.minimax.submitPrompt(url, graph)
-      setJob({ id: response.prompt_id, url })
+      setJob({ id: response.prompt_id, url, prompt: prompt.trim(), width: outputSize.width, height: outputSize.height })
       setMessage('FireRed 编辑已提交到 ComfyUI…')
     } catch (reason) { setMessage(reason instanceof Error ? reason.message : String(reason)); setError(true) }
     finally { setPreparing(false) }

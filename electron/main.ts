@@ -1889,7 +1889,12 @@ app.whenReady().then(async () => {
     return { path: output, url: `minimax-media://local?path=${encodeURIComponent(output)}` }
   })
   ipcMain.handle('shell:show-output', async (_event, outputPath: string) => {
-    if (!existsSync(outputPath)) await mkdir(outputPath, { recursive: true })
+    // A file the user has since moved away must not come back as a same-named
+    // directory; only extensionless targets keep the create-then-reveal path.
+    if (!existsSync(outputPath)) {
+      if (extname(outputPath)) return
+      await mkdir(outputPath, { recursive: true })
+    }
     const { shell } = await import('electron')
     shell.showItemInFolder(join(outputPath, '.'))
   })
