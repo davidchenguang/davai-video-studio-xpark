@@ -34,3 +34,7 @@ Thumbs.db
 .comet-state-transaction.json
 # <<< Comet managed project state <<<
 .superpowers/
+# Local tool scratch output: Playwright MCP session logs and spec-workflow
+# specs/approvals/steering are per-machine working files, not project source.
+.playwright-mcp/
+.spec-workflow/
