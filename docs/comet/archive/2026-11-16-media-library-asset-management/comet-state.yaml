@@ -1,0 +1,652 @@
+schema: comet.native.v4
+name: media-library-asset-management
+language: zh-CN
+phase: archive
+status: done
+state_version: 15
+brief: brief.md
+document_constraints_version: 3
+shape_confirmation_hash: 4d79a2c620aee94691f039da4d94b0983e1cb3cddde396b573ba838f0bc6e0a5
+spec_changes:
+  - capability: media-library-asset-management
+    operation: create
+    source: specs/media-library-asset-management/spec.md
+workspace:
+  isolation: current
+  change_branch: main
+  target_branch: main
+  finish: null
+loop:
+  stage: done
+  goal_cycle: 4
+  iteration: 1
+  attempt: 1
+  retry_epoch: 0
+  failed_iteration_count: 0
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: null
+acceptance:
+  - id: A1
+    source: brief.md
+    text: 删除本地图片：在媒体库图片卡片点击删除并确认后，文件进入系统回收站，卡片立即从媒体库消失，队列历史不再出现，重启应用后不恢复。
+    result: passed
+    reason:
+      text: LibraryView.tsx:24 仅 completed 且有 outputUrl 的 job 有卡片与删除按钮（:108）；确认后
+        App.tsx:1735 经 media:delete 调 mediaDeletion.ts:150 shell.trashItem
+        回收；App.tsx:1744 先 persist('minimax.jobs',
+        next.slice(0,100).map(compactJob)) 再 setJobs 移除（:1745），重启后 readSavedJobs
+        读不到该记录，不复活。
+      truncated: false
+  - id: A2
+    source: brief.md
+    text: 删除视频清理缓存与派生文件：删除一条视频后，其缩略图缓存被清理；若该 job 有位于可信输出目录内的
+      latent/分段输出文件，也一并移入回收站；媒体库与队列历史中都不再出现该条目。
+    result: passed
+    reason:
+      text: App.tsx:1732 files 含
+        latentPath/segmentOutputPath；thumbnailCachePath（libraryReferences.ts:167-176）只解析
+        minimax-media://thumbnail?path=；main.ts:1928
+        thumbnailRoot=userData/video-thumbnails；mediaDeletion.ts:136-141 校验 .jpg
+        且位于缓存根、:157-164 unlink 成功置
+        thumbnailRemoved=true；test-media-deletion.cjs:114-117 断言。
+      truncated: false
+  - id: A3
+    source: brief.md
+    text: 取消删除：在确认对话框选择取消，文件、媒体库条目、队列历史均保持不变。
+    result: passed
+    reason:
+      text: LibraryView.tsx:65-68 window.confirm 返回 false 直接 return：不调用 IPC、不置
+        busy、不改任何状态，文件/缓存/媒体库/队列历史均不变。
+      truncated: false
+  - id: A4
+    source: brief.md
+    text: 被影片项目引用时阻止：删除被任一影片项目的片段引用（`job-<id>` 或归一化后相同的
+      `source`）的资产时，删除被阻止，界面列出所在影片项目名称；资产与文件保持不变。
+    result: passed
+    reason:
+      text: libraryReferences.ts:86-97 匹配 clips[].assetId===`job-${id}` 与
+        sourceMatchesJob（:48-58 覆盖 outputUrl 直等、playableOutputUrl
+        归一化、minimax-media path 参数对齐 localOutputPath）；MovieEditor.tsx:50 素材池实际写入
+        id=`job-${job.id}`、source=job.outputUrl，形态对齐；命中时 LibraryView.tsx:60-62
+        显示阻止对话框且不调用 IPC；test-media-deletion.cjs:160-163。
+      truncated: false
+  - id: A5
+    source: brief.md
+    text: 被续接脚本、帧书签、角色/地点引用时阻止：删除被续接脚本
+      `sourceJobId`、帧书签项目或角色/地点漫游视频引用的资产时，删除被阻止并列出引用位置；资产与文件保持不变。
+    result: passed
+    reason:
+      text: libraryReferences.ts:111 续接脚本 sourceJobId、:124-135 帧书签 id/归一化
+        source、:137-148 角色 turntableVideo.path、:150-161 地点
+        walkthroughVideo.path；写入侧 App.tsx:265/270 path=localOutput ??
+        outputUrl，与匹配规则对齐；test-media-deletion.cjs:166-187 五类断言；命中即阻止对话框、不调 IPC。
+      truncated: false
+  - id: A6
+    source: brief.md
+    text: 远程资产：本机无 `localOutputPath` 的远程渲染条目删除后，jobs 记录与缩略图缓存被移除，界面明确提示远端 ComfyUI
+      上的文件未被删除。
+    result: passed
+    reason:
+      text: App.tsx:1733 remote=!job.localOutputPath；空 files
+        被主进程接受并返回空结果（mediaDeletion.ts
+        无文件即跳过执行，test-media-deletion.cjs:88-89）；成功提示「已移除本地记录；远端 ComfyUI
+        上的文件未被删除。」（App.tsx:1750）；确认文案区分远程（LibraryView.tsx:65-67）；缩略图缓存仍按传入路径清理。
+      truncated: false
+  - id: A7
+    source: brief.md
+    text: 越界路径拒绝：渲染层请求删除两个可信输出目录之外的文件时，主进程拒绝并返回明确错误，文件不受影响。
+    result: passed
+    reason:
+      text: mediaDeletion.ts:69-87 validateInput（≤8 项 mediaDeletion.ts:73、绝对路径
+        :77）、:124-132 所有文件校验先于执行、:136-141 缩略图根外/非 .jpg/realpath
+        逃逸全拒；拒绝时零文件处理（test-media-deletion.cjs rejected() 断言
+        calls.trash.length===0）；ComfyUI 未连接场景文案单独区分（mediaDeletion.ts:120-122）。
+      truncated: false
+  - id: A8
+    source: brief.md
+    text: 文件已不存在：删除已从磁盘消失的本机资产时，回收站动作安全跳过，记录与缓存被移除，界面说明文件已不存在；操作不报致命错误。
+    result: passed
+    reason:
+      text: mediaDeletion.ts:144-147 exists=false 计入 missing 不抛错；App.tsx:1747-1751
+        allMissing
+        分支提示「文件已不存在，已移除记录。」并移除记录；缩略图按传入路径清理（test-media-deletion.cjs:97-101、123-124）。
+      truncated: false
+  - id: A9
+    source: brief.md
+    text: 回收站操作失败（含部分成功）：任一本机文件 `shell.trashItem` 失败时，jobs
+      记录与媒体库条目保持不变，界面如实提示已移动数量、失败文件与原因并允许重试；重试只处理剩余文件，不重复处理已回收文件。
+    result: passed
+    reason:
+      text: mediaDeletion.ts:149-154 单文件 trashItem 失败入 failed
+        不中断其余（test-media-deletion.cjs:104-111）；App.tsx:1736-1740 failed 非空时不
+        persist、不 setJobs，提示已移动数量/失败文件与原因并保留记录；finally
+        恢复按钮（LibraryView.tsx:71）；重试时已回收文件 exists=false 归入 missing，不会重复
+        trash（mediaDeletion.ts:145-147）。
+      truncated: false
+  - id: A10
+    source: brief.md
+    text: 删除音频：媒体库音频卡片删除后，文件进入回收站、卡片与队列历史消失，音频控件不再引用该文件。
+    result: passed
+    reason:
+      text: 删除按钮渲染于全部 available 卡片（LibraryView.tsx:108），音频 job 的 localOutputPath 经同一
+        IPC 回收；jobs 移除后音频卡片（含 <audio> 元素 :102）不再渲染、队列历史同步消失；灯箱删除先
+        setLightbox(null) 卸载音频元素再延时调 IPC（LibraryView.tsx:76-78）。
+      truncated: false
+  - id: A11
+    source: brief.md
+    text: 便携版/自定义输出目录：ComfyUI 上报 `--output-directory` 且与 `settings.outputDirectory`
+      不同时，位于该目录内的资产仍可正常删除（主进程派生可信根，不因单根判定误拒）。
+    result: passed
+    reason:
+      text: main.ts:881-895 trustedMediaOutputRoots 同时派生 settings.outputDirectory 与
+        /system_stats 上报的 --output-directory（复用 observedComfyOutput 600s
+        缓存、去重）；mediaDeletion.ts:125 多根 some() 判定；test-media-deletion.cjs:79-82
+        断言第二根内文件正常回收，不因单根误拒。
+      truncated: false
+  - id: A12
+    source: brief.md
+    text: 续接节拍链引用阻止：删除作为续接节拍链节点的 job（被子 job 的 `continuation.sourceJobId` 指向，或被删 job
+      自身的 `continuation.scriptId` 属于已存续接脚本）时，删除被阻止并提示续接脚本名称与节拍位置；文件与记录保持不变。
+    result: passed
+    reason:
+      text: libraryReferences.ts:118-122 其他 job 的 continuation.sourceJobId===job.id
+        即阻止（不依赖脚本存储可读，:116-117 注释明确）；:111-112 待删 job 自身 continuation.scriptId
+        命中已存脚本（含无子节点尾节拍）；标签为「续接脚本「<名>」的节拍」，脚本不可得时「续接节拍（子节点
+        job）」（:121）；test-media-deletion.cjs:175-183。
+      truncated: false
+  - id: A13
+    source: brief.md
+    text: 引用数据不可读时 fail-closed：任一引用存储 key 存在但 JSON
+      无法解析或结构无效时，删除被阻止并提示「无法读取〈对应数据〉，为避免误删已取消」，提供重试；key 缺失视为无引用。
+    result: passed
+    reason:
+      text: libraryReferences.ts:27-35 readStore 三态：key 缺失=missing 视为无引用；JSON
+        解析失败或顶层结构无效（:84/:105/:127/:140/:152）→ unreadable
+        fail-closed；坏元素只跳过不判整体失败；LibraryView.tsx:60-62、115
+        显示「无法读取…，为避免误删已取消删除。」并提供重试（重试重走
+        requestDelete）；test-media-deletion.cjs:196-211 断言五类存储的坏 JSON 与坏形状。
+      truncated: false
+builder_handoff:
+  candidate_id: da9c0763-c9f7-4c7c-b1ff-02aa43adb697
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:5e3314c3-68d5-4c6f-9612-29afd1502522
+  iteration: 1
+  summary:
+    text: 本轮 Build 实现媒体库单条资产删除闭环：(1) 新增 electron/mediaDeletion.ts，无
+      Electron/文件系统依赖、副作用注入，主进程先用 relative+isAbsolute 做词法越界判定（根目录本身、..
+      前缀、跨盘、Win32/darwin 大小写折叠均拒绝），存在文件再 realpath 复核真实路径，全部路径校验通过后才逐个
+      shell.trashItem；逐文件返回 recycled/missing/failed[{path,reason}]，缩略图 .jpg
+      unlink 为非致命 best-effort。(2) electron/main.ts 新增
+      trustedMediaOutputRoots：可信根 = settings.outputDirectory + ComfyUI
+      /system_stats 上报的 --output-directory（复用 observedComfyOutput 600s
+      缓存语义），渲染层只传路径不传根；新增 media:delete
+      IPC（thumbnailRoot=userData/video-thumbnails），根 2 不可达时错误文案单独提示连接
+      ComfyUI。(3) 新增 src/lib/libraryReferences.ts：读取影片项目、续接脚本、帧书签、角色/地点五个存储，URL
+      经 playableOutputUrl 归一化并解析 minimax-media path 参数；覆盖续接脚本首段（sourceJobId）、待删
+      job 自身 continuation.scriptId 归属（含无子节点尾节拍）、子 job continuation.sourceJobId
+      父节点链；key 缺失=无引用，解析失败或顶层结构错误 fail-closed，坏元素跳过；按 spec 不设 latentPath
+      匹配器（motionContext 不落盘到 GenerationJob）。(4) App.tsx 新增
+      deleteMediaJob：files=[localOutputPath,latentPath,segmentOutputPath]，失败保留记录并如实提示已移动数量/失败文件/原因；成功立即
+      persist('minimax.jobs', next.slice(0,100).map(compactJob)) 绕过 1200ms 防抖后再
+      setJobs 移除，成功提示区分本机回收/文件已不存在/远程三种。(5) LibraryView 卡片与灯箱新增 danger 删除按钮（单条
+      busy 禁用+spinner），确认文案区分本机/远程，灯箱删除先卸载媒体元素并延时到 React 提交后再调用
+      IPC，引用命中或数据不可读时显示阻止对话框（不可读提供重试），不调用 IPC。(6) 类型/预加载/browserMock/CSS
+      同步补齐。开发期实跑：pnpm typecheck、pnpm lint、pnpm build:web、pnpm
+      build:electron、pnpm test:media-deletion 全部通过；pnpm test 链在 test:locale
+      前（含新套件）全部通过，test:locale 仍为既有基线 42 处失败且新增/改动文件未被列为问题（仅既有 App.tsx:3131
+      Ctrl+F）。
+    truncated: false
+  addressed_acceptance_ids:
+    - A1
+    - A2
+    - A3
+    - A4
+    - A5
+    - A6
+    - A7
+    - A8
+    - A9
+    - A10
+    - A11
+    - A12
+    - A13
+  acceptance_review:
+    - id: A1
+      status: implemented-with-evidence
+      evidence:
+        - src/components/LibraryView.tsx:108 — 卡片操作区渲染
+          .danger-button.library-delete-button，available（status=completed 且有
+          outputUrl，LibraryView.tsx:24）内的图片/视频/音频均显示；deleteBusyId 命中时禁用并显示
+          spinner
+        - src/components/LibraryView.tsx:57-84 — requestDelete 先做引用检测，无引用才
+          window.confirm（本机文案：移入回收站+移除记录+清理缓存与派生文件），确认后调用 onDeleteMedia
+        - src/App.tsx:1731-1755 — deleteMediaJob 收集路径并调用
+          window.minimax.deleteMedia；成功后 persist('minimax.jobs',
+          next.slice(0,100).map(compactJob)) 立即落盘，再 setJobs 过滤移除，媒体库与队列读同一 jobs
+          数组（App.tsx:3424）
+        - electron/main.ts:1923-1944 — media:delete IPC 注入
+          existsSync/stat/realpath/shell.trashItem/unlink 执行 mediaDeletion
+        - electron/mediaDeletion.ts:109-166 — 全部路径校验通过后逐文件 trashItem，返回
+          recycled/missing/failed
+        - scripts/test-media-deletion.cjs — 断言去重、missing 与逐文件回收结果；PASS
+      note: 图片 job 的 files 只有 localOutputPath（无 latent/segment），删除后记录立即持久化移除，重启不复活。
+    - id: A2
+      status: implemented-with-evidence
+      evidence:
+        - src/App.tsx:1732 — files 由 [job.localOutputPath, job.latentPath,
+          job.segmentOutputPath] 非空项组成，视频的 latent/分段输出一并进入同一删除请求
+        - src/App.tsx:1735 — thumbnailPath 由
+          thumbnailCachePath(job.thumbnailUrl) 解析后传入
+        - src/lib/libraryReferences.ts:167-175 — 仅当 hostname=thumbnail 时返回
+          ?path= 参数
+        - electron/main.ts:1928 — thumbnailRoot = userData/video-thumbnails
+        - electron/mediaDeletion.ts:134-141,157-164 — 缩略图必须在 thumbnailRoot 内且扩展名
+          .jpg，通过后 unlink，成功置 thumbnailRemoved=true，失败为非致命
+        - scripts/test-media-deletion.cjs — thumbnailRemoved=true（unlink
+          实参校验）、unlink 抛错时 false 且不抛出、文件不存在时 false；另断言 latent/segment
+          与主文件同批回收；PASS
+      note: 缩略图缓存可再生，因此 unlink 失败不回滚已回收媒体文件；主文件回收与缓存清理互不阻塞。
+    - id: A3
+      status: implemented-with-evidence
+      evidence:
+        - src/components/LibraryView.tsx:63-68 — const confirmed =
+          window.confirm(...); if (!confirmed) return
+        - src/components/LibraryView.tsx:69-81 — 只有 confirmed 通过后才进入
+          runDelete（setDeleteBusyId + onDeleteMedia），取消路径无 IPC、无状态写入
+        - src/App.tsx:1731-1755 — 仅在 IPC 成功后持久化与 setJobs；取消不会进入该函数
+      note: 引用阻止对话框发生在确认之前，不属于取消路径；取消后文件、缩略图、jobs 记录与队列历史均不变。
+    - id: A4
+      status: implemented-with-evidence
+      evidence:
+        - src/lib/libraryReferences.ts:81-97 — 读取
+          minimax.movie-editor-projects；clips[].assetId === `job-${job.id}` 或
+          sourceMatchesJob(clips[].source) 命中即加入「影片项目「<name>」」
+        - src/lib/libraryReferences.ts:48-58 — source 匹配前经 playableOutputUrl
+          归一化，并解析 minimax-media path/url 参数与 localOutputPath 对齐
+        - src/components/LibraryView.tsx:57-63 — 检测到 references 时设置
+          referenceDialog 并 return，绝不调用删除 IPC
+        - src/components/LibraryView.tsx:115 — 阻止对话框列出全部来源标签并说明先移除引用
+        - scripts/test-media-deletion.cjs — 覆盖 assetId 匹配与原始 ComfyUI URL
+          归一化匹配；PASS
+      note: 影片项目名取 project.name，缺失时用「未命名」；同一项目多个命中只显示一次。
+    - id: A5
+      status: implemented-with-evidence
+      evidence:
+        - src/lib/libraryReferences.ts:99-114 — 续接脚本：sourceJobId === job.id
+          时提示「续接脚本「<videoName>」」
+        - src/lib/libraryReferences.ts:124-135 — 帧书签：project.id ===
+          `job-${job.id}` 或归一化 source 匹配
+        - src/lib/libraryReferences.ts:137-161 — 角色 turntableVideo.path 与地点
+          walkthroughVideo.path 经同一归一化匹配
+        - scripts/test-media-deletion.cjs — 分别覆盖续接脚本首段、帧书签 id 与 minimax-media
+          path、角色/地点 path、无关条目不误报；PASS
+        - src/components/LibraryView.tsx:57-63 — 任一命中即打开阻止对话框且不调用 IPC
+      note: 存储 key 缺失视为该来源未使用、不阻止；只有解析失败/顶层结构无效才 fail-closed（A13）。
+    - id: A6
+      status: implemented-with-evidence
+      evidence:
+        - src/App.tsx:1732-1733 — 远程 job（无 localOutputPath）files
+          为空或仅含本机派生路径，remote=true
+        - src/App.tsx:1746-1751 — remote 时成功提示固定为「已移除本地记录；远端 ComfyUI 上的文件未被删除。」
+        - electron/mediaDeletion.ts:109-118,143-155 — 接受空 files，仍校验并按
+          thumbnailPath 清理缓存，返回空 recycled/missing/failed
+        - src/components/LibraryView.tsx:64-67 — 远程确认文案明确「远端 ComfyUI 上的文件不会被删除」
+        - scripts/test-media-deletion.cjs — files:[] 返回
+          {recycled:[],missing:[],failed:[],thumbnailRemoved:false}；PASS
+      note: 若 job 声称有本机文件但路径越界，主进程整体拒绝而非退化为远程语义（A7 同路径）。
+    - id: A7
+      status: implemented-with-evidence
+      evidence:
+        - electron/mediaDeletion.ts:58-67 — relative 判定：空
+          child（根本身）、'..'、'..\\'/'../' 前缀、isAbsolute 一律拒绝；win32/darwin 大小写折叠
+        - electron/mediaDeletion.ts:69-87 — files 必须为非空绝对路径、去重、≤8；thumbnailPath
+          必须是非空字符串
+        - electron/mediaDeletion.ts:120-141 — 任一文件不在可信根、realpath
+          逃逸或不是文件即抛错；可信根为空也拒绝；缩略图必须位于 thumbnailRoot 且 .jpg
+        - electron/mediaDeletion.ts:124-132 — 全部路径先校验，任何失败都在 trashItem
+          循环之前抛出（all-or-nothing）
+        - electron/main.ts:881-895 — 可信根由主进程派生（settings 输出目录 + /system_stats
+          上报目录），不接受渲染层 root
+        - scripts/test-media-deletion.cjs — 覆盖根本身、同前缀兄弟目录、跨盘、.. 回溯、相对路径、9
+          项超限、realpath 逃逸、非法缩略图、无可信根、ComfyUI 未连接文案；并用 calls.trash.length===0
+          断言拒绝时零文件处理；PASS
+        - src/App.tsx:1752-1754 — IPC 抛错时提示「文件与记录未改变」，不执行 persist/setJobs
+      note: 越界错误文案区分「只能删除可信输出目录内的媒体文件」与「无法确认该文件属于可信输出目录（ComfyUI 未连接），请连接后重试」。
+    - id: A8
+      status: implemented-with-evidence
+      evidence:
+        - electron/mediaDeletion.ts:144-148 — exists=false 的文件进入 missing，不调用
+          trashItem，不抛错
+        - src/App.tsx:1746-1750 — 本机且 recycled.length===0、missing.length>0
+          时提示「文件已不存在，已移除记录。」；仍执行立即持久化与 setJobs
+        - electron/mediaDeletion.ts:157-164 — 缩略图按传入路径独立清理，与主文件 missing 无关
+        - scripts/test-media-deletion.cjs — missing 文件与可回收文件同批时分别进入
+          missing/recycled，missing 不中断后续文件；PASS
+      note: missing 视为成功（failed 为空即移除记录），符合 spec 第 6 节；重复删除同一 job 不会再产生记录。
+    - id: A9
+      status: implemented-with-evidence
+      evidence:
+        - electron/mediaDeletion.ts:149-155 — 逐文件 try/catch，失败写入
+          failed[{path,reason}]，循环继续处理剩余文件
+        - src/App.tsx:1736-1740 — failed 非空时保留 jobs 记录与媒体库条目，提示「已移动 N
+          个文件；<文件>（<原因>）未能移入回收站。记录已保留，可重试。」
+        - src/components/LibraryView.tsx:81 — onDeleteMedia 完成后 finally 解除
+          busy，按钮恢复可重试
+        - scripts/test-media-deletion.cjs — 首个文件 trash 抛错、第二个成功：failed
+          仅含首个文件，recycled 含第二个；PASS
+      note: 重试时重新传入同一 files；已回收文件再次执行会因不存在进入 missing，不会重复处理或报错。
+    - id: A10
+      status: implemented-with-evidence
+      evidence:
+        - src/components/LibraryView.tsx:108 — 删除按钮不区分
+          mediaType，音频卡片与图片/视频同一入口（available 只要求 completed+outputUrl）
+        - src/App.tsx:1732 — 音频 job 的 files 同样取 localOutputPath
+          等路径，删除逻辑与扩展名无关（仅缩略图限制 .jpg）
+        - src/components/LibraryView.tsx:69-81 — 成功回调移除 job 后卡片与灯箱音频控件一同卸载，src
+          不再保留
+        - src/components/LibraryView.tsx:114 — 灯箱音频 <audio> 只存在于 lightbox
+          内，删除前若正预览会先 setLightbox(null)
+        - scripts/test-media-deletion.cjs —
+          媒体文件删除走同一路径策略（扩展名无关），与图片/视频共用同一测试路径；PASS
+      note: 未在真实 Electron 中用音频文件实测回收站；删除策略对扩展名无分支，音频与视频差异仅在媒体库展示层。
+    - id: A11
+      status: implemented-with-evidence
+      evidence:
+        - electron/main.ts:881-895 — trustedMediaOutputRoots 同时收
+          settings.outputDirectory 与已知/新请求的 /system_stats
+          --output-directory，去重后作为多根
+        - electron/main.ts:1923-1930 — IPC 每次删除前重新派生根，渲染层不参与
+        - electron/mediaDeletion.ts:116-127 — 文件命中任一可信根即可，matchedRoot 用于
+          realpath 复核
+        - scripts/test-media-deletion.cjs — outputRoots=[ROOT,
+          D:/ComfyUI_windows_portable/ComfyUI/output] 时，位于第二个根内的文件成功
+          recycled；PASS
+      note: observedComfyOutput 缓存按 URL + 600 秒判定；缓存过期时重新请求 /system_stats，失败且无
+        settings 匹配则按越界/未连接文案拒绝。
+    - id: A12
+      status: implemented-with-evidence
+      evidence:
+        - src/lib/libraryReferences.ts:99-114 — 待删 job 自身 continuation.scriptId
+          === 已存续接脚本 id 时提示「续接脚本「<videoName>」的节拍」，覆盖无子节点的尾节拍
+        - src/lib/libraryReferences.ts:116-122 — 其他 job 的
+          continuation.sourceJobId === job.id
+          时提示「续接脚本「<videoName>」的节拍」；脚本不可得时回退「续接节拍（子节点 job）」
+        - scripts/test-media-deletion.cjs — 尾节拍（无 child、自身 scriptId
+          命中）、链父节点（无脚本存储时 child sourceJobId 命中）、有脚本时 child 命中脚本标签；PASS
+        - docs/.../spec.md:38 — 明确不设 latentPath 匹配器：motionContext.latentPath
+          不落盘到 GenerationJob，父子依赖由 sourceJobId 覆盖
+      note: 这一实现同时修正了 spec 早期把 (c) 写成「其他 job scriptId」的笔误；正式文本已更正为「待删 job 自身
+        continuation.scriptId」。
+    - id: A13
+      status: implemented-with-evidence
+      evidence:
+        - src/lib/libraryReferences.ts:27-35 — getItem 为 null 视为
+          missing；JSON.parse 失败视为 unreadable
+        - src/lib/libraryReferences.ts:81-97,99-114,124-161 — 各存储顶层类型不符（数组/对象）标记
+          unreadable；数组内坏元素只跳过
+        - scripts/test-media-deletion.cjs — 五个 key 分别用非法 JSON 与错误顶层结构断言
+          unreadable；key 缺失返回空引用；null/数字/缺字段元素被跳过；PASS
+        - src/components/LibraryView.tsx:60-62,115 — unreadable
+          非空时显示「无法读取…，为避免误删已取消删除」对话框，提供「重试」按钮（重新运行 requestDelete），不调用 IPC
+      note: fail-closed 只针对 key 存在但不可读；key 缺失（功能从未使用）仍允许删除，与 spec 一致。
+  checks:
+    - name:
+        text: pnpm typecheck
+        truncated: false
+      result: passed
+      note:
+        text: src 与 electron tsconfig 均无错误
+        truncated: false
+    - name:
+        text: pnpm lint
+        truncated: false
+      result: passed
+      note:
+        text: --max-warnings 0 无输出
+        truncated: false
+    - name:
+        text: pnpm build:web
+        truncated: false
+      result: passed
+      note:
+        text: vite build 成功
+        truncated: false
+    - name:
+        text: pnpm build:electron
+        truncated: false
+      result: passed
+      note:
+        text: tsc -p tsconfig.electron.json 成功
+        truncated: false
+    - name:
+        text: pnpm test:media-deletion
+        truncated: false
+      result: passed
+      note:
+        text: 新增套件覆盖路径边界、逐文件结果、缩略图清理与五类引用检测；PASS
+        truncated: false
+    - name:
+        text: pnpm test（截至 test:locale 前的全部套件）
+        truncated: false
+      result: passed
+      note:
+        text: 链式执行到 test:locale 前全部通过，包含新增 test:media-deletion
+        truncated: false
+    - name:
+        text: pnpm test:locale（基线核对）
+        truncated: false
+      result: failed
+      note:
+        text: 仍为既有基线 42 处 FAIL（与 main 记录一致）；对 LibraryView/libraryReferences/App.tsx
+          的审计输出 grep 后仅见既有 App.tsx:3131 Ctrl+F，本 change 未新增问题
+        truncated: false
+  checks_truncated: false
+  known_limits:
+    - text: 未在真实 Electron + ComfyUI 环境端到端实测 shell.trashItem：回收站/文件占用/网络盘行为由注入依赖的单元测试与
+        Electron 34 API 语义覆盖；从灯箱删除时先 setLightbox(null) 并用 setTimeout(0) 等到 React
+        提交后再调用 IPC，Windows 媒体句柄释放行为未实机复验。
+      truncated: false
+    - text: 本机媒体文件与 latentPath/segmentOutputPath 必须全部位于可信根内（spec 第 5 节
+        all-or-nothing）；若历史数据存在根外派生路径，整个删除请求会被拒绝，不会部分删除。
+      truncated: false
+    - text: test:locale 在本分支仍为既有基线失败（42 处，非零退出），未列入 Runtime 检查计划；本 change 改动文件未新增
+        locale 问题。
+      truncated: false
+    - text: 工作区存在与本需求无关的既有 .gitignore 修改（Comet 托管忽略段被删），本 change 未触碰，归档时保留。
+      truncated: false
+  known_limits_truncated: false
+  review: null
+  submitted_at: 2026-11-16T13:03:35.778Z
+blockers: []
+verification:
+  candidate_id: da9c0763-c9f7-4c7c-b1ff-02aa43adb697
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:d9e434b5-d8b4-4d08-bcb8-ef1d37c0c064
+  iteration: 1
+  attempt: 1
+  assurance: skill-coordinated
+  verdict: pass
+  checks:
+    - id: typecheck
+      name:
+        text: pnpm typecheck
+        truncated: false
+      argv_display:
+        - text: typecheck
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 7749
+    - id: lint
+      name:
+        text: pnpm lint
+        truncated: false
+      argv_display:
+        - text: lint
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 3739
+    - id: build-web
+      name:
+        text: pnpm build:web
+        truncated: false
+      argv_display:
+        - text: build:web
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 3446
+    - id: build-electron
+      name:
+        text: pnpm build:electron
+        truncated: false
+      argv_display:
+        - text: build:electron
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 1412
+    - id: test-media-deletion
+      name:
+        text: pnpm test:media-deletion
+        truncated: false
+      argv_display:
+        - text: test:media-deletion
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 818
+    - id: test-continuation
+      name:
+        text: pnpm test:continuation
+        truncated: false
+      argv_display:
+        - text: test:continuation
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 890
+    - id: test-movie-editor
+      name:
+        text: pnpm test:movie-editor
+        truncated: false
+      argv_display:
+        - text: test:movie-editor
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 823
+    - id: test-workspace-persistence
+      name:
+        text: pnpm test:workspace-persistence
+        truncated: false
+      argv_display:
+        - text: test:workspace-persistence
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 818
+  summary:
+    text: 13/13 通过。删除闭环实现与 spec 对齐：主进程自派生双可信根（settings.outputDirectory + ComfyUI 上报
+      --output-directory），relative/isAbsolute/realpath 全量预检后逐文件
+      shell.trashItem（recycled/missing/failed 语义），缩略图 .jpg 限
+      userData/video-thumbnails；五类引用检测含续接链（sourceJobId 父节点、尾节拍 scriptId）与 URL
+      归一化，key 缺失=无引用、坏数据 fail-closed 可重试；成功后绕过防抖立即 persist 再
+      setJobs，失败保留记录。Runtime 检查（typecheck/lint/build/test-media-deletion 等 7
+      项）全部 passed 且 test-media-deletion 已由本 Verifier 当场独立复跑通过。
+    truncated: false
+  risks:
+    - text: realpath 复核以词法根比较真实路径：若可信根本身是 junction/符号链接，realpath(candidate)
+        解析出的真实路径会落在词法边界外而被误拒（低概率配置场景，测试未覆盖根为链接的情形）。
+      truncated: false
+    - text: shell.trashItem 与灯箱预览锁（setLightbox(null)+setTimeout(0) 后调 IPC）未在真实
+        Electron/Windows 实机验证；brief 的 Verification expectations
+        本就声明该项需手工验证，属已知限制而非实现缺口。
+      truncated: false
+    - text: persist 失败（localStorage 配额/不可写）时 deleteMediaJob 仍移除 UI 记录且未特判 persist
+        返回值，依赖全局 failedKeys 重试提示兜底；该极端窗口内记录可能复活，沿用既有持久化容错机制。
+      truncated: false
+    - text: ComfyUI 离线且 600s 缓存过期时，位于其上报输出目录的资产删除会被「ComfyUI 未连接」文案拒绝，用户需连上 ComfyUI
+        才能删此类资产（spec 第 5 节既定语义）。
+      truncated: false
+    - text: 影片编辑器独立窗口的素材池仅在下次加载/storage 事件时同步，删除后另一窗口可能短暂显示陈旧条目（spec 第 9 节行为，不在本次 13 项
+        acceptance 内）。
+      truncated: false
+  risks_truncated: false
+  completed_at: 2026-11-16T13:17:03.229Z
+history:
+  - goal_cycle: 1
+    iteration: 0
+    attempt: 0
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Native confirmed acceptance criteria changed
+      truncated: false
+    completed_at: 2026-11-16T12:41:39.706Z
+  - goal_cycle: 2
+    iteration: 0
+    attempt: 0
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Native confirmed acceptance criteria changed
+      truncated: false
+    completed_at: 2026-11-16T12:48:23.660Z
+  - goal_cycle: 3
+    iteration: 1
+    attempt: 0
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Native confirmed acceptance criteria changed
+      truncated: false
+    completed_at: 2026-11-16T13:02:43.065Z
+  - goal_cycle: 4
+    iteration: 1
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: 13/13 通过。删除闭环实现与 spec 对齐：主进程自派生双可信根（settings.outputDirectory + ComfyUI 上报
+        --output-directory），relative/isAbsolute/realpath 全量预检后逐文件
+        shell.trashItem（recycled/missing/failed 语义），缩略图 .jpg 限
+        userData/video-thumbnails；五类引用检测含续接链（sourceJobId 父节点、尾节拍 scriptId）与 URL
+        归一化，key 缺失=无引用、坏数据 fail-closed 可重试；成功后绕过防抖立即 persist 再
+        setJobs，失败保留记录。Runtime 检查（typecheck/lint/build/test-media-deletion 等 7
+        项）全部 passed 且 test-media-deletion 已由本 Verifier 当场独立复跑通过。
+      truncated: false
+    completed_at: 2026-11-16T13:17:03.229Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pass
+verification_report: verification.md
+archived: true
+created_at: 2026-11-16T12:13:19.912Z
