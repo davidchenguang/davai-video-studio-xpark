@@ -2,6 +2,7 @@
 // SFT 图不回归（prompt-parity 基线在此只断言关键节点值；逐字节对比由
 // pnpm test:prompt-parity 负责）、可用变体与兜底选择逻辑。
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const { load } = require('./test-ts-loader.cjs')
 const ace = load('src/lib/aceStepWorkflow.ts')
 const { buildAceStepWorkflow, inferAceStepSelections, ACE_STEP_VARIANTS, ACE_STEP_VARIANT_PRIORITY, aceStepVariantWeight, firstAvailableAceStepVariant, displayableAceStepVariants } = ace
@@ -90,4 +91,19 @@ assert.deepEqual([...displayableAceStepVariants(w('', '', ''))], ['sft', 'turbo'
 // 仅 Turbo 在位：权重解析走 turbo 字段
 assert.equal(aceStepVariantWeight(w('', 'turbo.safetensors', ''), 'turbo'), 'turbo.safetensors', 'Turbo weight resolves from the optional field')
 
-console.log('PASS: ACE-Step variant table, turbo recognition, official sampling parameters, SFT stability and fallback selection')
+// ---- 运行中面板不重复渲染同一份进度信息 ----
+// ProductionLoading 自己已经输出「标签 + 进度条 + 百分比」；面板里若再保留
+// 旧结构的同名标题、第二条进度条与第二处百分比，同一句话会显示两遍。
+{
+  const source = fs.readFileSync('src/components/AceStepWorkspace.tsx', 'utf8')
+  const start = source.indexOf('<div className="render-state">')
+  const end = source.indexOf(': <div className="empty-preview">')
+  assert.ok(start > -1 && end > start, '运行中面板的结构可定位')
+  const block = source.slice(start, end)
+  assert.ok(block.includes('<ProductionLoading'), '运行中面板仍复用 ProductionLoading 进度原语')
+  assert.equal((block.match(/progressLabel/g) || []).length, 1, '进度标签只出现一次（由 ProductionLoading 渲染），标题不再复述它')
+  assert.ok(!block.includes('<div className="progress">'), '不再渲染第二条进度条（ProductionLoading 已渲染）')
+  assert.ok(!block.includes('ComfyUI 实时状态'), '不再重复渲染百分比（ProductionLoading 已渲染）')
+}
+
+console.log('PASS: ACE-Step variant table, turbo recognition, official sampling parameters, SFT stability, fallback selection and single-source progress display')
