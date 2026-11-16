@@ -97,7 +97,7 @@ import './studio-system.css'
 import './scratchpad.css'
 import './original-theme.css'
 import { buildCharacterIdentitySurveyPrompt } from './lib/characterSurvey'
-import { ACE_STEP_REQUIRED_NODES, buildAceStepWorkflow, inferAceStepSelections } from './lib/aceStepWorkflow'
+import { ACE_STEP_REQUIRED_NODES, ACE_STEP_VARIANTS, aceStepVariantWeight, buildAceStepWorkflow, inferAceStepSelections } from './lib/aceStepWorkflow'
 import { MUSIC3_REQUIRED_NODES, buildMusic3Workflow, inferMusic3Selection, type Music3GenerationOptions } from './lib/music3Workflow'
 import { fitWholeCharacter, prepareImage } from './lib/imageCrop'
 import { hasTurbo4Lora, inferLtx25Selections, inferSelections } from './lib/modelSelection'
@@ -2198,9 +2198,15 @@ function App() {
       setNotice({ tone: 'error', text: '请启动 ComfyUI，并在设置中确认服务器连接。' })
       return
     }
-    const selectedModel = options.model === 'sft' ? aceSelection.sft : aceSelection.base
-    if (!selectedModel || !aceSelection.vae || !aceSelection.textEncoderSmall || !aceSelection.textEncoderLarge) {
-      setNotice({ tone: 'error', text: `需要 ACE-Step ${options.model.toUpperCase()} 模型、音频 VAE 以及两个 Qwen ACE 文本编码器。` })
+    const variantConfig = ACE_STEP_VARIANTS[options.model]
+    const selectedModel = aceStepVariantWeight(aceSelection, options.model)
+    const missing: string[] = []
+    if (!selectedModel) missing.push(`${variantConfig.label} 检查点（${variantConfig.weightPattern.source}）`)
+    if (!aceSelection.vae) missing.push('ace_1.5_vae')
+    if (!aceSelection.textEncoderSmall) missing.push('qwen_0.6b_ace15')
+    if (!aceSelection.textEncoderLarge) missing.push('qwen_4b_ace15')
+    if (missing.length) {
+      setNotice({ tone: 'error', text: `缺少 ACE-Step 组件：${missing.join('、')}。请将它们添加到配置的模型文件夹后重新扫描。` })
       return
     }
     const aceGpuRouting = routingPlanFor({ diffusion: selectedModel, textEncoder: aceSelection.textEncoderLarge, audioVae: aceSelection.vae })
@@ -2218,11 +2224,11 @@ function App() {
       id: localId, provider: 'acestep', mediaType: 'audio', mode: 'text', prompt: options.tags,
       createdAt: Date.now(), status: 'queued', progress: 2, progressLabel: '正在准备 ACE-Step 工作流',
       width: 0, height: 0, duration: options.duration,
-      execution: { diffusionModel: options.model === 'sft' ? aceSelection.sft : aceSelection.base, attentionBackend: attentionBackendLabel(resolvedH3AttentionBackend), sampler: 'Euler + simple', gpuRouting: aceGpuRouting?.summary },
+      execution: { diffusionModel: selectedModel, attentionBackend: attentionBackendLabel(resolvedH3AttentionBackend), sampler: `Euler + simple · ${variantConfig.steps} 步`, gpuRouting: aceGpuRouting?.summary },
     }
     setJobs((current) => [job, ...current])
     setAceSubmitting(true)
-    setNotice({ tone: 'neutral', text: `正在准备官方 ACE-Step XL ${options.model.toUpperCase()} ComfyUI 工作流…` })
+    setNotice({ tone: 'neutral', text: `正在准备官方 ACE-Step ${variantConfig.label} ComfyUI 工作流…` })
     try {
       const graph = buildAceStepWorkflow({ ...options, attentionBackend: resolvedH3AttentionBackend, gpuRouting: aceGpuRouting?.workflow }, aceSelection)
       if (aceGpuRouting) console.info(`[GPU Routing] ACE-Step | ${aceGpuRouting.logLine} | Strategy: ${aceGpuRouting.workflow.strategy}`)
@@ -2233,7 +2239,7 @@ function App() {
         setJobs((current) => current.map((item) => item.id === localId ? { ...item, promptId: response.prompt_id, status: 'cancelled' } : item))
       } else {
         setJobs((current) => current.map((item) => item.id === localId ? { ...item, promptId: response.prompt_id, status: 'running', progress: 4, progressLabel: '等待 ComfyUI 启动' } : item))
-        setNotice({ tone: 'success', text: `ACE-Step XL ${options.model.toUpperCase()} 音乐生成已加入 ComfyUI。` })
+        setNotice({ tone: 'success', text: `ACE-Step ${variantConfig.label} 音乐生成已加入 ComfyUI。` })
       }
     } catch (error) {
       const cancelled = cancellationRequests.current.has(localId)

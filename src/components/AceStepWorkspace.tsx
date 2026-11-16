@@ -1,12 +1,13 @@
 import { PreviewPanel, ProductionLoading } from './Workspace'
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Check, CircleStop, Disc3, Gauge, Headphones, LoaderCircle, Music2, Play, RotateCcw, Sparkles, WandSparkles } from 'lucide-react'
-import type { AceStepGenerationOptions, AceStepModelSelection, AppSettings, GenerationJob } from '../types'
+import type { AceStepGenerationOptions, AceStepModelSelection, AceStepVariant, AppSettings, GenerationJob } from '../types'
+import { ACE_STEP_VARIANTS, aceStepVariantWeight, displayableAceStepVariants, firstAvailableAceStepVariant } from '../lib/aceStepWorkflow'
 import { resolveLlmConnection } from '../lib/llmProvider'
 import { SmartPromptEditor } from './SmartPromptEditor'
 
 type MusicState = {
-  model: 'sft' | 'base'
+  model: AceStepVariant
   tags: string
   lyrics: string
   instrumental: boolean
@@ -29,8 +30,11 @@ const keys = [['C major', 'C 大调'], ['C minor', 'C 小调'], ['C# major', 'C#
 const languages = [['en', '英语'], ['es', '西班牙语'], ['fr', '法语'], ['de', '德语'], ['it', '意大利语'], ['pt', '葡萄牙语'], ['ja', '日语'], ['ko', '韩语'], ['zh', '中文']] as const
 
 function readState(): MusicState {
-  try { return { ...defaults, ...JSON.parse(localStorage.getItem('acestep.workspace') ?? '{}') } }
-  catch { return defaults }
+  try {
+    const stored = JSON.parse(localStorage.getItem('acestep.workspace') ?? '{}') as Partial<MusicState>
+    // 旧存档只有 'sft' | 'base' 两种取值；'turbo' 之外的原值保留，迁移在挂载后按可用变体处理。
+    return { ...defaults, ...stored, model: stored.model === 'sft' || stored.model === 'turbo' || stored.model === 'base' ? stored.model : defaults.model }
+  } catch { return defaults }
 }
 
 export function AceStepWorkspace({ settings, models, connected, pipelineReady, missingNodes, latestJob, submitting, cancelling, ollamaAvailable, onGenerate, onCancel, onSelectMusic3 }: {
@@ -54,7 +58,9 @@ export function AceStepWorkspace({ settings, models, connected, pipelineReady, m
   const [suggestion, setSuggestion] = useState('')
   const [assistantError, setAssistantError] = useState('')
   const set = <K extends keyof MusicState>(key: K, value: MusicState[K]) => setState((current) => ({ ...current, [key]: value }))
-  const selectedModel = state.model === 'sft' ? models.sft : models.base
+  const displayableVariants = useMemo(() => displayableAceStepVariants(models), [models])
+  const selectedVariant = ACE_STEP_VARIANTS[state.model]
+  const selectedModel = aceStepVariantWeight(models, state.model)
   const sharedReady = Boolean(models.vae && models.textEncoderSmall && models.textEncoderLarge)
   const modelReady = Boolean(selectedModel && sharedReady && pipelineReady)
 
@@ -65,9 +71,13 @@ export function AceStepWorkspace({ settings, models, connected, pipelineReady, m
     return () => window.removeEventListener('davai:load-music-prompt', loadPrompt)
   }, [])
   useEffect(() => {
-    if (state.model === 'sft' && !models.sft && models.base) set('model', 'base')
-    if (state.model === 'base' && !models.base && models.sft) set('model', 'sft')
-  }, [models.base, models.sft, state.model])
+    const available = firstAvailableAceStepVariant(models)
+    // 旧存档 model: 'base' 在 Base 不再可展示时迁移到首个可用变体；Base 恰为唯一可用时保留。
+    if (state.model === 'base' && !displayableVariants.includes('base') && available) set('model', available)
+    // 旧存档 model: 'sft' 在 SFT 缺失时回退到首个可用变体（沿用既有交换行为）。
+    if (state.model === 'sft' && !models.sft && available && available !== 'sft') set('model', available)
+    if (state.model === 'turbo' && !models.turbo && available) set('model', available)
+  }, [models, state.model, displayableVariants])
 
   const refine = async () => {
     if (!state.tags.trim() || !llm.model) return
@@ -79,22 +89,26 @@ export function AceStepWorkspace({ settings, models, connected, pipelineReady, m
     finally { setRefining(false) }
   }
 
-  const reset = () => { setState({ ...defaults, seed: Math.floor(Math.random() * 1_000_000_000), model: models.sft ? 'sft' : 'base' }); setSuggestion('') }
+  const reset = () => { setState({ ...defaults, seed: Math.floor(Math.random() * 1_000_000_000), model: firstAvailableAceStepVariant(models) ?? 'sft' }); setSuggestion('') }
   const running = latestJob && ['queued', 'running'].includes(latestJob.status)
   const generate = () => onGenerate({ ...state, lyrics: state.instrumental ? '' : state.lyrics, filenamePrefix: `audio/ACE_Step_1.5_${state.model}_${Date.now()}` })
 
   return <div className="create-page ace-workspace">
     <div className="page-heading">
       <div><p className="eyebrow">创作 · ACE‑STEP 1.5</p><h1>音乐创作</h1><p>用音乐方向、歌词与专注的音频控制塑造完整歌曲与纯音乐。</p></div>
-      <div className="heading-state"><span className={modelReady ? 'ok' : 'warn'}>{modelReady ? <Check size={15} /> : <AlertCircle size={15} />}{modelReady ? `${state.model.toUpperCase()} 管线就绪` : missingNodes.length ? '请更新 ComfyUI' : '缺少 ACE-Step 模型'}</span></div>
+      <div className="heading-state"><span className={modelReady ? 'ok' : 'warn'}>{modelReady ? <Check size={15} /> : <AlertCircle size={15} />}{modelReady ? `${selectedVariant.label} 管线就绪` : missingNodes.length ? '请更新 ComfyUI' : '缺少 ACE-Step 模型'}</span></div>
     </div>
     <div className="workspace-grid ace-workspace-grid ace-generator-grid">
       <section className="composer-panel">
-        <div className="provider-note ace-provider-note"><Music2 size={18} /><span><strong>ComfyUI 原生生成</strong><small>选择 XL SFT 或 XL Base。音乐设置与历史独立于视频项目。</small></span><button type="button" onClick={onSelectMusic3}>Music 3</button><button type="button" onClick={reset}><RotateCcw size={14} />重置音乐</button></div>
+        <div className="provider-note ace-provider-note"><Music2 size={18} /><span><strong>ComfyUI 原生生成</strong><small>选择 XL SFT 或 XL Turbo。音乐设置与历史独立于视频项目。</small></span><button type="button" onClick={onSelectMusic3}>Music 3</button><button type="button" onClick={reset}><RotateCcw size={14} />重置音乐</button></div>
 
+        {!displayableVariants.includes('base') ? null : <div className="pipeline-warning" role="status"><AlertCircle size={16} /><span><strong>仅检测到 XL Base</strong><small>未发现 XL SFT 与 XL Turbo 权重；以下仍可使用基础模型生成。</small></span></div>}
         <fieldset className="model-picker"><legend>ACE-Step 模型</legend><div className="model-choice-grid">
-          <label className={state.model === 'sft' ? 'selected' : ''}><input type="radio" name="ace-model" checked={state.model === 'sft'} disabled={!models.sft} onChange={() => set('model', 'sft')} /><span><strong>XL SFT</strong><small>指令微调 · 官方 CFG 7</small></span><em>{models.sft ? '就绪' : '缺失'}</em></label>
-          <label className={state.model === 'base' ? 'selected' : ''}><input type="radio" name="ace-model" checked={state.model === 'base'} disabled={!models.base} onChange={() => set('model', 'base')} /><span><strong>XL Base</strong><small>基础模型 · 官方 CFG 6</small></span><em>{models.base ? '就绪' : '缺失'}</em></label>
+          {displayableVariants.map((variant) => {
+            const weight = aceStepVariantWeight(models, variant)
+            const config = ACE_STEP_VARIANTS[variant]
+            return <label key={variant} className={state.model === variant ? 'selected' : ''}><input type="radio" name="ace-model" checked={state.model === variant} disabled={!weight} onChange={() => set('model', variant)} /><span><strong>{config.label}</strong><small>{config.subtitle}</small></span><em>{weight ? '就绪' : '缺失'}</em></label>
+          })}
         </div></fieldset>
 
         <div className="field-group prompt-field ace-direction-field"><div className="field-label"><label htmlFor="ace-tags">音乐方向</label><span>{state.tags.length.toLocaleString()} 字符</span></div><SmartPromptEditor id="ace-tags" value={state.tags} onChange={(value) => set('tags', value)} placeholder="流派、情绪、乐器、人声风格、编曲与制作质感…输入 // 可使用制作指令。" />
@@ -115,13 +129,13 @@ export function AceStepWorkspace({ settings, models, connected, pipelineReady, m
           <div className="field-group"><label htmlFor="ace-seed">种子</label><input id="ace-seed" className="number-input" type="number" min="0" max="999999999999" value={state.seed} onChange={(event) => set('seed', Number(event.target.value))} /></div>
         </div>
         <label className="audio-code-option"><input type="checkbox" checked={state.generateAudioCodes} onChange={(event) => set('generateAudioCodes', event.target.checked)} /><span><strong>生成音频编码</strong><small>建议开启以获得更好的质量；会在扩散前增加语言模型处理。</small></span></label>
-        {!modelReady && <div className="pipeline-warning" role="status"><AlertCircle size={16} /><span><strong>ACE-Step 尚未就绪</strong><small>{missingNodes.length ? `缺少 ComfyUI 节点：${missingNodes.join(', ')}。` : `请将 ${!selectedModel ? `${state.model.toUpperCase()} 检查点、` : ''}${!models.vae ? 'ace_1.5_vae、' : ''}${!models.textEncoderSmall || !models.textEncoderLarge ? '以及两个 Qwen ACE 1.5 编码器' : ''}添加到配置的模型文件夹。`}</small></span></div>}
-        <div className="generate-bar"><div className="generation-summary"><Gauge size={17} /><span><strong>{state.duration} 秒 · {state.bpm} BPM</strong><small>{state.model.toUpperCase()} · 50 步 Euler · FLAC</small></span></div><div className="generate-actions">{running && <button className="danger-button" onClick={() => onCancel(latestJob)} disabled={cancelling}><CircleStop size={16} />{cancelling ? '正在停止…' : '取消'}</button>}<button className="primary-button" disabled={submitting || !connected || !modelReady || !state.tags.trim() || (!state.instrumental && !state.lyrics.trim())} onClick={generate}>{submitting ? <LoaderCircle size={18} className="spin" /> : <Play size={18} fill="currentColor" />}{submitting ? '正在提交…' : '生成音乐'}</button></div></div>
+        {!modelReady && <div className="pipeline-warning" role="status"><AlertCircle size={16} /><span><strong>ACE-Step 尚未就绪</strong><small>{missingNodes.length ? `缺少 ComfyUI 节点：${missingNodes.join(', ')}。` : `请将 ${!selectedModel ? `${selectedVariant.label} 检查点、` : ''}${!models.vae ? 'ace_1.5_vae、' : ''}${!models.textEncoderSmall || !models.textEncoderLarge ? '以及两个 Qwen ACE 1.5 编码器' : ''}添加到配置的模型文件夹。`}</small></span></div>}
+        <div className="generate-bar"><div className="generation-summary"><Gauge size={17} /><span><strong>{state.duration} 秒 · {state.bpm} BPM</strong><small>{selectedVariant.label} · {selectedVariant.steps} 步 Euler · FLAC</small></span></div><div className="generate-actions">{running && <button className="danger-button" onClick={() => onCancel(latestJob)} disabled={cancelling}><CircleStop size={16} />{cancelling ? '正在停止…' : '取消'}</button>}<button className="primary-button" disabled={submitting || !connected || !modelReady || !state.tags.trim() || (!state.instrumental && !state.lyrics.trim())} onClick={generate}>{submitting ? <LoaderCircle size={18} className="spin" /> : <Play size={18} fill="currentColor" />}{submitting ? '正在提交…' : '生成音乐'}</button></div></div>
       </section>
 
       <PreviewPanel><div className="panel-heading"><div><span>ACE-STEP 输出</span><strong>当前音乐工作区</strong></div>{latestJob && <span className={`status-badge ${latestJob.status}`}>{latestJob.status}</span>}</div>
-        <div className="ace-preview-stage">{latestJob?.outputUrl ? <div className="audio-result"><div className="album-placeholder"><Disc3 size={64} /><span>{state.model.toUpperCase()}</span></div><strong>{state.tags || '生成的音轨'}</strong><audio src={latestJob.outputUrl} controls preload="metadata" /><a className="secondary-button" href={latestJob.outputUrl} target="_blank" rel="noreferrer">打开音频文件</a></div> : running ? <div className="render-state"><ProductionLoading label={latestJob.progressLabel || '正在渲染音频'} progress={latestJob.progress || undefined}/><strong>{latestJob.progressLabel ?? '正在使用 ACE-Step 生成音乐'}</strong><span>{state.duration} 秒 · {state.bpm} BPM · {state.model.toUpperCase()}</span><div className="progress"><i style={{ width: `${latestJob.progress}%` }} /></div><small>{Math.round(latestJob.progress)}% · ComfyUI 实时状态</small></div> : <div className="empty-preview"><div className="preview-icon"><Headphones size={30} /></div><strong>你的音轨会显示在这里</strong><span>描述音乐、填写歌词或选择纯音乐，然后发送到 ComfyUI。</span></div>}</div>
-        <div className="pipeline-summary"><Pipeline ready={Boolean(selectedModel)} label={`${state.model.toUpperCase()} 扩散模型`} value={selectedModel} /><Pipeline ready={Boolean(models.textEncoderSmall && models.textEncoderLarge)} label="ACE 文本编码器" value={models.textEncoderSmall && models.textEncoderLarge ? `${models.textEncoderSmall} + ${models.textEncoderLarge}` : ''} /><Pipeline ready={Boolean(models.vae)} label="音频 VAE" value={models.vae} /></div>
+        <div className="ace-preview-stage">{latestJob?.outputUrl ? <div className="audio-result"><div className="album-placeholder"><Disc3 size={64} /><span>{selectedVariant.label}</span></div><strong>{state.tags || '生成的音轨'}</strong><audio src={latestJob.outputUrl} controls preload="metadata" /><a className="secondary-button" href={latestJob.outputUrl} target="_blank" rel="noreferrer">打开音频文件</a></div> : running ? <div className="render-state"><ProductionLoading label={latestJob.progressLabel || '正在渲染音频'} progress={latestJob.progress || undefined}/><strong>正在使用 ACE-Step 生成音乐</strong><span>{state.duration} 秒 · {state.bpm} BPM · {selectedVariant.label}</span></div> : <div className="empty-preview"><div className="preview-icon"><Headphones size={30} /></div><strong>你的音轨会显示在这里</strong><span>描述音乐、填写歌词或选择纯音乐，然后发送到 ComfyUI。</span></div>}</div>
+        <div className="pipeline-summary"><Pipeline ready={Boolean(selectedModel)} label={`${selectedVariant.label} 扩散模型`} value={selectedModel} /><Pipeline ready={Boolean(models.textEncoderSmall && models.textEncoderLarge)} label="ACE 文本编码器" value={models.textEncoderSmall && models.textEncoderLarge ? `${models.textEncoderSmall} + ${models.textEncoderLarge}` : ''} /><Pipeline ready={Boolean(models.vae)} label="音频 VAE" value={models.vae} /></div>
       </PreviewPanel>
     </div>
   </div>
