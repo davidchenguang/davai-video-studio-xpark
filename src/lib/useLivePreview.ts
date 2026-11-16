@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createId } from './createId'
 import { nodeStageLabel, samplerPassForNode } from './renderProgress'
+import { PROGRESS_STAGE_LABELS, progressStageForNode, type ProgressStageId } from './progressStages'
 
-export type LiveProgress = { progress?: number; label: string; currentStep?: number; totalSteps?: number; samplerPass?: 'first' | 'refine'; nodeId?: string | null }
+export type LiveProgress = { progress?: number; label: string; currentStep?: number; totalSteps?: number; samplerPass?: 'first' | 'refine'; nodeId?: string | null; stage?: ProgressStageId }
 export type LivePreview = {
   promptId: string
   url: string
@@ -38,14 +39,21 @@ function binaryPreviewImage(data: ArrayBuffer) {
   return null
 }
 
-// ComfyUI 0.45 rejects a WebSocket whose Host and Origin ports differ
-// (server.py origin-only middleware → 403 before onopen). In dev the page is
-// served by Vite on 5173 while the engine listens on 8188, so the socket must
-// go through Vite's same-origin proxy (`/comfy-ws` → target, ws passthrough,
-// changeOrigin off) instead of dialing the engine directly.
+// ComfyUI 的 origin 校验只在 Host 是 loopback 时才比对主机名（且不比端口），
+// 所以远程引擎可以直接握手；只有 loopback 引擎在 dev 下需要走同源代理：页面由
+// Vite 提供在 5173，引擎在 8188，跨端口的 loopback 握手会被 origin 校验拒绝。
+// 无论走哪条路径，事件流都必须落在「真正执行这条提示词的引擎」上，否则渲染进程
+// 收不到任何节点/步进事件，进度条会停在提交时的初始值。
+function isLoopbackHost(hostname: string) {
+  const host = hostname.toLowerCase()
+  return host === 'localhost' || host === '::1' || host === '[::1]' || /^127\./.test(host)
+}
+
 export function comfyEventSocketUrl(engineUrl: string, devOrigin: boolean, clientId: string) {
-  if (devOrigin) return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/comfy-ws?clientId=${encodeURIComponent(clientId)}`
   const address = new URL(engineUrl)
+  if (devOrigin && isLoopbackHost(address.hostname)) {
+    return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/comfy-ws?clientId=${encodeURIComponent(clientId)}`
+  }
   address.protocol = address.protocol === 'https:' ? 'wss:' : 'ws:'
   address.pathname = `${address.pathname.replace(/\/$/, '')}/ws`
   address.search = `clientId=${encodeURIComponent(clientId)}`
@@ -113,7 +121,7 @@ export function useLivePreview(url: string | undefined, enabled: boolean, onProg
               const nodeType = workflowNodes.current.get(promptId)?.[nodeId]
               const pass = samplerPassForNode(nodeId, nodeType)
               if (pass) { samplerPass = pass; samplerStage = pass === 'refine' ? '精修采样轮' : '首轮采样' }
-              onProgress(promptId, { label: pass ? samplerStage : nodeStageLabel(nodeType, nodeId), nodeId, ...(pass ? { samplerPass: pass } : {}) })
+              onProgress(promptId, { label: pass ? samplerStage : nodeStageLabel(nodeType, nodeId), nodeId, stage: progressStageForNode(nodeType), ...(pass ? { samplerPass: pass } : {}) })
             } else {
               onProgress(promptId, { label: '正在收尾工作流', nodeId: null })
             }
@@ -122,10 +130,18 @@ export function useLivePreview(url: string | undefined, enabled: boolean, onProg
           // sending binary PREVIEW_IMAGE frames. Surface that separately from
           // generic socket connectivity so a missing frame stream is obvious.
           if (msg.type === 'VHS_latentpreview') onProgress(promptId, { label: `LTX 采样预览流 · ${msg.data.fps ?? msg.data.rate ?? 24} fps` })
+          // legacy "progress" 事件带 node/value/max：它同时是「哪个节点在跑」和
+          // 「这个节点跑到第几步」的唯一来源，因此要连 nodeId 一起上报，界面才能
+          // 把步数归到正确的阶段（文本编码 / 采样）。
           if (msg.type === 'progress' && msg.data.max) {
             const currentStep = Math.max(0, msg.data.value ?? 0)
             const totalSteps = msg.data.max
-            onProgress(promptId, { progress: Math.min(95, (currentStep / totalSteps) * 95), label: `${samplerStage || '采样中'} · 第 ${currentStep} 步，共 ${totalSteps} 步`, currentStep, totalSteps, samplerPass })
+            const nodeId = msg.data.node ?? undefined
+            const nodeType = nodeId ? workflowNodes.current.get(promptId)?.[nodeId] : undefined
+            // 拿不到节点类型时退回既有语义：按采样器处理，避免把未知节点说成别的阶段。
+            const stage = nodeType ? progressStageForNode(nodeType) : 'sample'
+            const stageName = stage === 'sample' ? (samplerStage || '采样中') : PROGRESS_STAGE_LABELS[stage]
+            onProgress(promptId, { progress: Math.min(95, (currentStep / totalSteps) * 95), label: stageName, currentStep, totalSteps, samplerPass, nodeId, stage })
           }
           if (msg.type === 'execution_success') {
             onProgress(promptId, { progress: 98, label: '正在保存最终输出', nodeId: null })

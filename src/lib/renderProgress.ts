@@ -49,9 +49,14 @@ export function nodeStageLabel(nodeType: string | undefined, nodeId: string) {
   if (/^(CLIPLoader|DualCLIPLoader)$/i.test(nodeType)) return '正在加载文本编码器'
   if (/ModelAttentionBackend|SolAttnH3|MiniMaxH3AttentionParallel/i.test(nodeType)) return '正在应用注意力后端'
   if (/LoraLoader/i.test(nodeType)) return '正在应用 LoRA 适配器'
+  if (/MiniMaxMusic3TextEncode/i.test(nodeType)) return '正在编码歌词与编曲'
+  if (/TextEncodeAceStepAudio1\.5/i.test(nodeType)) return '正在编码提示与歌词'
+  if (/Empty(?:MiniMaxMusic3|AceStep1\.5)LatentAudio/i.test(nodeType)) return '正在准备音频潜空间'
   if (/MiniMaxH3.*(?:Reference|Image)ToVideo/i.test(nodeType)) return '正在准备 H3 条件与参考图'
   if (/MinimaxH3LatentUpscaler3DRefineHandoff/i.test(nodeType)) return '正在放大并精修 H3 潜空间'
   if (/SamplerCustomAdvanced|KSampler$/i.test(nodeType)) return '正在启动采样器'
+  if (/VAEDecodeAudio/i.test(nodeType)) return '正在解码音频'
+  if (/SaveAudioAdvanced/i.test(nodeType)) return '正在保存音频'
   if (/VAEDecode/i.test(nodeType)) return '正在解码视频帧'
   if (/CreateVideo/i.test(nodeType)) return '正在编码视频与音频'
   if (/Save(?:Video|Image|Audio)/i.test(nodeType)) return '正在保存输出'
@@ -60,6 +65,8 @@ export function nodeStageLabel(nodeType: string | undefined, nodeId: string) {
 
 export function samplerProgressSummary(job: GenerationJob | undefined, now: number) {
   if (!job || job.status !== 'running' || job.currentStep === undefined || !job.totalSteps || job.totalSteps <= 0) return null
+  // 文本编码阶段上报的步数不是采样步数，此时不显示采样器节奏。
+  if (job.progressStage === 'text-encode') return null
   const refinementSteps = Math.max(0, job.refinementSteps ?? 0)
   const firstSteps = refinementSteps && job.steps ? job.steps : job.totalSteps
   const totalSteps = firstSteps + refinementSteps

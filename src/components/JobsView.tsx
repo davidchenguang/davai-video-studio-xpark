@@ -1,6 +1,7 @@
 import { Activity, CircleStop, ExternalLink, Film, History, Image as ImageIcon, LoaderCircle, Music2, Trash2 } from 'lucide-react'
 import type { GenerationJob } from '../types'
 import { audioSourceLabel, generationModeLabels, imageSourceLabel, jobStatusLabels, modelLabel, modelPrecisionLabel, shortPrompt } from '../lib/jobPresentation'
+import { jobProgressLine, progressBarStyle, useJobProgressSummary } from '../lib/progressStages'
 import { MovieMediaThumbnail } from './MovieMediaThumbnail'
 
 export function StatusBadge({ status }: { status: GenerationJob['status'] }) {
@@ -48,6 +49,15 @@ export function ComfyActivityConsole({ job }: { job: GenerationJob }) {
   </details>
 }
 
+export function JobProgressLine({ job }: { job: GenerationJob }) {
+  const summary = useJobProgressSummary(job)
+  const fallback = job.status === 'queued' ? '在队列中等待' : job.mediaType === 'audio' ? '正在本地生成音乐' : job.mediaType === 'image' ? '正在生成一张参考静帧' : '正在本地渲染'
+  return <>
+    <small className="job-progress-label">{jobProgressLine(job, summary, fallback)}{job.queuePosition ? ` · 第 ${job.queuePosition} 位` : ''} · {summary.percent}%</small>
+    <div className="progress compact"><i style={progressBarStyle(summary)} /></div>
+  </>
+}
+
 export function JobsView({ title, note, jobs, empty, cancellingIds, onCancel, onRemove }: { title: string; note: string; jobs: GenerationJob[]; empty: string; cancellingIds: Set<string>; onCancel(job: GenerationJob): Promise<void>; onRemove(job: GenerationJob): void }) {
   return <div className="standard-page">
     <div className="page-heading"><div><p className="eyebrow">本地工作区</p><h1>{title}</h1><p>{note}</p></div></div>
@@ -57,7 +67,7 @@ export function JobsView({ title, note, jobs, empty, cancellingIds, onCancel, on
       const active = job.status === 'running' || job.status === 'queued'
       return <article className={`job-row ${active ? 'constructing' : ''}`} key={job.id}>
         <div className={`job-thumbnail ${audio ? 'audio' : ''}`}>{job.outputUrl ? audio ? <Music2 /> : image ? <img src={job.outputUrl} alt={imageSourceLabel(job.provider)} /> : <span aria-label="视频输出"><MovieMediaThumbnail source={job.outputUrl} posterUrl={job.thumbnailUrl} /></span> : job.status === 'running' ? <LoaderCircle className="spin" /> : audio ? <Music2 /> : image ? <ImageIcon /> : <Film />}</div>
-        <div className="job-copy"><div><StatusBadge status={job.status} /><span>{new Date(job.createdAt).toLocaleString()}</span></div><strong>{shortPrompt(job.prompt)}</strong><small>{audio ? (() => { const label = audioSourceLabel(job.provider); return `${label === '音乐' ? label : `音乐 · ${label}`} · ${job.duration} 秒 · 音频` })() : `${job.width} × ${job.height} · ${image ? imageSourceLabel(job.provider) : `${job.duration} 秒 · ${generationModeLabels[job.mode] ?? job.mode}`}`}</small><JobExecutionChips job={job} />{job.outputUrl && audio && <audio className="job-audio" src={job.outputUrl} controls preload="metadata" />}{active && <><small className="job-progress-label">{job.progressLabel ?? (job.status === 'queued' ? '在队列中等待' : audio ? '正在本地生成音乐' : image ? '正在生成一张参考静帧' : '正在本地渲染')}{job.queuePosition ? ` · 第 ${job.queuePosition} 位` : ''}{job.currentStep !== undefined && job.totalSteps ? ` · 第 ${job.currentStep}/${job.totalSteps} 步` : ''}</small><div className="progress compact"><i style={{ width: `${job.progress}%` }} /></div></>}{job.error && <p className="job-error">{job.error}</p>}<ComfyActivityConsole job={job} /></div>
+        <div className="job-copy"><div><StatusBadge status={job.status} /><span>{new Date(job.createdAt).toLocaleString()}</span></div><strong>{shortPrompt(job.prompt)}</strong><small>{audio ? (() => { const label = audioSourceLabel(job.provider); return `${label === '音乐' ? label : `音乐 · ${label}`} · ${job.duration} 秒 · 音频` })() : `${job.width} × ${job.height} · ${image ? imageSourceLabel(job.provider) : `${job.duration} 秒 · ${generationModeLabels[job.mode] ?? job.mode}`}`}</small><JobExecutionChips job={job} />{job.outputUrl && audio && <audio className="job-audio" src={job.outputUrl} controls preload="metadata" />}{active && <JobProgressLine job={job} />}{job.error && <p className="job-error">{job.error}</p>}<ComfyActivityConsole job={job} /></div>
         <div className="job-actions">{job.outputUrl && <a className="secondary-button" href={job.outputUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />打开</a>}{active && <button className="danger-button" disabled={cancellingIds.has(job.id)} onClick={() => void onCancel(job)}>{cancellingIds.has(job.id) ? <LoaderCircle size={15} className="spin" /> : <CircleStop size={15} />}{cancellingIds.has(job.id) ? '正在停止…' : '停止'}</button>}{!active && <button className="secondary-button" title="从队列历史中移除；已渲染的文件仍保留在磁盘上" onClick={() => onRemove(job)}><Trash2 size={15} />移除</button>}</div>
       </article>
     })}</div>}

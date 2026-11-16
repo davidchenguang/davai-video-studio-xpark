@@ -107,6 +107,7 @@ import { MINIMAX_VIDEO_RESOLUTIONS, MINIMAX_VIDEO_RESOLUTION_GROUPS, snapResolut
 import { benchmarkFromJob, estimateRenderMs, renderHardware, type RenderBenchmark } from './lib/renderBenchmarks'
 import { useLivePreview, type LivePreview, type LiveProgress } from './lib/useLivePreview'
 import { nodeTimingUpdate, samplerProgressSummary, samplerTimingUpdate } from './lib/renderProgress'
+import { composeStageProgress, mergeStageCounters } from './lib/progressStages'
 import { appendComfyActivity, comfyHistoryActivity, formatRuntime, formatStepCountdown, formatStepDuration } from './lib/renderActivity'
 
 type ContinuationGenerationControl = {
@@ -549,7 +550,7 @@ function App() {
         return { ...j, progress: Math.max(j.progress, progress), progressLabel }
       }
       if (j.promptId !== id || !['running', 'queued'].includes(j.status)) return j
-      if (j.status === 'running' && j.progressLabel === update.label && (update.currentStep === undefined || update.currentStep === j.currentStep) && (update.totalSteps === undefined || update.totalSteps === j.totalSteps) && (update.progress === undefined || update.progress <= j.progress) && (update.samplerPass === undefined || update.samplerPass === j.samplerPass) && (update.nodeId === undefined || update.nodeId === j.activeNodeId)) return j
+      if (j.status === 'running' && j.progressLabel === update.label && (update.currentStep === undefined || update.currentStep === j.currentStep) && (update.totalSteps === undefined || update.totalSteps === j.totalSteps) && (update.progress === undefined || update.progress <= j.progress) && (update.samplerPass === undefined || update.samplerPass === j.samplerPass) && (update.nodeId === undefined || update.nodeId === j.activeNodeId) && (update.stage === undefined || update.stage === j.progressStage)) return j
       changed = true
       const samplerPass = update.samplerPass ?? j.samplerPass
       const passChanged = Boolean(update.samplerPass && update.samplerPass !== j.samplerPass)
@@ -560,23 +561,40 @@ function App() {
       const refinementProgress = j.refinementSteps && j.steps && currentStep !== undefined && (update.currentStep !== undefined || passChanged)
         ? Math.min(95, ((samplerPass === 'refine' ? j.steps : 0) + currentStep) / (j.steps + j.refinementSteps) * 95)
         : undefined
+      // 阶段合成：多阶段工作流（Music 3 / ACE-Step 的文本编码 + 采样）按声明权重
+      // 合成全局进度；单阶段工作流（H3/LTX）保持 min(95, 步数比例 × 95) 的既有语义。
+      const stageCounters = mergeStageCounters(j.stageStepCounters, update.stage, update.currentStep, update.totalSteps)
+      const composed = composeStageProgress(stageCounters, update.stage)
+      const stage = update.stage ?? j.progressStage
+      const stageCounter = stage ? stageCounters[stage] : undefined
       const next: GenerationJob = {
         ...j,
-        ...update,
         currentStep,
         totalSteps,
         samplerPass,
-        progress: Math.max(j.progress, refinementProgress ?? update.progress ?? j.progress),
+        progress: Math.max(j.progress, refinementProgress ?? composed.progress ?? update.progress ?? j.progress),
+        progressLabel: update.label ?? j.progressLabel,
         status: 'running' as const,
         startedAt: j.startedAt ?? receivedAt,
         queueMissingAt: undefined,
+        // 引擎已经在跑节点了，队列位置不再有意义（否则进度行会一直挂着「第 N 位」）。
+        queuePosition: update.stage ? undefined : j.queuePosition,
+        progressStage: stage,
+        stageStep: stageCounter?.current,
+        stageTotalSteps: stageCounter?.total,
+        stageIndeterminate: composed.indeterminate,
+        stageStepCounters: stageCounters,
         ...samplerTiming,
         ...nodeTiming,
       }
       const samplerMilestone = update.currentStep !== undefined && update.totalSteps !== undefined && (update.currentStep === 0 || update.currentStep === update.totalSteps || update.currentStep % Math.max(1, Math.ceil(update.totalSteps / 4)) === 0)
       const stageChanged = Boolean(update.label && update.label !== j.progressLabel)
+      // 活动条目带阶段内步数：进度标签本身保持阶段级文案，避免每一步都刷新播报区域。
+      const activityMessage = update.currentStep !== undefined && update.totalSteps !== undefined
+        ? `${update.label} · 第 ${update.currentStep} 步，共 ${update.totalSteps} 步`
+        : update.label
       return stageChanged && (!update.currentStep || samplerMilestone)
-        ? appendComfyActivity(next, { at: receivedAt, level: 'info', message: update.label })
+        ? appendComfyActivity(next, { at: receivedAt, level: 'info', message: activityMessage })
         : next
       })
       return changed ? nextJobs : current

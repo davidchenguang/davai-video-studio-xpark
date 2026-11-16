@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Check, CircleStop, LoaderCircle, Music2, Play, RotateCcw } from 'lucide-react'
 import type { AppSettings, GenerationJob } from '../types'
 import { buildMusic3Caption, type Music3GenerationOptions, type Music3ModelSelection } from '../lib/music3Workflow'
+import { progressBarStyle, stageDetailText, useJobProgressSummary } from '../lib/progressStages'
 import { resolveLlmConnection } from '../lib/llmProvider'
 import { music3GenreLabels, music3Genres, music3KeyLabels, music3Keys, music3KeywordGroups, music3KeywordLabels, music3MetadataLabels, music3MetadataPresets, music3ProgressionLabels, music3Progressions } from '../lib/music3Vocabulary'
 
@@ -99,6 +100,7 @@ export function Music3Workspace({ settings, models, connected, pipelineReady, mi
   const caption = buildMusic3Caption({ metadata, vocals: draft.vocals, arrangement, language: draft.language })
   const ready = Boolean(models.diffusion && models.textEncoder && models.vae && pipelineReady)
   const running = Boolean(latestJob && ['queued', 'running'].includes(latestJob.status))
+  const progress = useJobProgressSummary(latestJob)
   useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(draft)) }, [draft])
   useEffect(() => {
     const text = draft[activeSuggestionField]
@@ -175,7 +177,8 @@ export function Music3Workspace({ settings, models, connected, pipelineReady, mi
         {!ready && <div className="pipeline-warning" role="status"><AlertCircle size={16} /><span><strong>Music 3 尚未就绪</strong><small>{missingNodes.length ? `缺少 ComfyUI 节点：${missingNodes.join(', ')}。` : '安装 Music 3 扩散模型、文本编码器与音频 VAE，然后重新扫描模型。'}</small></span></div>}
       </section>
       <aside className="composer-panel music3-player">
-        <div className="music3-now-playing"><div className="music3-art"><Music2 size={72} /></div><div className="music3-track-copy"><small>{running ? '正在生成' : latestJob?.outputUrl ? '可以播放' : '新的 Music 3 音轨'}</small><strong>{draft.genre ? (music3GenreLabels[draft.genre] ?? draft.genre) : '自定义音色'}</strong><span>{draft.bpm} BPM · {draft.key ? (music3KeyLabels[draft.key] ?? draft.key) : '自定义调性'} · {draft.duration} 秒</span>{latestJob?.outputUrl ? <audio className="music3-audio-player" src={latestJob.outputUrl} controls preload="metadata" /> : <div className="music3-empty-transport"><span /><em>{running ? `已渲染 ${Math.round(latestJob?.progress ?? 0)}%` : '生成的音轨会在这里播放'}</em></div>}</div></div>
+        <div className="music3-now-playing"><div className="music3-art"><Music2 size={72} /></div><div className="music3-track-copy"><small>{running ? '正在生成' : latestJob?.outputUrl ? '可以播放' : '新的 Music 3 音轨'}</small><strong>{draft.genre ? (music3GenreLabels[draft.genre] ?? draft.genre) : '自定义音色'}</strong><span>{draft.bpm} BPM · {draft.key ? (music3KeyLabels[draft.key] ?? draft.key) : '自定义调性'} · {draft.duration} 秒</span>{latestJob?.outputUrl ? <audio className="music3-audio-player" src={latestJob.outputUrl} controls preload="metadata" /> : <div className="music3-empty-transport"><span /><em>{running ? '正在生成音轨' : '生成的音轨会在这里播放'}</em></div>}</div></div>
+        {running && <div className="music3-render-progress"><div><strong role="status" aria-live="polite">{latestJob?.progressLabel ?? '正在生成 Music 3 音轨'}</strong><small>{progress.percent}%</small></div><div className="progress"><i style={progressBarStyle(progress)} /></div><small>{stageDetailText(progress) || '正在等待 ComfyUI 的节点事件'}</small></div>}
         <div className="field-group"><label htmlFor="music3-duration">目标时长</label><div className="number-suffix"><input id="music3-duration" type="number" min="10" max="300" step="5" value={draft.duration} onChange={(event) => set('duration', Math.max(10, Math.min(300, Number(event.target.value) || 60)))} /><span>秒</span></div><div className="music3-quick-picks" aria-label="时长预设">{durationPresets.map((duration) => <button type="button" key={duration} className={draft.duration === duration ? 'selected' : ''} onClick={() => set('duration', duration)}>{duration >= 60 ? `${duration / 60}m` : `${duration}s`}</button>)}</div><small>最长约五分钟；模型可能提前结束。</small></div>
         <div className="field-group"><label htmlFor="music3-seed">种子</label><input id="music3-seed" type="number" value={draft.seed} onChange={(event) => set('seed', Number(event.target.value) || 0)} /></div>
         <label className="audio-code-option"><input type="checkbox" checked={draft.tiledDecode} onChange={(event) => set('tiledDecode', event.target.checked)} /><span><strong>分块音频解码</strong><small>为长歌曲降低显存占用。仅当显存充足需要完整解码时才关闭。</small></span></label>

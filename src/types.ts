@@ -503,6 +503,13 @@ export type GenerationJob = {
   progressLabel?: string
   currentStep?: number
   totalSteps?: number
+  /** 阶段感知进度（见 src/lib/progressStages.ts）：当前阶段与阶段内真实步数。 */
+  progressStage?: import('./lib/progressStages').ProgressStageId
+  stageStep?: number
+  stageTotalSteps?: number
+  /** 当前阶段没有步数上报（加载模型等静默阶段）：界面用不确定态进度条 + 已用时间。 */
+  stageIndeterminate?: boolean
+  stageStepCounters?: import('./lib/progressStages').StageStepCounters
   samplerPass?: 'first' | 'refine'
   refinementSteps?: number
   refinementStepCostMultiplier?: number
