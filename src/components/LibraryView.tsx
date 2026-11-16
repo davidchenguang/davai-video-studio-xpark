@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Bookmark, ExternalLink, Film, FolderOpen, Gauge, History, ImagePlus, LoaderCircle, Music2, Play, Scissors, Sparkles, Trash2, Watch, X, ZoomIn } from 'lucide-react'
 import type { AppSettings, GenerationJob, MediaFile } from '../types'
-import { audioSourceLabel, generationModeLabels, imageSourceLabel, libraryPromptTitle, shortPrompt } from '../lib/jobPresentation'
+import { audioSourceLabel, generationModeLabels, imageSourceLabel, libraryPromptTitle, librarySourceGroups, shortPrompt, videoSourceLabel } from '../lib/jobPresentation'
 import { collectAssetReferences } from '../lib/libraryReferences'
 import { FrameBookmarkStudio, type BookmarkVideo } from './FrameBookmarkStudio'
 import { MovieMediaThumbnail } from './MovieMediaThumbnail'
@@ -9,7 +9,7 @@ import { VideoPlayer } from './VideoPlayer'
 
 export function LibraryView({ jobs, settings, onEdit, onCreate, onUseLtx, onUseLastFrameReference, onDeleteMedia, onNotice }: { jobs: GenerationJob[]; settings: AppSettings; onEdit(): void; onCreate(): void; onUseLtx(file: MediaFile): void; onUseLastFrameReference(job: GenerationJob, opening: { mode: 'match' | 'reframe' | 'arc'; cameraAngle?: string }): Promise<void>; onDeleteMedia(job: GenerationJob): Promise<void>; onNotice(tone: 'error' | 'success' | 'neutral', text: string): void }) {
   const [query, setQuery] = useState('')
-  const [provider, setProvider] = useState<'all' | 'minimax' | 'ltx25'>('all')
+  const [provider, setProvider] = useState<'all' | NonNullable<GenerationJob['provider']>>('all')
   const [mediaType, setMediaType] = useState<'all' | 'video' | 'image' | 'audio'>('all')
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
   const [bookmarkVideo, setBookmarkVideo] = useState<BookmarkVideo | null>(null)
@@ -81,7 +81,7 @@ export function LibraryView({ jobs, settings, onEdit, onCreate, onUseLtx, onUseL
     }
   }
   return <div className="standard-page library-page"><div className="page-heading"><div><p className="eyebrow">本地媒体库</p><h1>媒体库</h1><p>在不改动原始文件的前提下审阅渲染成果、收藏可复用帧或拼接片段。</p></div><button className="primary-button" onClick={onEdit}><Scissors size={16} />打开影片剪辑</button></div>
-    <div className="library-toolbar"><label><span>搜索渲染</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索提示词…" /></label><label><span>提供方</span><select value={provider} onChange={(event) => setProvider(event.target.value as typeof provider)}><option value="all">全部提供方</option><option value="minimax">MiniMax H3</option><option value="ltx25">LTX 2.5</option></select></label><label><span>媒体</span><select value={mediaType} onChange={(event) => setMediaType(event.target.value as typeof mediaType)}><option value="all">全部媒体</option><option value="video">视频</option><option value="image">图片</option><option value="audio">音频</option></select></label><label><span>排序</span><select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="newest">最新优先</option><option value="oldest">最早优先</option></select></label><div><strong>{filtered.length}</strong><span>/ 共 {available.length} 个素材</span></div></div>
+    <div className="library-toolbar"><label><span>搜索渲染</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索提示词…" /></label><label><span>提供方</span><select value={provider} onChange={(event) => setProvider(event.target.value as typeof provider)}><option value="all">全部提供方</option>{librarySourceGroups.map((group) => <optgroup key={group.label} label={group.label}>{group.sources.map((source) => <option key={source.provider} value={source.provider}>{source.label}</option>)}</optgroup>)}</select></label><label><span>媒体</span><select value={mediaType} onChange={(event) => setMediaType(event.target.value as typeof mediaType)}><option value="all">全部媒体</option><option value="video">视频</option><option value="image">图片</option><option value="audio">音频</option></select></label><label><span>排序</span><select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="newest">最新优先</option><option value="oldest">最早优先</option></select></label><div><strong>{filtered.length}</strong><span>/ 共 {available.length} 个素材</span></div></div>
     {available.length === 0 ? <div className="empty-page library-first-run"><History size={28} /><strong>完成的渲染会出现在这里</strong><span>生成一个镜头即可开始使用媒体库。完成的视频、图片与音频会自动保存在本设备上。</span><div className="library-first-run-actions"><button className="primary-button" onClick={onCreate}><Film size={15} />打开视频工作区</button><button className="secondary-button" onClick={onEdit}><Scissors size={15} />打开影片剪辑</button></div></div> : filtered.length === 0 ? <div className="empty-page compact"><Film size={25} /><strong>没有符合这些筛选条件的结果。</strong><button className="secondary-button" onClick={() => { setQuery(''); setProvider('all'); setMediaType('all') }}>清除筛选</button></div> : <div className="library-grid">{filtered.map((job) => {
       const image = job.mediaType === 'image'
       const audio = job.mediaType === 'audio'
@@ -96,7 +96,7 @@ export function LibraryView({ jobs, settings, onEdit, onCreate, onUseLtx, onUseL
           {!image && !audio && <span className="library-media-duration">{job.duration} 秒</span>}
         </button>
         <div className="library-card-body">
-          <div className="library-card-meta"><span className={`library-provider ${job.provider === 'ltx25' || job.provider === 'ltxripple' ? 'ltx' : ''}`}>{image ? imageSourceLabel(job.provider) : audio ? audioSourceLabel(job.provider) : job.provider === 'ltxripple' ? 'LTX Ripple' : job.provider === 'ltx25' ? 'LTX 2.5' : 'MiniMax H3'}</span><time dateTime={new Date(job.createdAt).toISOString()}>{new Date(job.createdAt).toLocaleDateString()}</time></div>
+          <div className="library-card-meta"><span className={`library-provider ${job.provider === 'ltx25' || job.provider === 'ltxripple' ? 'ltx' : ''}`}>{image ? imageSourceLabel(job.provider) : audio ? audioSourceLabel(job.provider) : videoSourceLabel(job.provider)}</span><time dateTime={new Date(job.createdAt).toISOString()}>{new Date(job.createdAt).toLocaleDateString()}</time></div>
           <strong title={job.prompt}>{title}</strong>
           <small>{audio ? `${job.duration} 秒音频` : `${job.width} × ${job.height} · ${image ? '单张图片' : `${job.duration} 秒 · ${generationModeLabels[job.mode] ?? job.mode}`}`}</small>
           {audio && job.outputUrl && <audio className="library-card-audio" src={job.outputUrl} controls preload="metadata" />}

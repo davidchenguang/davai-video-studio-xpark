@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
 const { load } = require('./test-ts-loader.cjs')
 
-const { audioSourceLabel, buildImageJob, imageSourceLabel } = load('src/lib/jobPresentation.ts')
+const { audioSourceLabel, buildImageJob, imageSourceLabel, librarySourceGroups, videoSourceLabel } = load('src/lib/jobPresentation.ts')
 
 assert.equal(imageSourceLabel('h3image'), 'H3-Image')
 assert.equal(imageSourceLabel('zimage'), 'Z-Image')
@@ -23,6 +23,25 @@ const queueAudioMeta = (provider) => {
 assert.equal(queueAudioMeta('music3'), '音乐 · Music 3', 'The queue meta keeps its existing wording for Music 3')
 assert.equal(queueAudioMeta('acestep'), '音乐 · ACE-Step', 'The queue meta keeps its existing wording for ACE-Step')
 assert.equal(queueAudioMeta(undefined), '音乐', 'The fallback label must not be prefixed with 音乐 · ')
+
+// 媒体库提供方筛选必须覆盖 GenerationJob['provider'] 的全部取值，并按类别分组；
+// 少一个来源就意味着该类成品在媒体库里没有筛选入口（本次修复的原始缺陷）。
+const expectedGroups = {
+  视频: [['minimax', 'MiniMax H3'], ['ltx25', 'LTX 2.5'], ['ltxripple', 'LTX Ripple']],
+  图片: [['h3image', 'H3-Image'], ['zimage', 'Z-Image'], ['firered', 'FireRed 图片编辑']],
+  音频: [['acestep', 'ACE-Step'], ['music3', 'Music 3']],
+}
+assert.equal(JSON.stringify(librarySourceGroups.map((group) => group.label)), JSON.stringify(['视频', '图片', '音频']), 'Groups render in a fixed order')
+for (const group of librarySourceGroups) {
+  assert.equal(JSON.stringify(group.sources.map((source) => [source.provider, source.label])), JSON.stringify(expectedGroups[group.label]), `Provider options for ${group.label} must match the job provider union`)
+}
+assert.equal(librarySourceGroups.flatMap((group) => group.sources).length, Object.keys(expectedGroups).reduce((total, key) => total + expectedGroups[key].length, 0), 'Every provider appears exactly once across groups')
+
+assert.equal(videoSourceLabel('minimax'), 'MiniMax H3')
+assert.equal(videoSourceLabel('ltx25'), 'LTX 2.5')
+assert.equal(videoSourceLabel('ltxripple'), 'LTX Ripple')
+assert.equal(videoSourceLabel(undefined), 'MiniMax H3', 'Jobs persisted before provider existed keep the H3 default')
+assert.equal(videoSourceLabel('legacy-provider'), 'MiniMax H3', 'Unknown persisted values fall back instead of throwing')
 
 const job = buildImageJob({
   provider: 'zimage',
@@ -54,4 +73,4 @@ assert.ok(timed.createdAt > 1700000000000, 'createdAt defaults to the completion
 assert.match(timed.id, /^image-firered-prompt-f-\d+$/)
 assert.equal(timed.provider, 'firered')
 
-console.log('PASS: image and audio source labels, Ref2VA compatibility, unknown-provider fallbacks, and completed image job shape')
+console.log('PASS: image and audio source labels, library provider filter coverage, Ref2VA compatibility, unknown-provider fallbacks, and completed image job shape')

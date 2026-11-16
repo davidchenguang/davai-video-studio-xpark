@@ -27,6 +27,41 @@ export function audioSourceLabel(provider?: GenerationJob['provider']) {
   return '音乐'
 }
 
+type GenerationProvider = NonNullable<GenerationJob['provider']>
+
+// 媒体库「提供方」筛选与视频卡片来源徽标的唯一事实来源。Record 的 key 必须覆盖
+// GenerationJob['provider']：types.ts 新增来源时这里不补会直接编译失败，下拉因此
+// 不会再落后于实际产出（历史上只有 minimax/ltx25，图片与音频类别被漏掉）。
+// minimax 同时产出 H3 视频与 Ref2VA 静帧，选它时两者都命中，静帧可用「媒体」筛选细分。
+const librarySources: Record<GenerationProvider, { label: string; group: '视频' | '图片' | '音频' }> = {
+  minimax: { label: 'MiniMax H3', group: '视频' },
+  ltx25: { label: 'LTX 2.5', group: '视频' },
+  ltxripple: { label: 'LTX Ripple', group: '视频' },
+  h3image: { label: 'H3-Image', group: '图片' },
+  zimage: { label: 'Z-Image', group: '图片' },
+  firered: { label: 'FireRed 图片编辑', group: '图片' },
+  acestep: { label: 'ACE-Step', group: '音频' },
+  music3: { label: 'Music 3', group: '音频' },
+}
+
+const librarySourceOrder = ['视频', '图片', '音频'] as const
+
+// 分组顺序固定，组内保持上面的书写顺序，避免下拉随任务数据抖动。
+export const librarySourceGroups = librarySourceOrder.map((group) => ({
+  label: group,
+  sources: (Object.keys(librarySources) as GenerationProvider[])
+    .filter((provider) => librarySources[provider].group === group)
+    .map((provider) => ({ provider, label: librarySources[provider].label })),
+}))
+
+const isLibrarySource = (provider?: string): provider is GenerationProvider => provider !== undefined && Object.hasOwn(librarySources, provider)
+
+// 视频卡片的来源标签。历史条目没有 provider（渲染层按 minimax 归类），未知值也回落到
+// MiniMax H3，避免旧数据在渲染时抛错。
+export function videoSourceLabel(provider?: GenerationJob['provider']) {
+  return isLibrarySource(provider) ? librarySources[provider].label : librarySources.minimax.label
+}
+
 // 生图工作区在保存成功后用它登记一条已完成的图片任务。outputUrl 必须由调用方用
 // mediaUrl() 生成短 URL——getOutputImage 返回的 data URL 会把 localStorage 写爆，
 // 而 writeLocalJson 失败时静默返回 false。
