@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('minimax', {
   installRife: () => ipcRenderer.invoke('rife:install'),
   interpolateVideo: (source: string, outputDirectory: string, ffmpegPath: string, mode: 'fps-2x' | 'slow-motion') => ipcRenderer.invoke('rife:interpolate', source, outputDirectory, ffmpegPath, mode),
   showOutput: (outputPath: string) => ipcRenderer.invoke('shell:show-output', outputPath),
+  deleteMedia: (input: { files: string[]; thumbnailPath?: string }) => ipcRenderer.invoke('media:delete', input),
   findLatestOutput: (outputPath: string, since: number, kind: 'video' | 'audio' = 'video') => ipcRenderer.invoke('outputs:latest', outputPath, since, kind),
   resolveOutput: (outputPath: string, file: { filename: string; subfolder?: string; type?: string }) => ipcRenderer.invoke('outputs:resolve', outputPath, file),
   getLocalLlmStatus: (url: string, provider: 'ollama' | 'lmstudio' = 'ollama') => invokeLocalLlm('ollama:status', url, provider),

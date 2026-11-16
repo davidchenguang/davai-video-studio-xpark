@@ -240,9 +240,8 @@
 .studio-shell-active .library-media-duration { position: absolute; left: 10px; bottom: 10px; padding: 4px 6px; border-radius: 4px; background: #0b1720d9; color: white; font-size: 10px; }
 .studio-shell-active .library-card-body { display: flex; flex: 1; flex-direction: column; gap: 8px; min-width: 0; padding: 12px; }
 .studio-shell-active .library-card-body > strong { display: -webkit-box; min-height: 2.8em; overflow: hidden; font-size: 12px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.studio-shell-active .library-card-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 7px; margin-top: auto; }
-.studio-shell-active .library-card-actions > :is(button, a) { justify-content: center; width: 100%; min-width: 0; min-height: 36px; margin: 0; padding: 6px 8px; text-align: center; white-space: normal; line-height: 1.2; }
-.studio-shell-active .library-card-actions > a { grid-column: 1 / -1; }
+/* 操作区是一行主操作 + 右侧图标托盘：低频文件操作不再各占整行。 */
+.studio-shell-active .library-card-actions { margin-top: auto; }
 .studio-shell-active .library-rife { margin-top: 2px; }
 .studio-shell-active .library-rife > div { margin-top: 8px; }
 .studio-shell-active .library-rife button { min-width: 0; }

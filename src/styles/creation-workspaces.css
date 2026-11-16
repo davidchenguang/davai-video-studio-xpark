@@ -549,8 +549,20 @@ textarea::placeholder, input::placeholder { color: var(--line-strong); }
 .library-card-meta time { color: var(--muted); font-size: 8px; }
 .library-provider { padding: 3px 6px; border: 1px solid rgba(195,255,74,.25); border-radius: 999px; background: rgba(195,255,74,.06); color: var(--accent); font-size: 7px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
 .library-provider.ltx { border-color: rgba(141,184,255,.28); background: rgba(141,184,255,.07); color: var(--check-tint); }
-.library-card-actions { justify-content: flex-start; margin-top: 3px; }
-.library-card-actions .primary-button, .library-card-actions .secondary-button { min-height: 34px; margin: 0; }
+.library-card-actions { flex-wrap: wrap; justify-content: flex-start; gap: 6px; margin-top: 3px; }
+.library-card-actions .primary-button, .library-card-actions .secondary-button { min-height: 34px; margin: 0; padding: 0 11px; white-space: nowrap; }
+.library-card-tools { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.library-tool-button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; transition: border-color .14s ease, background-color .14s ease, color .14s ease; }
+.library-tool-button:hover:not(:disabled) { border-color: var(--line-strong); background: var(--surface-2); color: var(--text); }
+.library-tool-button:focus-visible { outline: 2px solid var(--info-accent); outline-offset: 1px; }
+.library-tool-button:disabled { opacity: .5; cursor: wait; }
+.library-tool-button.library-delete-button { color: rgb(255 127 127 / .62); }
+.library-tool-button.library-delete-button:hover:not(:disabled) { border-color: rgb(255 127 127 / .42); background: rgb(255 127 127 / .08); color: rgb(255 176 176); }
+.library-reference-dialog { width: min(560px, 100%); }
+.library-reference-dialog > footer { justify-content: flex-end; }
+.library-reference-body { display: grid; gap: 10px; padding: 18px; overflow: auto; }
+.library-reference-body p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.library-reference-body ul { display: grid; gap: 6px; margin: 0; padding-left: 18px; font-size: 13px; }
 
 .frame-bookmark-backdrop { position: fixed; z-index: 90; inset: 42px 0 0; display: grid; place-items: center; padding: 18px; background: rgba(3,5,4,.82); backdrop-filter: blur(10px); }
 .frame-bookmark-modal { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(1180px, 100%); max-height: calc(100dvh - 78px); overflow: hidden; border: 1px solid var(--line-strong); border-radius: 13px; background: var(--surface); box-shadow: 0 28px 90px rgba(0,0,0,.68); }

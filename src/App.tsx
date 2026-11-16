@@ -17,6 +17,7 @@ import { WORKSPACE_PROJECTS_KEY, loadWorkspaceProjects, type WorkspaceProject } 
 import { jobStatusLabels, modelPrecisionLabel, shortPrompt } from './lib/jobPresentation'
 import { comfyTerminalState, mayApplyHistoryUpdate, queuePromptPosition, queuePromptState } from './lib/comfyJobState'
 import { playableOutputUrl, readSavedJobs } from './lib/jobPersistence'
+import { thumbnailCachePath } from './lib/libraryReferences'
 import { H3_BENCHMARK_CONFIG_STORAGE_KEY, H3_BENCHMARK_STORAGE_KEY, benchmarkResultPatch, formatBenchmarkDuration, h3BenchmarkBackends, h3ImageStackReport, h3StackReport, loadH3BenchmarkConfig, loadH3BenchmarkResults, type H3BenchmarkConfig, type H3BenchmarkResult } from './lib/h3Diagnostics'
 import { findH3ParallelAttentionNode, findH3PreviewOverrideNode, findSolAttentionNode, findSolCompatibleCacheNode } from './lib/h3NodeDetection'
 import { engineModelFiles, mergeModelFiles } from './lib/modelInventory'
@@ -1727,6 +1728,32 @@ function App() {
     setNotice({ tone: 'neutral', text: '已从队列历史中移除该生成。已渲染的文件保留不变。' })
   }
 
+  const deleteMediaJob = async (job: GenerationJob) => {
+    const files = [job.localOutputPath, job.latentPath, job.segmentOutputPath].filter((path): path is string => Boolean(path))
+    const remote = !job.localOutputPath
+    try {
+      const result = await window.minimax.deleteMedia({ files, thumbnailPath: thumbnailCachePath(job.thumbnailUrl) })
+      if (result.failed.length) {
+        const failures = result.failed.map((entry) => `${entry.path.split(/[\\/]/).pop() ?? entry.path}（${entry.reason}）`).join('、')
+        setNotice({ tone: 'error', text: `已移动 ${result.recycled.length} 个文件；${failures} 未能移入回收站。记录已保留，可重试。` })
+        return
+      }
+      const next = jobsToPersist.current.filter((item) => item.id !== job.id)
+      // Persist immediately (bypassing the 1200ms sampler-progress debounce) so a
+      // crash right after recycling cannot resurrect a record pointing at a gone file.
+      persist('minimax.jobs', next.slice(0, 100).map(compactJob))
+      setJobs((current) => current.filter((item) => item.id !== job.id))
+      const title = shortPrompt(job.prompt)
+      const allMissing = !remote && result.recycled.length === 0 && result.missing.length > 0
+      setNotice({
+        tone: 'success',
+        text: remote ? '已移除本地记录；远端 ComfyUI 上的文件未被删除。' : allMissing ? '文件已不存在，已移除记录。' : `已将「${title}」移入回收站并移除记录。`,
+      })
+    } catch (error) {
+      setNotice({ tone: 'error', text: `删除失败：${error instanceof Error ? error.message : String(error)}。文件与记录未改变。` })
+    }
+  }
+
   // Image workspaces register exactly once per saved file. The callback identity
   // must stay stable: it is passed to workspaces whose polling effects must not
   // restart on App re-renders. Dedupe by saved path so a StrictMode double mount
@@ -3394,7 +3421,7 @@ function App() {
         {view === 'queue' && <JobsView title="队列" note="运行中与最近的本地生成" jobs={jobs} empty="还没有生成任务入队。" cancellingIds={cancellingIds} onCancel={cancelJob} onRemove={removeJobFromHistory} />}
         <div hidden={view !== 'continue'}><ContinueWorkspace openRequest={continuationOpenRequest} jobs={jobs} connected={status.connected} liveConnected={live.connected} motionReady={continuationNodesReady} assemblyReady={continuationAssemblyReady} missingNodes={missingContinuationNodes} livePreview={live.preview} cancellingIds={cancellingIds} onChooseVideo={async () => { const picked = await window.minimax.chooseMedia('video'); return picked ? { ...picked, kind: 'video', preview: await window.minimax.mediaUrl(picked.path) } : null }} onChooseImage={async () => { const picked = await window.minimax.chooseMedia('image'); return picked ? { ...picked, kind: 'image', preview: await window.minimax.mediaUrl(picked.path) } : null }} onGenerate={generateContinuationBeat} onCancel={cancelJob} onResetSource={() => setContinuationOpenRequest(current => ({ ...current, sourceId: null }))} onEditSourcePrompt={editContinuationSourcePrompt} /></div>
         {(view === 'movie' || (view === 'clipmaster' && clipMasterFromMovie)) && <div className="movie-integrated" hidden={view !== 'movie'}><div className="movie-workspace-heading"><div><h1>DavAi 影片剪辑</h1><p>组装渲染成果、精修片段，并把帧发送到 H3 或 LTX。</p></div><button className="secondary-button" onClick={() => void window.minimax.openMovieEditor()}><ExternalLink size={15} />打开独立窗口</button></div><MovieEditor settings={settings} jobs={jobs} onCreate={(kind) => setView(kind === 'music' ? 'music' : 'ltx25')} onNotice={(tone, text) => setNotice({ tone, text })} onOpenClipMaster={clip => { setClipMasterClip(clip); setClipMasterFromMovie(true); setView('clipmaster') }} onUseFrame={receiveMovieFrame} /></div>}
-        {view === 'library'  && <LibraryView jobs={jobs.filter((job) => job.status === 'completed')} settings={settings} onEdit={() => setView('movie')} onCreate={() => setView('create')} onUseLtx={loadStartFrameInLtx} onUseLastFrameReference={addVideoLastFrameAsReference} onNotice={(tone, text) => setNotice({ tone, text })} />}
+        {view === 'library'  && <LibraryView jobs={jobs} settings={settings} onEdit={() => setView('movie')} onCreate={() => setView('create')} onUseLtx={loadStartFrameInLtx} onUseLastFrameReference={addVideoLastFrameAsReference} onDeleteMedia={deleteMediaJob} onNotice={(tone, text) => setNotice({ tone, text })} />}
         {view === 'clipmaster' && <ClipMasterBeta onUseFrame={receiveMovieFrame} clip={clipMasterClip ?? undefined} jobs={jobs} settings={settings} onClose={() => { setClipMasterClip(null); setView(clipMasterFromMovie ? 'movie' : 'library') }} onNotice={(tone, text) => setNotice({ tone, text })} onExportClip={clipMasterFromMovie ? clip => window.dispatchEvent(new CustomEvent('davai-movie-add-media', { detail: clip })) : undefined} />}
         {view === 'settings' && <SettingsView settings={settings} setSettings={setSettings} info={info} models={models} jobs={jobs} gpu={gpu} h3Report={h3Report} h3ImageReport={h3ImageReport} scanning={scanning} status={status} checking={checking} diagnosticRunning={diagnosticRunning} benchmarkRunning={benchmarkRunning} benchmarkConfig={benchmarkConfig} setBenchmarkConfig={setBenchmarkConfig} benchmarkResults={benchmarkResults} ollamaModels={ollamaModels} localLlmStatus={localLlmStatus} localLlmChecking={localLlmChecking} legacyMigration={legacyMigration} legacyMigrationRunning={legacyMigrationRunning} onRefreshOllama={() => void refreshOllama(settings, true)} onScan={() => void scanModels(settings)} onCheck={() => void checkConnection(settings.comfyUrl)} onSave={() => void saveAppSettings()} onApplyDefaults={applyGenerationDefaults} onRunDiagnostics={() => void runH3Diagnostics()} onRunBenchmark={() => void runH3Benchmark()} onRunLegacyMigration={() => void runLegacyMigration()} onFactoryReset={() => void factoryResetWorkspace()} />}
       </main>

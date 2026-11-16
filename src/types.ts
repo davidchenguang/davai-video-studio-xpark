@@ -575,6 +575,13 @@ export type LegacyMigrationStatus = {
 
 export type UploadedFile = { name: string; subfolder?: string; type?: string }
 
+export type MediaDeletionResult = {
+  recycled: string[]
+  missing: string[]
+  failed: Array<{ path: string; reason: string }>
+  thumbnailRemoved: boolean
+}
+
 export type DesktopApi = {
   getObjectInfo(url: string): Promise<Record<string, { input: { required: Record<string, unknown[]> } }>>
   uploadImageData(url: string, data: string): Promise<UploadedFile>
@@ -624,6 +631,7 @@ export type DesktopApi = {
   installRife(): Promise<{ installed: boolean; executable?: string; error?: string }>
   interpolateVideo(source: string, outputDirectory: string, ffmpegPath: string, mode: 'fps-2x' | 'slow-motion'): Promise<{ path: string; url: string }>
   showOutput(path: string): Promise<void>
+  deleteMedia(input: { files: string[]; thumbnailPath?: string }): Promise<MediaDeletionResult>
   findLatestOutput(outputDirectory: string, since: number, kind?: 'video' | 'audio'): Promise<string | null>
   resolveOutput(outputDirectory: string, file: { filename: string; subfolder?: string; type?: string }): Promise<string | null>
   getLocalLlmStatus(url: string, provider?: AppSettings['llmProvider']): Promise<LocalLlmStatus>

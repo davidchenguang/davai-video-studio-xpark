@@ -1,8 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, session } from 'electron'
 import { constants, createReadStream, createWriteStream, existsSync } from 'node:fs'
-import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, rename, rmdir, stat, unlink, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, realpath, rename, rmdir, stat, unlink, writeFile } from 'node:fs/promises'
 import { writeAtomicFile } from './atomicFile.js'
 import { cancelComfyPrompt } from './comfyCancellation.js'
+import { deleteMedia } from './mediaDeletion.js'
 import { readGpuTelemetry } from './gpuTelemetry.js'
 import { PREVIEW_MONITOR_SHELL, shellFor, type NativeShell } from './nativeShellTheme.js'
 import { restoreLegacyLocalStorage } from './legacyBrowserStorage.js'
@@ -870,6 +871,27 @@ async function trustedComfyOutputDirectory(settings: AppSettings, requested: str
   if (!directory) return false
   observedComfyOutput = { url, directory, at: Date.now() }
   return normalize(requested).toLowerCase() === normalize(directory).toLowerCase()
+}
+
+/**
+ * Trusted roots for media deletion, derived in the main process only.
+ * The renderer reports what the engine's output directory is for display, but
+ * deletion must never trust a renderer-supplied root.
+ */
+async function trustedMediaOutputRoots(settings: AppSettings): Promise<{ roots: string[]; comfyRootUnavailable: boolean }> {
+  const roots: string[] = []
+  if (settings.outputDirectory?.trim()) roots.push(normalize(settings.outputDirectory))
+  const url = cleanUrl(settings.comfyUrl)
+  let directory: string | null = null
+  if (observedComfyOutput?.url === url && Date.now() - observedComfyOutput.at < 600_000) {
+    directory = observedComfyOutput.directory
+  } else {
+    const stats = await comfyFetch(url, '/system_stats', { signal: AbortSignal.timeout(10_000) }).catch(() => null) as { system?: { argv?: string[] } } | null
+    directory = stats ? comfyOutputFromStats(stats) : null
+    if (directory) observedComfyOutput = { url, directory, at: Date.now() }
+  }
+  if (directory) roots.push(normalize(directory))
+  return { roots: [...new Set(roots)], comfyRootUnavailable: !directory }
 }
 
 async function comfyUploadLimit(url: string) {
@@ -1897,6 +1919,28 @@ app.whenReady().then(async () => {
     }
     const { shell } = await import('electron')
     shell.showItemInFolder(join(outputPath, '.'))
+  })
+  ipcMain.handle('media:delete', async (_event, input: unknown) => {
+    const settings = await loadSettings()
+    const { roots, comfyRootUnavailable } = await trustedMediaOutputRoots(settings)
+    return deleteMedia(input, {
+      outputRoots: roots,
+      thumbnailRoot: join(app.getPath('userData'), 'video-thumbnails'),
+      comfyRootUnavailable,
+      platform: process.platform,
+    }, {
+      exists: existsSync,
+      stat: async (path) => {
+        const info = await stat(path)
+        return { size: info.size, mtimeMs: info.mtimeMs, isFile: info.isFile() }
+      },
+      realpath: async (path) => await realpath(path),
+      trashItem: async (path) => {
+        const { shell } = await import('electron')
+        await shell.trashItem(path)
+      },
+      unlink: async (path) => { await unlink(path) },
+    })
   })
   void createWindow()
   app.on('activate', () => {

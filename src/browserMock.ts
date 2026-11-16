@@ -140,6 +140,7 @@ export function installBrowserMock() {
     installRife: async () => ({ installed: false, error: '请在桌面应用中安装 RIFE。' }),
     interpolateVideo: async () => { throw new Error('请在桌面应用中使用 RIFE 插帧。') },
     showOutput: async () => undefined,
+    deleteMedia: async () => { throw new Error('请在桌面应用中使用媒体库删除。') },
     findLatestOutput: async () => null,
     resolveOutput: async () => null,
     getLocalLlmStatus: async (_url, provider = 'ollama') => ({ connected: true, models: provider === 'lmstudio'
