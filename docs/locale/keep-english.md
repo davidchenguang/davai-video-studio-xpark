@@ -48,6 +48,7 @@
 - `src/lib/h3Diagnostics.ts:content=Ref2V Turbo 8 LoRA` — Ref2V 的 Turbo 8 步 LoRA 型号。
 - `src/lib/h3Diagnostics.ts:content=Ref2V Turbo 4 LoRA` — Ref2V 的 Turbo 4 步 LoRA 型号。
 - `src/components/AceStepWorkspace.tsx:content=XL SFT` — ACE-Step 的 XL 版监督微调变体名。
+- `src/components/AceStepWorkspace.tsx:content=XL Turbo` — ACE-Step 的 XL 版蒸馏加速变体名。
 - `src/components/AceStepWorkspace.tsx:content=XL Base` — ACE-Step 的 XL 基础版变体名。
 
 同文件里的「文本编码器」「视频 VAE」「音频 VAE」是界面文案，已译为中文，不受本节影响。
@@ -128,7 +129,7 @@
 标识符与确认令牌：
 
 - `src/components/SettingsView.tsx:109` — `settingsSections` 数组的 id 半区 `'reset'`：DOM 锚点 / 滚动定位键（存储标识符，非界面文案；译文半区是「恢复出厂设置」）。
-- `src/components/SettingsView.tsx:349` — 恢复出厂设置确认词 `Reset`：必须与 `electron/main.ts` 的 `confirmation !== 'Reset'` 逐字匹配，用户需输入英文单词（与已有的 `electron/main.ts:469` 登记同一 token）。
+- `src/components/SettingsView.tsx:352` — 恢复出厂设置确认词 `Reset`：必须与 `electron/main.ts` 的 `confirmation !== 'Reset'` 逐字匹配，用户需输入英文单词（与已有的 `electron/main.ts:469` 登记同一 token）。
 
 ## 批次 12：扫描器补强后的新登记
 

@@ -13,7 +13,7 @@ import { findH3ParallelAttentionNode, findH3PreviewOverrideNode, findSolAttentio
 import { attentionBackendLabel, resolveAttentionBackend } from '../lib/attentionBackend'
 import { estimatedComponentBytes, formatGiB, resolveGpuRouting, routingGpus, type RoutingComponent } from '../lib/gpuRouting'
 import { hasTurbo4Lora, inferLtx25Selections, inferSelections } from '../lib/modelSelection'
-import { inferAceStepSelections, buildAceStepWorkflow } from '../lib/aceStepWorkflow'
+import { firstAvailableAceStepVariant, inferAceStepSelections, buildAceStepWorkflow } from '../lib/aceStepWorkflow'
 import { buildMiniMaxWorkflow } from '../lib/workflow'
 import { buildLtx25Workflow } from '../lib/ltx25Workflow'
 import { buildZImage } from '../lib/zimage'
@@ -228,8 +228,11 @@ export function SettingsView({ settings, setSettings, info, models, jobs, gpu, h
       const zVae = models.find((model) => model.kind === 'vae' && /^ae\.safetensors$/i.test(model.name))?.name ?? 'ae.safetensors'
       workflow = buildZImage('Describe a single polished image.', width, height, 12345, zModel, zEncoder, zVae, 8, 1, 'turbo', '', attentionBackend, gpuRoutingPlan.workflow)
     } else if (workflowKind === 'acestep') {
+      // 用首个可用变体（sft → turbo → base）导出：写死 ace.sft ? 'sft' : 'base' 在
+      // 只有 Turbo 在位的机器上会导出 unet_name 为空字符串的坏图。
+      const aceVariant = firstAvailableAceStepVariant(ace) ?? 'sft'
       filename = 'ace-step-1.5-api-workflow.json'
-      workflow = buildAceStepWorkflow({ model: ace.sft ? 'sft' : 'base', tags: 'cinematic instrumental soundtrack', lyrics: '', instrumental: true, duration: 60, bpm: 120, timeSignature: '4', language: 'en', keyScale: 'C major', seed: 12345, generateAudioCodes: true, attentionBackend, gpuRouting: gpuRoutingPlan.workflow, filenamePrefix }, ace)
+      workflow = buildAceStepWorkflow({ model: aceVariant, tags: 'cinematic instrumental soundtrack', lyrics: '', instrumental: true, duration: 60, bpm: 120, timeSignature: '4', language: 'en', keyScale: 'C major', seed: 12345, generateAudioCodes: true, attentionBackend, gpuRouting: gpuRoutingPlan.workflow, filenamePrefix }, ace)
     } else {
       filename = 'minimax-h3-i2v-api-workflow.json'
       workflow = buildMiniMaxWorkflow({ mode: 'text', prompt: 'Describe one continuous cinematic shot.', width, height, duration: defaults.duration, seed: 12345, steps: defaults.steps, turbo: defaults.turbo, sampler: defaults.sampler, scheduler: defaults.scheduler, experimentalSampling: defaults.experimentalSampling, refImageSize: defaults.refImageSize, loraStrength: defaults.loraStrength, attentionBackend: h3AttentionBackend, gpuRouting: gpuRoutingPlan.workflow, solCache: settings.attentionBackend === 'sol' && settings.solCacheEnabled && solCacheNode ? { nodeType: solCacheNode, threshold: 0.1, maxSteps: 5 } : undefined, solAttention: settings.attentionBackend === 'sol' && solAttentionNode ? { nodeType: solAttentionNode, tau: settings.solAttnTau } : undefined, filenamePrefix, referenceImages: [], referenceVideos: [], referenceAudios: [] }, h3, { images: [], videos: [], audios: [] })

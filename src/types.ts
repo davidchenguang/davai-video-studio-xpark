@@ -321,13 +321,16 @@ export type Ltx25GenerationOptions = {
 export type AceStepModelSelection = {
   base: string
   sft: string
+  turbo?: string
   textEncoderSmall: string
   textEncoderLarge: string
   vae: string
 }
 
+export type AceStepVariant = 'sft' | 'turbo' | 'base'
+
 export type AceStepGenerationOptions = {
-  model: 'sft' | 'base'
+  model: 'sft' | 'turbo' | 'base'
   tags: string
   lyrics: string
   instrumental: boolean
