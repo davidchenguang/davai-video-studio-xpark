@@ -1,7 +1,7 @@
 'use strict'
 // Prompt-parity regression: the current tree must reproduce the baseline
 // fixture byte for byte across every prompt-output path (A4).
-// The fixture is generated once from baseline ref e5859df (the DavAi rename) by
+// The fixture is generated once from baseline ref 6a600eb (the Music 3 Chinese support) by
 // scripts/capture-prompt-parity.cjs and never hand-edited afterwards.
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -47,14 +47,14 @@ const firstDivergence = (left, right, trail = '') => {
 ;(async () => {
   const current = await capture(root)
   const divergence = firstDivergence(fixture.capture, current)
-  assert.equal(fixture._meta?.baseline, 'e5859df0058324807bdfcb671c3998385f410445', 'parity fixture must stay pinned to the brief baseline ref')
+  assert.equal(fixture._meta?.baseline, '6a600eb625d530f5d4694f766e5d2c6c0e8d4956', 'parity fixture must stay pinned to the brief baseline ref')
   assert.ok(divergence === null, `prompt output diverged from baseline at ${divergence?.path}\n  baseline: ${divergence?.baseline?.slice(0, 400)}\n  current:  ${divergence?.current?.slice(0, 400)}`)
 
   // The embedded-audio default description is a prompt-layer literal that lives
   // in the component layer (both files inline the same English text), so the
   // fixture never captures it. h3SceneCompiler copies it verbatim into
   // `overall_soundscape` / `subject_definitions` — pin it against the pinned baseline
-  // ref (originally 1a7ea28, re-pinned at the DavAi rename) instead of trusting a source comment.
+  // ref (originally 1a7ea28) instead of trusting a source comment.
   const BASELINE_EMBEDDED_AUDIO = 'The video’s ambient sound texture; do not inherit speech or music.'
   for (const file of ['src/components/SceneComposer.tsx', 'src/components/SceneContextPanels.tsx']) {
     const source = fs.readFileSync(path.join(root, file), 'utf8')
