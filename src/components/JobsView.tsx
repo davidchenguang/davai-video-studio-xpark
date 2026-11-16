@@ -1,7 +1,9 @@
-import { Activity, CircleStop, ExternalLink, Film, History, Image as ImageIcon, LoaderCircle, Music2, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Activity, CircleStop, ExternalLink, Film, History, Image as ImageIcon, LoaderCircle, Music2, Play, Trash2, ZoomIn } from 'lucide-react'
 import type { GenerationJob } from '../types'
 import { audioSourceLabel, generationModeLabels, imageSourceLabel, jobStatusLabels, modelLabel, modelPrecisionLabel, shortPrompt } from '../lib/jobPresentation'
 import { jobProgressLine, progressBarStyle, useJobProgressSummary } from '../lib/progressStages'
+import { MediaPreviewModal } from './MediaPreviewModal'
 import { MovieMediaThumbnail } from './MovieMediaThumbnail'
 
 export function StatusBadge({ status }: { status: GenerationJob['status'] }) {
@@ -59,18 +61,24 @@ export function JobProgressLine({ job }: { job: GenerationJob }) {
 }
 
 export function JobsView({ title, note, jobs, empty, cancellingIds, onCancel, onRemove }: { title: string; note: string; jobs: GenerationJob[]; empty: string; cancellingIds: Set<string>; onCancel(job: GenerationJob): Promise<void>; onRemove(job: GenerationJob): void }) {
+  const [preview, setPreview] = useState<GenerationJob | null>(null)
   return <div className="standard-page">
     <div className="page-heading"><div><p className="eyebrow">本地工作区</p><h1>{title}</h1><p>{note}</p></div></div>
     {jobs.length === 0 ? <div className="empty-page"><History size={28} /><strong>{empty}</strong><span>新工作会自动保存在本设备上。</span></div> : <div className="job-list">{jobs.map((job) => {
       const audio = job.mediaType === 'audio'
       const image = job.mediaType === 'image'
       const active = job.status === 'running' || job.status === 'queued'
+      const thumbnail = job.outputUrl ? audio ? <Music2 /> : image ? <img src={job.outputUrl} alt={imageSourceLabel(job.provider)} /> : <span aria-label="视频输出"><MovieMediaThumbnail source={job.outputUrl} posterUrl={job.thumbnailUrl} /></span> : job.status === 'running' ? <LoaderCircle className="spin" /> : audio ? <Music2 /> : image ? <ImageIcon /> : <Film />
+      // 图像/视频/音频共用可点击缩略图：音频原本独占内嵌播放器，另两类只能在
+      // 新窗口打开；现在三类都能就地进入同一个预览灯箱。
+      const previewBadge = job.outputUrl && <span className="job-thumbnail-preview" aria-hidden="true">{image ? <ZoomIn size={12} /> : <Play size={12} fill="currentColor" />}</span>
       return <article className={`job-row ${active ? 'constructing' : ''}`} key={job.id}>
-        <div className={`job-thumbnail ${audio ? 'audio' : ''}`}>{job.outputUrl ? audio ? <Music2 /> : image ? <img src={job.outputUrl} alt={imageSourceLabel(job.provider)} /> : <span aria-label="视频输出"><MovieMediaThumbnail source={job.outputUrl} posterUrl={job.thumbnailUrl} /></span> : job.status === 'running' ? <LoaderCircle className="spin" /> : audio ? <Music2 /> : image ? <ImageIcon /> : <Film />}</div>
-        <div className="job-copy"><div><StatusBadge status={job.status} /><span>{new Date(job.createdAt).toLocaleString()}</span></div><strong>{shortPrompt(job.prompt)}</strong><small>{audio ? (() => { const label = audioSourceLabel(job.provider); return `${label === '音乐' ? label : `音乐 · ${label}`} · ${job.duration} 秒 · 音频` })() : `${job.width} × ${job.height} · ${image ? imageSourceLabel(job.provider) : `${job.duration} 秒 · ${generationModeLabels[job.mode] ?? job.mode}`}`}</small><JobExecutionChips job={job} />{job.outputUrl && audio && <audio className="job-audio" src={job.outputUrl} controls preload="metadata" />}{active && <JobProgressLine job={job} />}{job.error && <p className="job-error">{job.error}</p>}<ComfyActivityConsole job={job} /></div>
+        {job.outputUrl ? <button type="button" className={`job-thumbnail previewable ${audio ? 'audio' : ''}`} onClick={() => setPreview(job)} aria-label={`预览 ${shortPrompt(job.prompt)}`} title="打开预览">{thumbnail}{previewBadge}</button> : <div className={`job-thumbnail ${audio ? 'audio' : ''}`}>{thumbnail}</div>}
+        <div className="job-copy"><div><StatusBadge status={job.status} /><span>{new Date(job.createdAt).toLocaleString()}</span></div><strong>{shortPrompt(job.prompt)}</strong><small>{audio ? (() => { const label = audioSourceLabel(job.provider); return `${label === '音乐' ? label : `音乐 · ${label}`} · ${job.duration} 秒 · 音频` })() : `${job.width} × ${job.height} · ${image ? imageSourceLabel(job.provider) : `${job.duration} 秒 · ${generationModeLabels[job.mode] ?? job.mode}`}`}</small><JobExecutionChips job={job} />{active && <JobProgressLine job={job} />}{job.error && <p className="job-error">{job.error}</p>}<ComfyActivityConsole job={job} /></div>
         <div className="job-actions">{job.outputUrl && <a className="secondary-button" href={job.outputUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />打开</a>}{active && <button className="danger-button" disabled={cancellingIds.has(job.id)} onClick={() => void onCancel(job)}>{cancellingIds.has(job.id) ? <LoaderCircle size={15} className="spin" /> : <CircleStop size={15} />}{cancellingIds.has(job.id) ? '正在停止…' : '停止'}</button>}{!active && <button className="secondary-button" title="从队列历史中移除；已渲染的文件仍保留在磁盘上" onClick={() => onRemove(job)}><Trash2 size={15} />移除</button>}</div>
       </article>
     })}</div>}
+    {preview && <MediaPreviewModal job={preview} eyebrow="队列预览" onClose={() => setPreview(null)} />}
   </div>
 }
 

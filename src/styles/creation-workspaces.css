@@ -45,12 +45,11 @@
 .album-placeholder svg { opacity: .2; }
 .album-placeholder span { position: absolute; right: 11px; bottom: 9px; color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: .12em; }
 .audio-result > strong { display: -webkit-box; overflow: hidden; color: var(--text); font-size: 11px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.audio-result audio, .job-audio { width: 100%; height: 36px; }
+.audio-result audio { width: 100%; height: 36px; }
 .audio-result .secondary-button { text-decoration: none; }
 .job-thumbnail.audio { color: var(--accent); }
-.job-audio { max-width: 420px; margin-top: 7px; }
-/* 媒体库音频卡片/灯箱的内嵌播放器：全宽、队列同款 36px 高（不沿用 job-audio 的
-   420px 上限——那是队列行布局的约束）；灯箱里放宽到适合大舞台。 */
+/* 媒体库音频卡片与灯箱的内嵌播放器：卡片全宽、36px 高，灯箱放宽到适合大舞台。
+   队列行不再内嵌播放器，试听统一走缩略图打开的预览灯箱。 */
 .library-card-audio { width: 100%; height: 36px; }
 .media-lightbox-stage .lightbox-audio { width: min(560px, 100%); height: 40px; }
 .continuation-banner { display: flex; align-items: center; gap: 9px; margin-top: 12px; padding: 9px 10px; border: 1px solid rgba(198,255,99,.2); border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
@@ -502,6 +501,15 @@ textarea::placeholder, input::placeholder { color: var(--line-strong); }
 .job-row { display: grid; grid-template-columns: 104px minmax(0, 1fr) auto; gap: 14px; min-width: 0; padding: 13px; }
 .job-row + .job-row { border-top: 1px solid var(--line); }
 .job-thumbnail { display: grid; place-items: center; height: 67px; overflow: hidden; border-radius: 8px; background: var(--bg); color: var(--muted-2); }
+/* 已完成任务的缩略图是可点击的预览入口；button 需要清掉浏览器默认的
+   padding/border/font，其它媒体类型仍用同样的 div 外观。 */
+.job-thumbnail.previewable { position: relative; padding: 0; border: 0; font: inherit; cursor: pointer; }
+.job-thumbnail.previewable::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px transparent; transition: box-shadow .15s; }
+.job-thumbnail.previewable:hover::after { box-shadow: inset 0 0 0 1px var(--accent); }
+.job-thumbnail.previewable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 必须比 `.job-thumbnail > span`（100% 宽高的缩略图内容规则）更具体，
+   否则预览徽章会被撑满整块缩略图。 */
+.job-thumbnail > .job-thumbnail-preview { position: absolute; right: 4px; bottom: 4px; display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid #ffffff73; border-radius: 50%; background: #0b1720c9; color: #fff; }
 .job-thumbnail video { width: 100%; height: 100%; object-fit: cover; }
 .job-thumbnail img { width: 100%; height: 100%; object-fit: cover; }
 .movie-media-thumbnail { display: grid; width: 100%; height: 100%; overflow: hidden; place-items: center; background: var(--bg); color: var(--muted-2); }

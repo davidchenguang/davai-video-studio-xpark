@@ -9,10 +9,10 @@
 | `src/lib/workspaceProjects.ts` and `src/components/WorkspaceProjectManager.tsx` | Local project index and the save/open manager. Source media files remain in place. |
 | `src/lib/workspaceSearch.tsx` | Setting discovery and result labels; the active workspace controls remain the source of truth. |
 | `src/lib/workspaceTips.ts` and `src/components/WorkspaceTips.tsx` | Workspace help copy and its dialog. |
-| `src/lib/jobPresentation.ts` and `src/components/JobsView.tsx` | Queue status, render configuration, and activity display. |
+| `src/lib/jobPresentation.ts` and `src/components/JobsView.tsx` | Queue status, render configuration, activity display, and the clickable thumbnail that opens the shared media preview. |
 | `src/lib/progressStages.ts` | ComfyUI progress stages: node class_type → stage classification, the declared stage weights, global progress composition, and elapsed-time formatting for the render surfaces. |
 | `src/lib/music3Vocabulary.ts` and `src/components/Music3Workspace.tsx` | Music 3 vocabulary: the English prompt/storage values (genre, key, progression, keyword and style-descriptor presets) together with their Chinese display labels. The workspace renders the labels; the English values still reach the prompt verbatim. |
-| `src/components/LibraryView.tsx` and `src/components/VideoPlayer.tsx` | Render library filtering, output cards, and media playback controls. |
+| `src/components/LibraryView.tsx`, `src/components/MediaPreviewModal.tsx`, and `src/components/VideoPlayer.tsx` | Render library filtering, output cards, and media playback controls. The preview lightbox is shared by the library and the queue; media-specific footer actions stay with the caller. |
 | `src/components/SettingsView.tsx` and `src/components/FormFields.tsx` | Settings panels and shared labeled input controls. |
 | `src/lib/h3Diagnostics.ts` and `src/lib/h3NodeDetection.ts` | H3 benchmark persistence, model stack reports (video and H3-Image), and ComfyUI node detection. |
 | `src/lib/h3Image.ts` and `src/components/H3ImageWorkspace.tsx` | MiniMax H3-Image still-image graphs (the dedicated image DiT tier and the zero-download FL2VA tier) and the H3 图片 workspace: automatic tier selection with an advanced-options override, single readiness signals shared by badges/gate/auto, tier-clamped size table, tier attribution, local prompt assist, and handoff into the H3 and LTX video workspaces. |
