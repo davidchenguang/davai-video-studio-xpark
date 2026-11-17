@@ -11,7 +11,7 @@ import { buildPromptCompletionRequest } from './promptCompletion.js'
 import { lmStudioEndpoint, parseLmStudioModels } from './lmStudioApi.js'
 import { readLlmStream, type LlmStreamUpdate } from './llmStream.js'
 import { mergeModelInventory, MODEL_KINDS, type ModelFile, type ModelKind } from './modelInventory.js'
-import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
@@ -772,7 +772,7 @@ async function handleLanRequest(request: IncomingMessage, response: ServerRespon
     const distRoot = normalize(join(__dirname, '..', 'dist'))
     const requested = url.pathname === '/' || url.pathname === '/mobile' ? 'index.html' : decodeURIComponent(url.pathname).replace(/^\/+/, '')
     const filePath = normalize(join(distRoot, requested))
-    if (!(filePath === distRoot || filePath.startsWith(`${distRoot}\\`)) || !existsSync(filePath)) {
+    if (!(filePath === distRoot || filePath.startsWith(distRoot + sep)) || !existsSync(filePath)) {
       const fallback = join(distRoot, 'index.html')
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff' }); return createReadStream(fallback).pipe(response)
     }
