@@ -27,7 +27,7 @@ export function MediaPreviewModal({ job, eyebrow = '媒体预览', onClose, foot
       </header>
       <div className="media-lightbox-stage">{image ? <img src={job.outputUrl} alt={imageSourceLabel(job.provider)} /> : audio ? <audio className="lightbox-audio" src={job.outputUrl!} controls autoPlay={false} /> : <VideoPlayer src={job.outputUrl!} />}</div>
       <footer>
-        <span>{audio ? `${job.duration} 秒音频` : `${job.width} × ${job.height} · ${image ? '静态图片' : `${job.duration} 秒视频`}`}</span>
+        <span>{audio ? `${job.duration} 秒音频` : `${job.width} × ${job.height} · ${image ? '静态图片' : `${job.duration} 秒视频`}`}{job.engineId && job.engineId !== 'comfy' ? <em className="library-engine-badge">{job.engineId}</em> : null}</span>
         <div className="media-lightbox-actions">{footerActions}<button className="secondary-button" onClick={onClose}>关闭</button></div>
       </footer>
     </section>

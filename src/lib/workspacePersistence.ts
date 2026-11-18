@@ -1,3 +1,4 @@
+import { MMH3_RECIPE_CHOICES, type Mmh3RecipeChoice } from './engine/mmh3Recipe'
 import type { ScenePromptState } from './scenePromptState'
 import type { GenerationJob, GenerationMode, MediaFile, Turbo8Profile, UpscaleMode } from '../types'
 
@@ -8,6 +9,8 @@ export type PersistedWorkspace = {
   duration: number
   resolution: string
   turbo: 'off' | '4' | '8' | 'fast'
+  /** Which mmh3 recipe the workspace sends: 'auto' follows the quality preset. */
+  mmh3RecipeChoice: Mmh3RecipeChoice
   steps: number
   sampler: string
   scheduler: string
@@ -56,7 +59,7 @@ export function randomH3Seed(previous?: number) {
 
 const defaultH3Seed = randomH3Seed()
 export const workspaceDefaults: PersistedWorkspace = {
-  mode: 'text', prompt: '', duration: 5, resolution: '1056x608', turbo: 'off', steps: 30,
+  mode: 'text', prompt: '', duration: 5, resolution: '1056x608', turbo: 'off', mmh3RecipeChoice: 'auto', steps: 30,
   sampler: 'res_multistep', scheduler: 'simple', experimentalSampling: false, refImageSize: 'match', noDialogue: true, naturalMovement: true, clothingPolicy: 'wardrobe',
   sigmaShiftMode: 'model', shiftVideo: 12, shiftAudio: 3, loraStrength: 1, userLoras: [{ name: '', strength: 1 }, { name: '', strength: 1 }, { name: '', strength: 1 }], seed: defaultH3Seed, ref2vaSeed: defaultH3Seed, seedLocked: true,
   advanced: false, liveEnabled: true, livePreviewMode: 'auto', previewModeVersion: 1, upscaleMode: 'refine', h3ProReview: true, h3ProRefineSteps: 6, h3RefineSteps: 3, h3RefineDenoise: 0.3, textEncoderPreference: 'fast', turbo8Profile: 'balanced', rtxModel: '', firstFrame: null,
@@ -88,6 +91,8 @@ export function readWorkspace(): PersistedWorkspace {
     if (stored.previewModeVersion !== 1 && stored.livePreviewMode === 'standard') workspace.livePreviewMode = 'auto'
     if (!['auto', 'standard', 'h3-override'].includes(workspace.livePreviewMode)) workspace.livePreviewMode = 'auto'
     workspace.previewModeVersion = 1
+    // A stored recipe name the app no longer knows falls back to following the preset.
+    if (!MMH3_RECIPE_CHOICES.includes(workspace.mmh3RecipeChoice)) workspace.mmh3RecipeChoice = 'auto'
     // Pre-Ref2VA workspaces had one seed. Keep that seed authoritative for identity references.
     workspace.ref2vaSeed = Number.isFinite(Number(stored.ref2vaSeed)) ? Number(stored.ref2vaSeed) : Number(workspace.seed)
     workspace.userLoras = Array.isArray(stored.userLoras) ? stored.userLoras.slice(0, 3).map((item) => ({ name: typeof item?.name === 'string' ? item.name : '', strength: Math.max(0, Math.min(2, Number(item?.strength) || 1)) })) : workspaceDefaults.userLoras.map((item) => ({ ...item }))

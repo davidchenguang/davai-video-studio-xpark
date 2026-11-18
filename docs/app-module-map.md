@@ -20,10 +20,17 @@
 | `electron/promptCompletion.ts` | Bounded Ollama and LM Studio inline suggestion request contracts; privileged transport stays in Electron main. |
 | `src/lib/comfyJobState.ts` | Interpret ComfyUI queue/history state and guard terminal updates against cancellation races. |
 | `src/lib/jobPersistence.ts` | Restore saved Queue jobs independently, isolating malformed entries and migrating playback URLs. |
+| `src/lib/engine/engines.ts` | The render-engine model: the ComfyUI and mmh3 entries, the active engine, and the one write channel that mirrors `comfyUrl` into the ComfyUI entry. |
+| `src/lib/engine/engineHealth.ts` | Per-engine readiness (ready, models missing, offline), the health line the UI shows, and the missing-model name taken from an mmh3 rejection. |
+| `src/lib/engine/useEngineSelection.ts` | The engine a workspace renders on: the per-workspace choice, the health check, and the one-time handover that frees ComfyUI's memory before mmh3 takes it. |
+| `src/lib/engine/mmh3Recipe.ts` and `src/lib/engine/mmh3Task.ts` | The mmh3 recipes (the fields each tier sends) and the request builder, the queue position and the wait for the artifact. |
+| `src/components/EngineSelector.tsx` | The shared engine picker with its health badge, used by the H3 workspaces and the settings. |
+| `electron/mmh3Api.ts` | The mmh3 HTTP client: status, submit, job, list, delete, artifact download, and the ComfyUI memory release. Privileged transport stays in Electron main. |
+| `electron/engineSettings.ts` | The engine list as the main process reads it, mirroring the renderer's `src/lib/engine/engines.ts`. |
 | `electron/comfyCancellation.ts` | One cancellation path for Electron IPC and LAN, with modern ComfyUI and legacy queue handling. |
 | `electron/legacyBrowserStorage.ts` and `src/components/LegacyMigrationControl.tsx` | Staged, pre-session Local Storage restore with a recoverable backup and visible retry errors. |
 | `electron/gpuTelemetry.ts` | Bounded `nvidia-smi` polling behind the desktop process. |
 
 The remaining large sections in `App.tsx` are H3 submission, history/output reconciliation, continuation, and the video workspace UI. A future extraction should keep the history lookup tied to the exact ComfyUI prompt ID and preserve local output paths for continuation. Avoid moving privileged file or process operations into renderer modules.
 
-Run `pnpm test`, `pnpm typecheck`, `pnpm build:web`, `pnpm build:electron`, and `pnpm test:ui-e2e` after changing these boundaries. The UI test requires the Vite server at `127.0.0.1:5173`.
+`scripts/test-engine-routing.cjs` pins the boundaries between the two engines: every ComfyUI submit point still targets `comfyUrl`, the live preview socket still follows that address, the `comfy:*` channels and the preload methods only grow, the three H3 dispatch points branch on the engine, the mmh3 recipes only send fields the server accepts, and the engine settings have one write channel. Run `pnpm test`, `pnpm typecheck`, `pnpm build:web`, `pnpm build:electron`, and `pnpm test:ui-e2e` after changing these boundaries. The UI test requires the Vite server at `127.0.0.1:5173`.

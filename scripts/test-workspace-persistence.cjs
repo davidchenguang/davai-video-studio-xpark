@@ -1,13 +1,10 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
-const vm = require('node:vm')
-const ts = require('typescript')
+const { load } = require('./test-ts-loader.cjs')
 
-const source = fs.readFileSync('src/lib/workspacePersistence.ts', 'utf8')
-const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
 let saved = null
-const moduleExports = {}
-vm.runInNewContext(code, { exports: moduleExports, localStorage: { getItem: () => saved } }, { filename: 'workspacePersistence.ts' })
+// The loader sandbox gets its own localStorage so this suite can stage saved workspaces.
+global.__TS_LOADER_EXTRA_GLOBALS__ = { localStorage: { getItem: () => saved } }
+const moduleExports = load('src/lib/workspacePersistence.ts')
 
 saved = JSON.stringify({
   seed: 42,
@@ -36,6 +33,12 @@ assert.equal(optOut.experimentalSampling, false)
 assert.equal(optOut.sampler, 'euler', 'an explicit sampling choice is preserved')
 assert.equal(optOut.scheduler, 'beta')
 
+assert.equal(moduleExports.readWorkspace().mmh3RecipeChoice, 'auto', 'a workspace without the field follows the quality preset')
+saved = JSON.stringify({ mmh3RecipeChoice: 'pdmd' })
+assert.equal(moduleExports.readWorkspace().mmh3RecipeChoice, 'pdmd', 'an explicit mmh3 recipe is preserved')
+saved = JSON.stringify({ mmh3RecipeChoice: 'retired-recipe' })
+assert.equal(moduleExports.readWorkspace().mmh3RecipeChoice, 'auto', 'an unknown mmh3 recipe name falls back to auto')
+
 saved = '{broken json'
 assert.equal(moduleExports.readWorkspace().resolution, moduleExports.workspaceDefaults.resolution)
-process.stdout.write('PASS: legacy workspace migration, malformed media recovery, saved opt-out, and corrupt JSON fallback\n')
+process.stdout.write('PASS: legacy workspace migration, malformed media recovery, saved opt-out, mmh3 recipe choice, and corrupt JSON fallback\n')

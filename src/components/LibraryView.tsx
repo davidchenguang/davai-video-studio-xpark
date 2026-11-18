@@ -90,7 +90,7 @@ export function LibraryView({ jobs, settings, onEdit, onCreate, onUseLtx, onUseL
           {!image && !audio && <span className="library-media-duration">{job.duration} 秒</span>}
         </button>
         <div className="library-card-body">
-          <div className="library-card-meta"><span className={`library-provider ${job.provider === 'ltx25' || job.provider === 'ltxripple' ? 'ltx' : ''}`}>{image ? imageSourceLabel(job.provider) : audio ? audioSourceLabel(job.provider) : videoSourceLabel(job.provider)}</span><time dateTime={new Date(job.createdAt).toISOString()}>{new Date(job.createdAt).toLocaleDateString()}</time></div>
+          <div className="library-card-meta"><span className={`library-provider ${job.provider === 'ltx25' || job.provider === 'ltxripple' ? 'ltx' : ''}`}>{image ? imageSourceLabel(job.provider) : audio ? audioSourceLabel(job.provider) : videoSourceLabel(job.provider)}</span>{job.engineId && job.engineId !== 'comfy' && <span className="library-engine-badge">{job.engineId}</span>}<time dateTime={new Date(job.createdAt).toISOString()}>{new Date(job.createdAt).toLocaleDateString()}</time></div>
           <strong title={job.prompt}>{title}</strong>
           <small>{audio ? `${job.duration} 秒音频` : `${job.width} × ${job.height} · ${image ? '单张图片' : `${job.duration} 秒 · ${generationModeLabels[job.mode] ?? job.mode}`}`}</small>
           {audio && job.outputUrl && <audio className="library-card-audio" src={job.outputUrl} controls preload="metadata" />}

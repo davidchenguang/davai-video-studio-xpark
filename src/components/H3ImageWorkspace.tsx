@@ -11,6 +11,10 @@ import { RenderSize } from './RenderSize'
 import { SmartPromptEditor } from './SmartPromptEditor'
 import type { GenerationJob, MediaFile, WorkflowGpuRouting } from '../types'
 import { useLivePreview, type LiveProgress } from '../lib/useLivePreview'
+import { useEngineSelection } from '../lib/engine/useEngineSelection'
+import { mmh3ImageRequest, mmh3OutputName, waitForMmh3Task } from '../lib/engine/mmh3Task'
+import type { EngineConfig } from '../lib/engine/engines'
+import { EngineSelector } from './EngineSelector'
 
 type StoredWorkspace = {
   prompt: string
@@ -53,6 +57,7 @@ function readWorkspace(): StoredWorkspace {
 }
 
 type H3ImageJob = { id: string; url: string; resolution: string; prompt: string; tier: H3ImageTier }
+type Mmh3ImageJob = { id: string; baseUrl: string; engineId: string; tier: H3ImageTier; prompt: string; resolution: string; width: number; height: number }
 type HistoryEntry = {
   status?: { status_str?: string }
   outputs?: Record<string, { images?: Array<{ filename: string; subfolder?: string; type?: string }> }>
@@ -68,7 +73,7 @@ async function isJobQueued(job: H3ImageJob) {
 }
 
 export function H3ImageWorkspace({
-  url, info, connected, ollamaAvailable, llmProvider, ollamaUrl, ollamaModel, outputDirectory, gpuRouting, onUse, onUseLtx, onRegisterJob,
+  url, info, connected, ollamaAvailable, llmProvider, ollamaUrl, ollamaModel, outputDirectory, gpuRouting, engines, activeEngineId, onUse, onUseLtx, onRegisterJob,
 }: {
   url: string
   info: ObjectInfo
@@ -79,6 +84,8 @@ export function H3ImageWorkspace({
   ollamaModel: string
   outputDirectory: string
   gpuRouting?: WorkflowGpuRouting
+  engines?: EngineConfig[]
+  activeEngineId?: string
   onUse(file: MediaFile, resolution: string): void
   onUseLtx(file: MediaFile): void
   onRegisterJob?(job: GenerationJob): void
@@ -108,6 +115,13 @@ export function H3ImageWorkspace({
     if (jobRef.current?.id === id) { liveProgressRef.current = update; setLiveProgress(update) }
   }, [])
   const live = useLivePreview(url, connected, onLiveProgress)
+  // The image workspace may render on the mmh3 engine instead of ComfyUI.
+  const mmh3 = useEngineSelection('davai_h3_image_engine', { engines, activeEngineId, comfyUrl: url }, { comfyConnected: connected })
+  // The job remembers what it was submitted with, so that editing the prompt or
+  // the tier while it renders does not restart the poll and lose the picture.
+  const [mmh3Job, setMmh3Job] = useState<Mmh3ImageJob | null>(null)
+  const mmh3Abort = useRef<AbortController | null>(null)
+  const noteMmh3Failure = mmh3.noteFailure
 
   const updateJob = useCallback((next: H3ImageJob | null) => {
     jobRef.current = next
@@ -273,7 +287,62 @@ export function H3ImageWorkspace({
       { label: 'Turbo 8 步 LoRA', value: lora, set: setLora, node: 'LoraLoaderModelOnly', field: 'lora_name' },
     ]
 
+  // The mmh3 route keeps its own poll: the server owns the queue and reports
+  // its own steps, and the picture only exists once it has been written here.
+  useEffect(() => {
+    if (!mmh3Job) return
+    let disposed = false
+    const controller = new AbortController()
+    mmh3Abort.current = controller
+    void (async () => {
+      try {
+        const finished = await waitForMmh3Task(mmh3Job.baseUrl, mmh3Job.id, (update) => {
+          if (disposed) return
+          setMessage(update.state === 'queued'
+            ? `排队中（前面还有 ${update.ahead} 个）`
+            : update.state === 'running'
+              ? `mmh3 正在渲染 · 第 ${update.step ?? 0} / ${update.steps ?? '?'} 步`
+              : '')
+        }, controller.signal)
+        if (disposed) return
+        if (finished.state === 'failed') throw new Error(finished.error?.trim() || 'mmh3 图片生成失败。')
+        const downloaded = await window.minimax.mmh3Download(mmh3Job.baseUrl, mmh3Job.id, 'image', outputDirectory, mmh3OutputName('image', mmh3Job.prompt))
+        const outputUrl = await window.minimax.mediaUrl(downloaded.path)
+        setResult({ file: { path: downloaded.path, name: downloaded.name, preview: outputUrl, kind: 'image' }, resolution: mmh3Job.resolution, tier: mmh3Job.tier })
+        updateJob(null); setBusy(false); setError(false); liveProgressRef.current = null; setLiveProgress(null); setMessage('图片已生成，可以使用。')
+        registerJobRef.current?.(buildImageJob({ provider: 'h3image', promptId: mmh3Job.id, prompt: mmh3Job.prompt, width: mmh3Job.width, height: mmh3Job.height, outputUrl, localOutputPath: downloaded.path, engineId: mmh3Job.engineId }))
+        await window.minimax.mmh3Delete(mmh3Job.baseUrl, mmh3Job.id).catch(() => undefined)
+      } catch (caught) {
+        if (disposed) return
+        const message = caught instanceof Error ? caught.message : String(caught)
+        noteMmh3Failure(mmh3Job.engineId, message)
+        setMessage(message); setError(true); setBusy(false); updateJob(null)
+      }
+    })()
+    return () => { disposed = true; controller.abort(); mmh3Abort.current = null }
+  }, [mmh3Job, outputDirectory, updateJob, noteMmh3Failure])
+
   const create = async () => {
+    if (mmh3.engine.kind === 'mmh3') {
+      if (!prompt.trim()) return
+      setBusy(true); setResult(null); setError(false); liveProgressRef.current = null; setLiveProgress(null)
+      setMessage('正在向 mmh3 提交图片任务…')
+      try {
+        const warning = await mmh3.prepareSubmit()
+        if (warning) setMessage(warning)
+        const [width, height] = resolution.split('x').map(Number)
+        const request = mmh3ImageRequest({ engine: mmh3.engine, prompt: prompt.trim(), width, height, steps: 6, seed })
+        const submitted = await window.minimax.mmh3SubmitImage(request.baseUrl, request.fields, request.files)
+        if (!submitted.id) throw new Error('mmh3 没有返回任务 ID。')
+        setMmh3Job({ id: submitted.id, baseUrl: request.baseUrl, engineId: mmh3.engine.id, tier, prompt: prompt.trim(), resolution, width, height })
+        setMessage('mmh3 已接收任务，正在渲染…')
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : String(caught)
+        noteMmh3Failure(mmh3.engine.id, message)
+        setMessage(message); setError(true); setBusy(false)
+      }
+      return
+    }
     if (!connected || !available || !prompt.trim()) return
     setBusy(true); setResult(null); setError(false); liveProgressRef.current = null; setLiveProgress(null); setMessage(`正在提交${H3_IMAGE_TIERS[tier].label}工作流…`)
     try {
@@ -289,6 +358,16 @@ export function H3ImageWorkspace({
   }
 
   const cancel = async () => {
+    if (mmh3Job) {
+      // mmh3 cannot interrupt a generation that is already running: the card
+      // turns cancelled and the artifact is dropped when the server is done.
+      mmh3Abort.current?.abort()
+      mmh3Abort.current = null
+      setMmh3Job(null)
+      setBusy(false); setError(false)
+      setMessage('mmh3 无法中断运行中的生成，仍在占用 GPU；产物会被丢弃，不会入库。')
+      return
+    }
     if (!job) return
     try {
       await window.minimax.cancelPrompt(job.url, job.id)
@@ -310,15 +389,19 @@ export function H3ImageWorkspace({
   }
 
   const visibleLivePreview = livePreview && busy && job && live.preview?.promptId === job.id ? live.preview : null
+  const onMmh3 = mmh3.engine.kind === 'mmh3'
+  const engineReady = onMmh3 ? mmh3.engineHealth?.state !== 'offline' : connected && available
+  const generateDisabled = onMmh3 ? busy || !prompt.trim() || mmh3.engineHealth?.state === 'offline' : busy || !connected || !available || !prompt.trim()
 
   return <div className="standard-page h3image-workspace">
     <div className="page-heading">
       <div><p className="eyebrow">创作 · H3‑IMAGE</p><h1>图片 · H3-Image</h1><p>生成可直接发往 H3 与 LTX 视频的静帧；推荐使用 MiniMax 官方 H3-Image 模型。</p><p className="h3image-attribution">{result ? h3ImageTierAttribution(result.tier) : h3ImageTierAttribution(tier)}</p></div>
-      <div className="heading-state"><span className={connected ? (available ? 'ok' : 'warn') : 'warn'}>{connected ? available ? <Check size={15} /> : <AlertCircle size={15} /> : <AlertCircle size={15} />}{connected ? available ? '模型就绪' : !tierReady ? '需要模型或 0.45' : '需要选择模型' : '引擎离线'}</span></div>
+      <div className="heading-state"><span className={onMmh3 ? (engineReady ? 'ok' : 'warn') : (connected ? (available ? 'ok' : 'warn') : 'warn')}>{onMmh3 ? engineReady ? <Check size={15} /> : <AlertCircle size={15} /> : connected ? available ? <Check size={15} /> : <AlertCircle size={15} /> : <AlertCircle size={15} />}{onMmh3 ? (engineReady ? 'mmh3 就绪' : 'mmh3 不可用') : connected ? available ? '模型就绪' : !tierReady ? '需要模型或 0.45' : '需要选择模型' : '引擎离线'}</span></div>
     </div>
 
     <div className="zimage-workspace-grid">
       <section className="zimage-composer">
+        <div className="field-group h3image-engine-status"><span className="field-label"><label>渲染引擎</label></span><EngineSelector engines={mmh3.engines} engineId={mmh3.engineId} health={mmh3.health} checking={mmh3.checking} onChange={mmh3.setEngineId} />{onMmh3 && <small className="field-help" role="status" aria-live="polite">mmh3 用自己的生图配方渲染，与 ComfyUI 的输出不等价；实时预览帧在 mmh3 上不可用。</small>}</div>
         <div className="field-group h3image-engine-status"><span className="field-label"><label>模型来源</label></span><p className="field-help">{statusLine}</p>{(!tierOverride || available) && <button className="text-button" onClick={() => {
           setAdvancedOpen(true)
           document.getElementById('h3image-advanced')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -347,7 +430,7 @@ export function H3ImageWorkspace({
         </details>
 
         {message && <div className={`zimage-message ${error ? 'error' : ''}`} role={error ? 'alert' : 'status'}>{busy && <LoaderCircle size={16} className="spin" />}<span>{message}</span></div>}
-        <div className="zimage-generate-bar">{busy && <button className="danger-button" onClick={() => void cancel()}><CircleStop size={16} />取消</button>}<button className="primary-button" disabled={busy || !connected || !available || !prompt.trim()} onClick={() => void create()}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? '正在生成图片…' : '生成图片'}</button></div>
+        <div className="zimage-generate-bar">{busy && <button className="danger-button" onClick={() => void cancel()}><CircleStop size={16} />取消</button>}<button className="primary-button" disabled={generateDisabled} onClick={() => void create()}>{busy ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}{busy ? '正在生成图片…' : '生成图片'}</button></div>
       </section>
 
       <PreviewPanel>

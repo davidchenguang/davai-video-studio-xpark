@@ -220,6 +220,15 @@ export function installBrowserMock() {
     prepareContinuationSource: async (sources) => sources[0],
     prepareRippleChunkSource: async (source) => source,
     assembleRippleChunks: async () => ({ path: 'C:/davai-ui-e2e/ripple-long.mp4', name: 'ripple-long.mp4' }),
+    // The mmh3 engine is a local service the browser preview cannot reach.
+    mmh3Status: async () => ({ reachable: false, generating: null, queued: 0, models: null, memory: null, error: '浏览器预览无法访问本机 mmh3 服务。' }),
+    mmh3Submit: async () => { throw new Error('浏览器预览无法访问本机 mmh3 服务。') },
+    mmh3SubmitImage: async () => { throw new Error('浏览器预览无法访问本机 mmh3 服务。') },
+    mmh3Job: async () => { throw new Error('浏览器预览无法访问本机 mmh3 服务。') },
+    mmh3List: async () => [],
+    mmh3Delete: async () => ({ removed: false }),
+    mmh3Download: async () => { throw new Error('浏览器预览无法访问本机 mmh3 服务。') },
+    mmh3ReleaseComfy: async () => ({ released: false, busy: false, error: '浏览器预览无法访问本机 ComfyUI 服务。' }),
   }
   window.minimax = api
 }
