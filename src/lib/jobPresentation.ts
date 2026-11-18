@@ -74,6 +74,8 @@ export function buildImageJob(input: {
   outputUrl: string
   localOutputPath: string
   createdAt?: number
+  /** The engine that made the picture. An older record without it came from ComfyUI. */
+  engineId?: string
 }): GenerationJob {
   const createdAt = input.createdAt ?? Date.now()
   return {
@@ -86,6 +88,7 @@ export function buildImageJob(input: {
     progress: 100,
     mediaType: 'image',
     provider: input.provider,
+    ...(input.engineId ? { engineId: input.engineId } : {}),
     width: input.width,
     height: input.height,
     duration: 0,

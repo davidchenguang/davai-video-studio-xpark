@@ -23,6 +23,8 @@ export function readSavedJobs(raw: string | null): GenerationJob[] {
     if (typeof job.id !== 'string' || !job.id || typeof job.prompt !== 'string' || !Number.isFinite(job.createdAt) || !Number.isFinite(new Date(job.createdAt!).getTime())) return []
     const status = jobStatuses.includes(job.status as JobStatus) ? job.status! : 'failed'
     const promptId = typeof job.promptId === 'string' && job.promptId ? job.promptId : undefined
+    // An older record has no engine and ran on ComfyUI.
+    const engineId = typeof job.engineId === 'string' && job.engineId ? job.engineId : undefined
     const interrupted = !promptId && (status === 'queued' || status === 'running')
     return [{
       ...job,
@@ -36,10 +38,13 @@ export function readSavedJobs(raw: string | null): GenerationJob[] {
       height: Number.isFinite(job.height) ? job.height! : 0,
       duration: Number.isFinite(job.duration) ? job.duration! : 0,
       promptId,
+      ...(engineId ? { engineId } : {}),
       outputUrl: typeof job.outputUrl === 'string' ? playableOutputUrl(job.outputUrl) : undefined,
       comfyActivity: Array.isArray(job.comfyActivity) ? job.comfyActivity.filter((entry) => entry && typeof entry.message === 'string' && Number.isFinite(entry.at) && Number.isFinite(new Date(entry.at).getTime())) : undefined,
       ...(interrupted ? {
-        error: '应用在收到提示词 ID 之前丢失了这次渲染。请先检查 ComfyUI 队列或历史记录再重试，以避免重复渲染；你的素材和脚本都已保留。',
+        error: engineId === 'mmh3'
+          ? '应用重启中断了这次 mmh3 渲染。mmh3 的任务 ID 在服务重启后失效，请重新提交；你的素材与提示词都已保留。'
+          : '应用在收到提示词 ID 之前丢失了这次渲染。请先检查 ComfyUI 队列或历史记录再重试，以避免重复渲染；你的素材和脚本都已保留。',
         progressLabel: '提交已中断',
       } : {}),
     }]

@@ -1187,3 +1187,42 @@
 .music3-page .music3-editor-section > .music3-auto-suggestions { margin-top: 14px; }
 @media (max-width: 1050px) { .music3-page .music3-layout { grid-template-columns: minmax(0, 1fr); } .music3-page .music3-player { position: static; } }
 @media (max-width: 600px) { .music3-page .music3-editor { gap: 16px; } .music3-page .music3-lyrics-first, .music3-page .music3-preset-library, .music3-page .music3-editor-section, .music3-page .music3-player { padding: 16px; } .music3-page .music3-structure-controls { grid-template-columns: minmax(0, 1fr); } .music3-page .music3-main-lyrics { min-height: 360px; } }
+
+/* The engine a workspace renders on. An engine that cannot run is greyed out
+   and says why, so the choice is never a guess. */
+.engine-selector { display: grid; gap: 6px; }
+.engine-selector-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.engine-selector-head label { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.engine-selector-control { display: flex; align-items: center; gap: 8px; }
+.engine-selector-control .select-wrap { flex: 1; }
+.engine-selector-control .select-wrap select { width: 100%; }
+.engine-health { border-radius: 999px; padding: 2px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.engine-health-ready { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); }
+.engine-health-offline { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+.engine-health-models-missing { background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning); }
+.engine-health-unknown { background: var(--surface-2); color: var(--muted); }
+.engine-status { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.engine-settings-list { display: grid; gap: 12px; }
+.engine-settings-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.engine-settings-row .field-help { flex-basis: 100%; margin: 0; }
+.engine-settings-default { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+.engine-settings-default label { color: var(--muted); font-size: 12px; font-weight: 600; }
+.engine-settings-default select { min-width: 180px; }
+.engine-settings-default .field-help { flex-basis: 100%; margin: 0; }
+.library-engine-badge { border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; background: var(--surface-2); color: var(--muted); font-size: 10px; font-style: normal; font-weight: 700; letter-spacing: .04em; }
+.media-lightbox footer .library-engine-badge { margin-left: 8px; }
+
+/* The dual-engine comparison: the same draft once per engine, side by side. */
+.engine-compare-row { display: grid; gap: 6px; padding-top: 4px; border-top: 1px solid var(--line); }
+.engine-compare-row .secondary-button { justify-self: start; }
+.engine-comparison { display: grid; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.engine-comparison-head { display: flex; align-items: center; gap: 10px; }
+.engine-comparison-head strong { font-size: 12px; }
+.engine-comparison-phase { flex: 1; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.engine-comparison-head .icon-button { margin-left: auto; }
+.engine-comparison-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.engine-comparison-run { display: grid; gap: 8px; min-width: 0; }
+.engine-comparison-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.engine-comparison-meta > span:first-child { color: var(--text); font-weight: 700; }
+.engine-comparison-run video { width: 100%; border-radius: 8px; background: var(--surface-2); }
+.engine-comparison-pending { color: var(--muted); font-size: 11px; padding: 10px 0; }

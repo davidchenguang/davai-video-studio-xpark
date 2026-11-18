@@ -11,6 +11,8 @@ import { buildPromptCompletionRequest } from './promptCompletion.js'
 import { lmStudioEndpoint, parseLmStudioModels } from './lmStudioApi.js'
 import { readLlmStream, type LlmStreamUpdate } from './llmStream.js'
 import { mergeModelInventory, MODEL_KINDS, type ModelFile, type ModelKind } from './modelInventory.js'
+import { mmh3Delete, mmh3Download, mmh3Job, mmh3List, mmh3Status, mmh3Submit, mmh3SubmitImage, releaseComfyMemory, type Mmh3FileField, type Mmh3FieldValue } from './mmh3Api.js'
+import { normalizeEngines as defaultEngines, type EngineConfig } from './engineSettings.js'
 import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
@@ -53,6 +55,24 @@ type RenderIntentValues = GenerationDefaults & {
 }
 type RenderSettingsPreset = { id: string; name: string; values: RenderIntentValues; createdAt: number; updatedAt: number }
 
+/** A render engine the app can drive. ComfyUI keeps `comfyUrl` as its truth;
+ *  mmh3 serves MiniMax H3 over HTTP and has a second instance for the fast tier. */
+
+/**
+ * The form fields of an mmh3 request, without the ones that carry nothing.
+ * A field the renderer left empty is not a field: sending it would ask the
+ * server for an empty value where it wants none.
+ */
+function mmh3Fields(fields: unknown): Record<string, Mmh3FieldValue> {
+  const clean: Record<string, Mmh3FieldValue> = {}
+  if (!fields || typeof fields !== 'object') return clean
+  for (const [name, value] of Object.entries(fields as Record<string, unknown>)) {
+    if (typeof value === 'number') { if (Number.isFinite(value)) clean[name] = value; continue }
+    if (typeof value === 'string' && value.trim()) clean[name] = value.trim()
+  }
+  return clean
+}
+
 type AppSettings = {
   llmProvider: 'ollama' | 'lmstudio'
   comfyUrl: string
@@ -79,6 +99,8 @@ type AppSettings = {
   characterDetailReferencesEnabled: boolean
   renderSettingsPresets: RenderSettingsPreset[]
   generationDefaults: GenerationDefaults
+  engines?: EngineConfig[]
+  activeEngineId?: string
 }
 
 type LanStatus = { running: boolean; url?: string; desktopUrl?: string; port?: number; error?: string }
@@ -185,8 +207,11 @@ function defaultSettings(): AppSettings {
       sampler: 'res_multistep', scheduler: 'simple', experimentalSampling: false,
       refImageSize: 'match', livePreview: true, sigmaShiftMode: 'model', shiftVideo: 12, shiftAudio: 3, loraStrength: 1, upscaleMode: 'refine', textEncoderPreference: 'fast', turbo8Profile: 'balanced',
     },
+    engines: defaultEngines('http://127.0.0.1:8188').engines,
+    activeEngineId: 'comfy',
   }
 }
+
 
 function finalOllamaAnswer(value: string) {
   let answer = value.replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '').replace(/<analysis\b[^>]*>[\s\S]*?<\/analysis>/gi, '')
@@ -447,6 +472,8 @@ async function loadSettings(): Promise<AppSettings> {
     const attentionBackend = raw.attentionBackend === 'sol' || raw.attentionBackend === 'kitchen' || raw.attentionBackend === 'sage' || raw.attentionBackend === 'native' ? raw.attentionBackend : 'automatic'
     const solAttnTau = Math.max(-1000, Math.min(10, Number(raw.solAttnTau) || 1))
     const outputDirectory = typeof raw.outputDirectory === 'string' && raw.outputDirectory.trim() ? raw.outputDirectory.trim() : defaults.outputDirectory
+    const comfyUrl = typeof raw.comfyUrl === 'string' && raw.comfyUrl.trim() ? raw.comfyUrl.trim() : defaults.comfyUrl
+    const engines = defaultEngines(comfyUrl, raw.engines, raw.activeEngineId)
     const clipMasterOutputDirectory = typeof raw.clipMasterOutputDirectory === 'string' && raw.clipMasterOutputDirectory.trim() ? raw.clipMasterOutputDirectory.trim() : join(outputDirectory, 'video')
     const rawRouting = raw.gpuRouting
     const validDevice = (value: unknown): GpuRouteDevice => typeof value === 'string' && (value === 'auto' || value === 'cpu' || /^gpu:\d+$/.test(value)) ? value as GpuRouteDevice : 'auto'
@@ -454,15 +481,20 @@ async function loadSettings(): Promise<AppSettings> {
     const theme: AppSettings['theme'] = raw.theme === 'blue' || raw.theme === 'comfy' || raw.theme === 'light' ? raw.theme : 'green'
     // Remember the theme for the synchronous window-creation path (popouts).
     cachedShellTheme = theme
-    return { ...defaults, ...raw, outputDirectory, clipMasterOutputDirectory, uiScale, theme, attentionBackend, solAttnTau, solCacheEnabled: raw.solCacheEnabled !== false, h3DiffusionPrecision: raw.h3DiffusionPrecision === 'nvfp4' ? 'nvfp4' : 'int8', gpuRouting, h3ParallelAttentionEnabled: raw.h3ParallelAttentionEnabled === true, queueDelaySeconds: Math.max(0, Math.min(600, Number(raw.queueDelaySeconds) || 0)), experimentalLtxMsrEnabled: raw.experimentalLtxMsrEnabled === true, blurNsfwLivePreviews: raw.blurNsfwLivePreviews === true, llmProvider: raw.llmProvider === 'lmstudio' ? 'lmstudio' : 'ollama', characterDetailReferencesEnabled: raw.characterDetailReferencesEnabled === true, renderSettingsPresets, paths: { ...defaults.paths, ...raw.paths }, generationDefaults }
+    return { ...defaults, ...raw, outputDirectory, clipMasterOutputDirectory, comfyUrl, engines: engines.engines, activeEngineId: engines.activeEngineId, uiScale, theme, attentionBackend, solAttnTau, solCacheEnabled: raw.solCacheEnabled !== false, h3DiffusionPrecision: raw.h3DiffusionPrecision === 'nvfp4' ? 'nvfp4' : 'int8', gpuRouting, h3ParallelAttentionEnabled: raw.h3ParallelAttentionEnabled === true, queueDelaySeconds: Math.max(0, Math.min(600, Number(raw.queueDelaySeconds) || 0)), experimentalLtxMsrEnabled: raw.experimentalLtxMsrEnabled === true, blurNsfwLivePreviews: raw.blurNsfwLivePreviews === true, llmProvider: raw.llmProvider === 'lmstudio' ? 'lmstudio' : 'ollama', characterDetailReferencesEnabled: raw.characterDetailReferencesEnabled === true, renderSettingsPresets, paths: { ...defaults.paths, ...raw.paths }, generationDefaults }
   } catch {
-    return defaultSettings()
+    // A settings file that cannot be read still has to yield the two engines.
+    const defaults = defaultSettings()
+    return { ...defaults, ...defaultEngines(defaults.comfyUrl) }
   }
 }
 
 async function saveSettings(settings: AppSettings) {
-  await writeAtomicFile(settingsPath(), `${JSON.stringify(settings, null, 2)}\n`)
-  return settings
+  // One write, one truth: the ComfyUI entry mirrors comfyUrl, so the two can
+  // never disagree on disk.
+  const normalized: AppSettings = { ...settings, ...defaultEngines(settings.comfyUrl, settings.engines, settings.activeEngineId) }
+  await writeAtomicFile(settingsPath(), `${JSON.stringify(normalized, null, 2)}\n`)
+  return normalized
 }
 
 function factoryResetMarkerPath() { return join(app.getPath('userData'), 'pending-factory-reset.json') }
@@ -1470,6 +1502,17 @@ app.whenReady().then(async () => {
     const path = await findLatestMedia(outputDirectory, since, kind)
     return path ? `minimax-media://local?path=${encodeURIComponent(path)}` : null
   })
+  // The mmh3 engine is a second renderer that speaks HTTP instead of ComfyUI's
+  // graph API. It lives behind the same bridge as everything else: the
+  // renderer never opens a socket of its own.
+  ipcMain.handle('mmh3:status', async (_event, baseUrl: string) => mmh3Status(baseUrl))
+  ipcMain.handle('mmh3:submit', async (_event, baseUrl: string, fields: Record<string, string | number>, files: Mmh3FileField[] = []) => mmh3Submit(baseUrl, mmh3Fields(fields), files))
+  ipcMain.handle('mmh3:submit-image', async (_event, baseUrl: string, fields: Record<string, string | number>, files: Mmh3FileField[] = []) => mmh3SubmitImage(baseUrl, mmh3Fields(fields), files))
+  ipcMain.handle('mmh3:job', async (_event, baseUrl: string, id: string) => mmh3Job(baseUrl, id))
+  ipcMain.handle('mmh3:list', async (_event, baseUrl: string) => mmh3List(baseUrl))
+  ipcMain.handle('mmh3:delete', async (_event, baseUrl: string, id: string) => mmh3Delete(baseUrl, id))
+  ipcMain.handle('mmh3:download', async (_event, baseUrl: string, id: string, kind: 'video' | 'image', outputDirectory: string, fileName: string) => mmh3Download(baseUrl, id, kind, outputDirectory, fileName))
+  ipcMain.handle('mmh3:release-comfy', async (_event, comfyUrl: string) => releaseComfyMemory(comfyUrl))
   ipcMain.handle('outputs:resolve', async (_event, outputDirectory: string, file: { filename?: unknown; subfolder?: unknown; type?: unknown }) => {
     const settings = await loadSettings()
     if (!await trustedComfyOutputDirectory(settings, outputDirectory)) return null

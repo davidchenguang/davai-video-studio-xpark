@@ -1,4 +1,4 @@
-import { extname, isAbsolute, relative, resolve } from 'node:path'
+import { extname, isAbsolute, relative, resolve, win32 as win32Path } from 'node:path'
 
 /**
  * Media-library deletion policy shared by the main process and its tests.
@@ -46,6 +46,14 @@ const THUMBNAIL_EXTENSION = '.jpg'
 
 const caseInsensitivePlatform = (platform: NodeJS.Platform) => platform === 'win32' || platform === 'darwin'
 
+/**
+ * Absolute per the platform the caller declared. The rest of the pipeline
+ * (containment, dedup) intentionally resolves with the host path module, so a
+ * win32 profile stays lexically comparable on any host that runs the suites.
+ */
+const isAbsolutePath = (value: string, platform: NodeJS.Platform) =>
+  platform === 'win32' ? win32Path.isAbsolute(value) : isAbsolute(value)
+
 const comparablePath = (value: string, platform: NodeJS.Platform) => {
   const normalized = resolve(value)
   return caseInsensitivePlatform(platform) ? normalized.toLowerCase() : normalized
@@ -66,7 +74,7 @@ export function isPathInsideRoot(root: string, candidate: string, platform: Node
   return true
 }
 
-function validateInput(input: unknown): MediaDeletionInput {
+function validateInput(input: unknown, platform: NodeJS.Platform): MediaDeletionInput {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('删除请求无效。')
   const value = input as { files?: unknown; thumbnailPath?: unknown }
   if (!Array.isArray(value.files)) throw new Error('删除请求缺少文件列表。')
@@ -74,7 +82,7 @@ function validateInput(input: unknown): MediaDeletionInput {
   const files: string[] = []
   for (const file of value.files) {
     if (typeof file !== 'string' || !file.trim()) throw new Error('删除路径必须是非空字符串。')
-    if (!isAbsolute(file)) throw new Error('删除路径必须是绝对路径。')
+    if (!isAbsolutePath(file, platform)) throw new Error('删除路径必须是绝对路径。')
     const absolute = resolve(file)
     if (!files.includes(absolute)) files.push(absolute)
   }
@@ -111,7 +119,7 @@ export async function deleteMedia(
   roots: MediaDeletionRoots,
   deps: MediaDeletionDeps,
 ): Promise<MediaDeletionResult> {
-  const normalized = validateInput(input)
+  const normalized = validateInput(input, roots.platform)
   const outputRoots = roots.outputRoots
     .filter((root): root is string => typeof root === 'string' && Boolean(root))
     .map((root) => resolve(root))

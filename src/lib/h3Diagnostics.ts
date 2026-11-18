@@ -1,6 +1,8 @@
 import type { ModelFile } from "../types"
 import { MINIMAX_VIDEO_RESOLUTIONS } from "./videoResolutions"
 import { isH3Encoder, isH3Fl2vaModel, isH3ImageModel, isH3ImageVae, isH3TurboLora, isH3VideoVae } from "./h3Image"
+import { resolveEngine, type EngineConfig } from "./engine/engines"
+import type { EngineHealth } from "./engine/engineHealth"
 
 export type H3BenchmarkBackend = 'kitchen' | 'sage' | 'sol'
 export type H3BenchmarkConfig = { duration: number; resolution: string }
@@ -102,5 +104,25 @@ export function h3ImageStackReport(models: ModelFile[]) {
     fl2vaReady: zeroDownload.every((row) => Boolean(row.selected)),
     ready: dedicated.every((row) => Boolean(row.selected)) || zeroDownload.every((row) => Boolean(row.selected)),
   }
+}
+
+/**
+ * What the engine an H3 workspace renders on has ready. ComfyUI names the files
+ * it holds; mmh3 keeps its own model tree and only says whether it answers, so
+ * its readiness comes from the health check rather than from a file list.
+ */
+export function h3EngineReadiness(engines: EngineConfig[], engineId: string | undefined, models: ModelFile[], health?: EngineHealth) {
+  const engine = resolveEngine(engines, engineId)
+  if (engine.kind === 'mmh3') {
+    return {
+      engine,
+      kind: 'mmh3' as const,
+      ready: health?.state === 'ready',
+      rows: [] as Array<{ label: string; selected: string; validated: boolean }>,
+      note: 'mmh3 的权重由它自己的模型目录提供，应用不读取这些文件；就绪状态来自服务自报。',
+    }
+  }
+  const report = h3StackReport(models)
+  return { engine, kind: 'comfy' as const, ready: report.ready, rows: report.rows, note: undefined }
 }
 

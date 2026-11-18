@@ -1,5 +1,6 @@
 export type View = 'create' | 'continue' | 'scratchpad' | 'ltx25' | 'ltxripple' | 'photoedit' | 'music' | 'zimage' | 'h3image' | 'referenceprep' | 'characters' | 'hair' | 'wardrobes' | 'accessories' | 'locations' | 'queue' | 'library' | 'clipmaster' | 'movie' | 'settings'
 import type { Theme } from './lib/theme'
+import type { EngineConfig } from './lib/engine/engines'
 export type GenerationMode = 'text' | 'image' | 'frames' | 'reference'
 export type ModelKind = 'diffusion_models' | 'text_encoders' | 'vae' | 'loras' | 'vae_approx' | 'clip_vision'
 export type MediaKind = 'image' | 'video' | 'audio'
@@ -103,6 +104,10 @@ export type AppSettings = {
   characterDetailReferencesEnabled: boolean
   renderSettingsPresets: RenderSettingsPreset[]
   generationDefaults: GenerationDefaults
+  /** The engines the app can drive. `comfyUrl` stays the truth for ComfyUI. */
+  engines?: EngineConfig[]
+  /** The engine the H3 workspaces start with. */
+  activeEngineId?: string
 }
 
 export type ClipItem = { id: string; name: string; source: string; createdAt: number; start?: number; end?: number; duration?: number; mediaKind?: MediaKind; thumbnailUrl?: string }
@@ -498,6 +503,8 @@ export type GenerationJob = {
   latentFile?: string
   latentPath?: string
   promptId?: string
+  /** The mmh3 generation this job runs on. An mmh3 job has no ComfyUI prompt id. */
+  mmh3JobId?: string
   mode: GenerationMode
   prompt: string
   createdAt: number
@@ -559,6 +566,8 @@ export type GenerationJob = {
   loraStrength?: number
   userLoras?: AppliedLora[]
   provider?: 'minimax' | 'ltx25' | 'ltxripple' | 'acestep' | 'music3' | 'h3image' | 'zimage' | 'firered'
+  /** The engine that ran this job. An older record without it ran on ComfyUI. */
+  engineId?: string
   mediaType?: 'video' | 'audio' | 'image'
   movieLink?: { projectId: string; sceneId: string; shotId: string }
   characterProjectId?: string
@@ -580,6 +589,41 @@ export type MediaDeletionResult = {
   missing: string[]
   failed: Array<{ path: string; reason: string }>
   thumbnailRemoved: boolean
+}
+
+/** The state of one mmh3 generation, as the mmh3 server describes it. */
+export type Mmh3JobState = 'queued' | 'running' | 'done' | 'failed'
+
+export type Mmh3Job = {
+  id: string
+  state: Mmh3JobState
+  /** The unix second the generation was asked for, which orders the queue. */
+  queued: number
+  seconds: number | null
+  step: number | null
+  steps: number | null
+  error: string | null
+}
+
+/** What an mmh3 instance is doing and what it holds. */
+export type Mmh3Status = {
+  reachable: boolean
+  generating: string | null
+  queued: number
+  /** The model roles the instance holds; null while it holds none. */
+  models: string[] | null
+  memory: { free: number; total: number } | null
+  error?: string
+}
+
+/** A file the request uploads, named by the field it goes into. */
+export type Mmh3File = { field: string; path: string }
+
+export type Mmh3ReleaseResult = {
+  released: boolean
+  /** True when ComfyUI still had work queued, which blocks the handover. */
+  busy: boolean
+  error?: string
 }
 
 export type DesktopApi = {
@@ -645,4 +689,12 @@ export type DesktopApi = {
   setWindowAlwaysOnTop(enabled: boolean): Promise<boolean>
   openStudio(): Promise<void>
   openMovieEditor(): Promise<void>
+  mmh3Status(baseUrl: string): Promise<Mmh3Status>
+  mmh3Submit(baseUrl: string, fields: Record<string, string | number>, files?: Mmh3File[]): Promise<Mmh3Job>
+  mmh3SubmitImage(baseUrl: string, fields: Record<string, string | number>, files?: Mmh3File[]): Promise<Mmh3Job>
+  mmh3Job(baseUrl: string, id: string): Promise<Mmh3Job>
+  mmh3List(baseUrl: string): Promise<Mmh3Job[]>
+  mmh3Delete(baseUrl: string, id: string): Promise<{ removed: boolean }>
+  mmh3Download(baseUrl: string, id: string, kind: 'video' | 'image', outputDirectory: string, fileName: string): Promise<{ path: string; name: string }>
+  mmh3ReleaseComfy(comfyUrl: string): Promise<Mmh3ReleaseResult>
 }
