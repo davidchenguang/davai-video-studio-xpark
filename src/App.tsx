@@ -45,6 +45,7 @@ import { createPortal, flushSync } from 'react-dom'
 import QRCode from 'qrcode'
 import { createId } from './lib/createId'
 import { MMH3_RECIPE_CHOICES, MMH3_RECIPE_LABELS, MMH3_RECIPES, mmh3TierCanvas, mmh3TierForCanvas, recipeForTurbo, type Mmh3RecipeChoice, type Mmh3RecipeId } from './lib/engine/mmh3Recipe'
+import { mmh3TierNotice } from './lib/engine/mmh3Notice'
 import { mmh3ServerRecipeForTier, mmh3TierAvailabilityMap, mmh3TierMissingText, useMmh3Recipes, type Mmh3TierAvailability } from './lib/engine/mmh3Recipes'
 import { findEngine, normalizeEngineSettings, type EngineConfig } from './lib/engine/engines'
 import { useEngineSelection, type EngineSelectionState } from './lib/engine/useEngineSelection'
@@ -2485,16 +2486,8 @@ function App() {
       // turbo8 is trained on two canvases only; on any other canvas the tier
       // is not offered and the render falls back to the standard recipe.
       const tier = mmh3TierForCanvas(wantedTier, options.width, options.height)
-      if (tier !== wantedTier) {
-        // Landing on turbo8-544p is the intended canvas pairing, not a fallback;
-        // only an unpaired canvas actually falls back to the standard recipe.
-        setNotice({
-          tone: 'neutral',
-          text: tier === 'turbo8-544p'
-            ? `当前画布 ${options.width}×${options.height}：Turbo 8 已配对到 544p 变体（turbo8-544p，8 步）。`
-            : `当前画布 ${options.width}×${options.height} 不提供 turbo8（只支持 1344×768 与 960×544），已回退到标准配方（引擎默认步数）。`,
-        })
-      }
+      const tierNotice = mmh3TierNotice(wantedTier, tier, options.width, options.height)
+      if (tierNotice) setNotice({ tone: 'neutral', text: tierNotice })
       const request = options.target === 'image'
         ? mmh3ImageRequest({ engine, prompt: options.prompt, width: options.width, height: options.height, steps: options.steps, seed: options.seed })
         : mmh3VideoRequest({

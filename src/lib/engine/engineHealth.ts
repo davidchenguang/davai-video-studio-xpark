@@ -34,6 +34,14 @@ export const ENGINE_HEALTH_LABELS: Record<EngineHealthState, string> = {
 /** How long a health result stays fresh enough to act on. */
 export const ENGINE_HEALTH_TTL_MS = 30_000
 
+/**
+ * How often a mounted workspace quietly re-asks the engine. The refresh is
+ * silent (no spinner, no disabled select) and pauses while the page is hidden;
+ * 15s keeps the status line within the 30s freshness bound without polling
+ * the engine anywhere near as often as a render does.
+ */
+export const ENGINE_HEALTH_REFRESH_MS = 15_000
+
 export function engineHealthFresh(health: EngineHealth | undefined): boolean {
   return Boolean(health) && Date.now() - (health?.checkedAt ?? 0) < ENGINE_HEALTH_TTL_MS
 }
@@ -78,13 +86,24 @@ export function mmh3EngineHealth(engine: EngineConfig, status: Mmh3Status | null
       checkedAt,
     }
   }
-  // A run borrows the dit: its absence from weights means busy, never broken.
-  const busy = status.generating !== null || status.cancelling !== null || (status.weights !== null && !status.weights.some((weight) => weight.kind === 'dit'))
+  // Busy is what the engine itself says it is doing. The weights array only
+  // says which weights the instance currently holds: an instance with
+  // --idle-unload has none while idle, so "no dit in weights" must never read
+  // as busy — an idle instance that unloaded reads as ready, with a note.
+  const busy = status.generating !== null || status.cancelling !== null
   const weights = weightLine(status)
+  const residentNote = weights ? `${weights}。` : '当前未驻留权重（空闲已卸载）。'
   // The fast instance is a second port with its own weights; naming both tells
   // the two apart without the user guessing.
+  const fastBusy = fastStatus?.reachable && (fastStatus.generating !== null || fastStatus.cancelling !== null)
   const fastWeights = fastStatus?.reachable ? weightLine(fastStatus) : null
-  const fastNote = fastWeights ? `极速实例${fastWeights}。` : ''
+  const fastNote = !fastStatus?.reachable
+    ? ''
+    : fastBusy
+      ? '极速实例正在生成。'
+      : fastWeights
+        ? `极速实例${fastWeights}。`
+        : '极速实例当前未驻留权重（空闲已卸载）。'
   return {
     engineId: engine.id,
     kind: 'mmh3',
@@ -92,8 +111,8 @@ export function mmh3EngineHealth(engine: EngineConfig, status: Mmh3Status | null
     detail: busy
       ? `mmh3 正在生成${status.cancelling ? '（已受理停止，跑完当前步即停）' : ''}（队列 ${status.queued} 个）。${fastNote}`
       : status.queued > 0
-        ? `mmh3 服务可达，队列中还有 ${status.queued} 个任务。${weights ? ` ${weights}。` : ''}${fastNote}`
-        : `mmh3 服务可达。${weights ? ` ${weights}。` : ''}${fastNote}`,
+        ? `mmh3 服务可达，队列中还有 ${status.queued} 个任务。${residentNote}${fastNote}`
+        : `mmh3 服务可达，${residentNote}${fastNote}`,
     missing: [],
     weights: status.weights,
     fastWeights: fastStatus?.reachable ? fastStatus.weights : undefined,
@@ -122,9 +141,17 @@ export function withMissingModel(health: EngineHealth, file: string): EngineHeal
   }
 }
 
-/** The line the status row shows: the badge, the detail, and when it was checked. */
-export function engineHealthLine(health: EngineHealth | undefined): string {
+/** The part of the status row a screen reader announces: the badge and the
+ * detail, never the timestamp — a quiet refresh must not re-announce an
+ * unchanged state just because the clock moved. */
+export function engineHealthAnnouncement(health: EngineHealth | undefined): string {
   if (!health) return '尚未检查。'
-  const time = new Date(health.checkedAt).toLocaleTimeString('zh-CN', { hour12: false })
-  return `${ENGINE_HEALTH_LABELS[health.state]} · ${health.detail}（检查于 ${time}）`
+  return `${ENGINE_HEALTH_LABELS[health.state]} · ${health.detail}`
+}
+
+/** When the health was checked, shown next to the announcement and kept out
+ * of the live region (visual information only). */
+export function engineHealthStamp(health: EngineHealth | undefined): string {
+  if (!health) return ''
+  return `（检查于 ${new Date(health.checkedAt).toLocaleTimeString('zh-CN', { hour12: false })}）`
 }

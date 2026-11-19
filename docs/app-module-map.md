@@ -25,6 +25,7 @@
 | `src/lib/engine/useEngineSelection.ts` | The engine a workspace renders on: the per-workspace choice, the health check, and the one-time handover that frees ComfyUI's memory before mmh3 takes it. |
 | `src/lib/engine/mmh3Recipe.ts` and `src/lib/engine/mmh3Task.ts` | The mmh3 recipes (the fields each tier sends, the turbo8 canvas pairing) and the request builder, the queue position and the wait for the artifact. |
 | `src/lib/engine/mmh3Recipes.ts` | What the engine says about its own recipes: the availability, the missing files and the canvas constraint of each tier, taken from `GET /v1/recipes` and falling back to the local table when the engine cannot be reached. |
+| `src/lib/engine/mmh3Notice.ts` | The tier-pairing notice a submit shows when the canvas re-aims the chosen tier (turbo8 pairs to its 544p variant, untrained canvases fall back to the standard recipe) — a pure function so the wording is gate-pinned. |
 | `src/components/EngineSelector.tsx` | The shared engine picker with its health badge, used by the H3 workspaces and the settings. |
 | `electron/mmh3Api.ts` | The mmh3 HTTP client: status, submit, job, list, delete, artifact download, the ComfyUI memory release, the interrupt endpoint and the recipe list. Privileged transport stays in Electron main. |
 | `electron/engineSettings.ts` | The engine list as the main process reads it, mirroring the renderer's `src/lib/engine/engines.ts`. |

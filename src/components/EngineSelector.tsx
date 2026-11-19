@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import { ChevronDown, LoaderCircle } from 'lucide-react'
 import type { EngineConfig } from '../lib/engine/engines'
-import { ENGINE_HEALTH_LABELS, type EngineHealth, engineHealthLine } from '../lib/engine/engineHealth'
+import { ENGINE_HEALTH_LABELS, type EngineHealth, engineHealthAnnouncement, engineHealthStamp } from '../lib/engine/engineHealth'
 
 /**
  * The engine a workspace renders on. An engine that cannot run is greyed out
@@ -36,6 +36,11 @@ export function EngineSelector({ engines, engineId, health, checking, onChange, 
       </div>
       {checking && <LoaderCircle size={14} className="spin" aria-hidden="true" />}
     </div>
-    <p className="engine-status" role="status" aria-live="polite">{engineHealthLine(current)}</p>
+    <p className="engine-status" role="status" aria-live="polite">
+      {engineHealthAnnouncement(current)}
+      {/* The timestamp is visual information: a quiet 15-second re-ask moves
+          it every tick, and an unchanged state must not be re-announced. */}
+      <span aria-hidden="true">{engineHealthStamp(current)}</span>
+    </p>
   </div>
 }

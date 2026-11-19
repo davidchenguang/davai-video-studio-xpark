@@ -17,7 +17,7 @@
     "build:electron": "tsc -p tsconfig.electron.json",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "pnpm test:navigation && pnpm test:scene && pnpm test:character-library && pnpm test:prompt-auto-tags && pnpm test:lm-studio-api && pnpm test:llm-stream && pnpm test:preload-sandbox && pnpm test:workflows && pnpm test:ace-step && pnpm test:h3-image && pnpm test:h3-node-detection && pnpm test:model-inventory && pnpm test:ltx-ripple && pnpm test:fire-red-edit && pnpm test:continuation && pnpm test:atomic-saves && pnpm test:movie-editor && pnpm test:comfy-cancel && pnpm test:comfy-job-state && pnpm test:live-preview-socket && pnpm test:progress-stages && pnpm test:job-persistence && pnpm test:job-presentation && pnpm test:legacy-browser-storage && pnpm test:workspace-persistence && pnpm test:media-deletion && pnpm test:locale && pnpm test:music3-vocabulary && pnpm test:prompt-parity && pnpm test:theme && pnpm test:engine-routing",
+    "test": "pnpm test:navigation && pnpm test:scene && pnpm test:character-library && pnpm test:prompt-auto-tags && pnpm test:lm-studio-api && pnpm test:llm-stream && pnpm test:preload-sandbox && pnpm test:workflows && pnpm test:ace-step && pnpm test:h3-image && pnpm test:h3-node-detection && pnpm test:model-inventory && pnpm test:ltx-ripple && pnpm test:fire-red-edit && pnpm test:continuation && pnpm test:atomic-saves && pnpm test:movie-editor && pnpm test:comfy-cancel && pnpm test:comfy-job-state && pnpm test:live-preview-socket && pnpm test:progress-stages && pnpm test:job-persistence && pnpm test:job-presentation && pnpm test:legacy-browser-storage && pnpm test:workspace-persistence && pnpm test:media-deletion && pnpm test:locale && pnpm test:music3-vocabulary && pnpm test:prompt-parity && pnpm test:theme && pnpm test:engine-routing && pnpm test:engine-status",
     "test:comfy-cancel": "node scripts/test-comfy-cancel.cjs",
     "test:comfy-job-state": "node scripts/test-comfy-job-state.cjs",
     "test:job-persistence": "node scripts/test-job-persistence.cjs",
@@ -60,7 +60,8 @@
     "test:live-preview-socket": "node scripts/test-live-preview-socket.cjs",
     "test:progress-stages": "node scripts/test-progress-stages.cjs",
     "test:engine-routing": "node scripts/test-engine-routing.cjs",
-    "test:ace-step": "node scripts/test-ace-step.cjs"
+    "test:ace-step": "node scripts/test-ace-step.cjs",
+    "test:engine-status": "node scripts/test-engine-status.cjs"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.23",

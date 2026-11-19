@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { EngineConfig } from './engines'
 import { resolveEngine } from './engines'
-import { type EngineHealth, comfyEngineHealth, engineHealthFresh, mmh3EngineHealth, missingModelFromError, withMissingModel } from './engineHealth'
+import { type EngineHealth, ENGINE_HEALTH_REFRESH_MS, comfyEngineHealth, engineHealthFresh, mmh3EngineHealth, missingModelFromError, withMissingModel } from './engineHealth'
 
 /** The parts of the settings an engine choice needs. */
 export type EngineSettingsLike = {
@@ -134,20 +134,40 @@ export function useEngineSelection(storageKey: string, settings: EngineSettingsL
     return mmh3EngineHealth(engine, status, Date.now(), fastStatus)
   }, [options.comfyConnected, options.comfyDetail])
 
-  const checkAll = useCallback(async () => {
+  // A silent pass refreshes the health map without the checking flag, so a
+  // background re-ask never disables the selector or spins a spinner.
+  const runChecks = useCallback(async (options: { silent?: boolean } = {}) => {
     if (!engines.length) return
-    setChecking(true)
+    if (!options.silent) setChecking(true)
     try {
       const results = await Promise.all(engines.map(async (engine) => [engine.id, await checkEngine(engine)] as const))
       setHealth((current) => ({ ...current, ...Object.fromEntries(results) }))
     } finally {
-      setChecking(false)
+      if (!options.silent) setChecking(false)
     }
   }, [checkEngine, engines])
 
+  const checkAll = useCallback(() => runChecks(), [runChecks])
+
   // The check runs when the workspace opens and when the engine list changes,
-  // and never on a timer: an engine that goes away says so when it is asked.
-  useEffect(() => { void checkAll() }, [checkAll])
+  // plus a quiet 15-second refresher so a stale answer never outlives the next
+  // tick — an engine that goes away says so when it is asked, and an answer
+  // that went wrong (or went stale mid-run) does not stay on screen forever.
+  // The refresher pauses while the page is hidden and catches up on return.
+  useEffect(() => {
+    void runChecks()
+    const timer = setInterval(() => {
+      if (!document.hidden) void runChecks({ silent: true })
+    }, ENGINE_HEALTH_REFRESH_MS)
+    const onVisibility = () => {
+      if (!document.hidden) void runChecks({ silent: true })
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [runChecks])
 
   const setEngineId = useCallback((id: string) => {
     setEngineIdState(id)
