@@ -505,6 +505,9 @@ export type GenerationJob = {
   promptId?: string
   /** The mmh3 generation this job runs on. An mmh3 job has no ComfyUI prompt id. */
   mmh3JobId?: string
+  /** The instance the mmh3 generation was submitted to — the fast tier runs on
+   *  its own port, and the interrupt has to reach that same port. */
+  mmh3BaseUrl?: string
   mode: GenerationMode
   prompt: string
   createdAt: number
@@ -591,8 +594,10 @@ export type MediaDeletionResult = {
   thumbnailRemoved: boolean
 }
 
-/** The state of one mmh3 generation, as the mmh3 server describes it. */
-export type Mmh3JobState = 'queued' | 'running' | 'done' | 'failed'
+/** The state of one mmh3 generation, as the mmh3 server describes it.
+ * cancelling = a stop was accepted and the engine is finishing the step in
+ * flight; cancelled = terminal, the artifact never lands. */
+export type Mmh3JobState = 'queued' | 'running' | 'cancelling' | 'cancelled' | 'done' | 'failed'
 
 export type Mmh3Job = {
   id: string
@@ -600,24 +605,59 @@ export type Mmh3Job = {
   /** The unix second the generation was asked for, which orders the queue. */
   queued: number
   seconds: number | null
+  /** Seconds the just-finished step took; null until the first step completes. */
+  stepSeconds: number | null
   step: number | null
   steps: number | null
   error: string | null
+}
+
+/** One loaded weight of the instance, as the engine reports it. */
+export type Mmh3Weight = {
+  kind: 'text_encoder' | 'video_vae' | 'image_vae' | 'audio_vae' | 'latent_upscaler' | 'dit'
+  file: string
+  bytes: number
+  /** A fingerprint that separates two fine-tunes of the same architecture —
+   * NOT a checksum: it never says a file is intact. */
+  digest: string
+  adapters?: Array<{ file: string; bytes: number; digest: string; strength: number; mode: 'adapter' | 'merge' }>
+}
+
+/** A recipe the engine could run; the option keys are the exact multipart
+ * field names of POST /v1/generations, so the values go into a request as-is. */
+export type Mmh3Recipe = {
+  id: string
+  summary: string
+  options: Record<string, string | number | null>
+  canvas: { width: number; height: number } | null
+  available: boolean
+  missing: string[]
+  dit: string | null
+  note: string | null
+  source: string | null
+  docs: string | null
 }
 
 /** What an mmh3 instance is doing and what it holds. */
 export type Mmh3Status = {
   reachable: boolean
   generating: string | null
+  /** The job the engine has accepted a stop for; null when nothing is stopping. */
+  cancelling: string | null
   queued: number
   /** The model roles the instance holds; null while it holds none. */
   models: string[] | null
+  /** The weights actually loaded; the dit entry vanishes while a run holds it — busy, not broken. */
+  weights: Mmh3Weight[] | null
   memory: { free: number; total: number } | null
   error?: string
 }
 
 /** A file the request uploads, named by the field it goes into. */
 export type Mmh3File = { field: string; path: string }
+/** A text field the server reads as a list: each entry appends one value under
+ * the same name, in order — e.g. one frame-index per keyframe. */
+export type Mmh3RepeatField = { name: string; value: string }
 
 export type Mmh3ReleaseResult = {
   released: boolean
@@ -690,11 +730,13 @@ export type DesktopApi = {
   openStudio(): Promise<void>
   openMovieEditor(): Promise<void>
   mmh3Status(baseUrl: string): Promise<Mmh3Status>
-  mmh3Submit(baseUrl: string, fields: Record<string, string | number>, files?: Mmh3File[]): Promise<Mmh3Job>
+  mmh3Submit(baseUrl: string, fields: Record<string, string | number>, files?: Mmh3File[], repeats?: Mmh3RepeatField[]): Promise<Mmh3Job>
   mmh3SubmitImage(baseUrl: string, fields: Record<string, string | number>, files?: Mmh3File[]): Promise<Mmh3Job>
   mmh3Job(baseUrl: string, id: string): Promise<Mmh3Job>
   mmh3List(baseUrl: string): Promise<Mmh3Job[]>
   mmh3Delete(baseUrl: string, id: string): Promise<{ removed: boolean }>
   mmh3Download(baseUrl: string, id: string, kind: 'video' | 'image', outputDirectory: string, fileName: string): Promise<{ path: string; name: string }>
   mmh3ReleaseComfy(comfyUrl: string): Promise<Mmh3ReleaseResult>
+  mmh3Interrupt(baseUrl: string, id: string): Promise<{ interrupted: boolean; job: Mmh3Job | null; error?: string }>
+  mmh3Recipes(baseUrl: string): Promise<{ recipes: Mmh3Recipe[]; error?: string }>
 }

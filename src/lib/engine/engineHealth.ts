@@ -7,7 +7,7 @@
 import type { Mmh3Status } from '../../types'
 import type { EngineConfig } from './engines'
 
-export type EngineHealthState = 'ready' | 'models-missing' | 'offline'
+export type EngineHealthState = 'ready' | 'busy' | 'models-missing' | 'offline'
 
 export type EngineHealth = {
   engineId: string
@@ -17,11 +17,16 @@ export type EngineHealth = {
   detail: string
   /** The model files the engine said it was missing. */
   missing: string[]
+  /** The weights the instance actually loaded, for the "what am I really running" line. */
+  weights?: Mmh3Status['weights']
+  /** The weights the fast (second) instance actually loaded — the two instances hold different ones. */
+  fastWeights?: Mmh3Status['weights']
   checkedAt: number
 }
 
 export const ENGINE_HEALTH_LABELS: Record<EngineHealthState, string> = {
   ready: '● 就绪',
+  busy: '● 正忙',
   'models-missing': '○ 模型缺失',
   offline: '⚠ 离线',
 }
@@ -45,8 +50,21 @@ export function comfyEngineHealth(engine: EngineConfig, connected: boolean, deta
   }
 }
 
+/** One loaded weight, in the words the status row shows. The digest is a
+ * fingerprint of what the instance actually runs — it separates two
+ * fine-tunes of the same architecture but never vouches for a file — so the
+ * fingerprint itself is shown next to the note that says it is one. */
+function weightLine(status: Mmh3Status): string | null {
+  if (!status.weights?.length) return null
+  const dit = status.weights.find((weight) => weight.kind === 'dit')
+  if (!dit) return null
+  const fingerprint = (entry: { digest: string }) => entry.digest ? `（指纹 ${entry.digest}）` : ''
+  const adapters = dit.adapters?.length ? ` + ${dit.adapters.map((adapter) => `${adapter.file}${fingerprint(adapter)}`).join(' + ')}` : ''
+  return `实际权重：${dit.file}${fingerprint(dit)}${adapters}（实例口径指纹，非完整性校验）`
+}
+
 /** The mmh3 engine: what its own status endpoint says. */
-export function mmh3EngineHealth(engine: EngineConfig, status: Mmh3Status | null, checkedAt = Date.now()): EngineHealth {
+export function mmh3EngineHealth(engine: EngineConfig, status: Mmh3Status | null, checkedAt = Date.now(), fastStatus?: Mmh3Status | null): EngineHealth {
   if (!status || !status.reachable) {
     const reason = status?.error?.trim()
     return {
@@ -60,17 +78,25 @@ export function mmh3EngineHealth(engine: EngineConfig, status: Mmh3Status | null
       checkedAt,
     }
   }
-  const busy = status.generating !== null
+  // A run borrows the dit: its absence from weights means busy, never broken.
+  const busy = status.generating !== null || status.cancelling !== null || (status.weights !== null && !status.weights.some((weight) => weight.kind === 'dit'))
+  const weights = weightLine(status)
+  // The fast instance is a second port with its own weights; naming both tells
+  // the two apart without the user guessing.
+  const fastWeights = fastStatus?.reachable ? weightLine(fastStatus) : null
+  const fastNote = fastWeights ? `极速实例${fastWeights}。` : ''
   return {
     engineId: engine.id,
     kind: 'mmh3',
-    state: 'ready',
+    state: busy ? 'busy' : 'ready',
     detail: busy
-      ? `mmh3 正在生成（队列 ${status.queued} 个）。`
+      ? `mmh3 正在生成${status.cancelling ? '（已受理停止，跑完当前步即停）' : ''}（队列 ${status.queued} 个）。${fastNote}`
       : status.queued > 0
-        ? `mmh3 服务可达，队列中还有 ${status.queued} 个任务。`
-        : 'mmh3 服务可达。',
+        ? `mmh3 服务可达，队列中还有 ${status.queued} 个任务。${weights ? ` ${weights}。` : ''}${fastNote}`
+        : `mmh3 服务可达。${weights ? ` ${weights}。` : ''}${fastNote}`,
     missing: [],
+    weights: status.weights,
+    fastWeights: fastStatus?.reachable ? fastStatus.weights : undefined,
     checkedAt,
   }
 }

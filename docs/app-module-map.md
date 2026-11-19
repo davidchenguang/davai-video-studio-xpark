@@ -23,9 +23,10 @@
 | `src/lib/engine/engines.ts` | The render-engine model: the ComfyUI and mmh3 entries, the active engine, and the one write channel that mirrors `comfyUrl` into the ComfyUI entry. |
 | `src/lib/engine/engineHealth.ts` | Per-engine readiness (ready, models missing, offline), the health line the UI shows, and the missing-model name taken from an mmh3 rejection. |
 | `src/lib/engine/useEngineSelection.ts` | The engine a workspace renders on: the per-workspace choice, the health check, and the one-time handover that frees ComfyUI's memory before mmh3 takes it. |
-| `src/lib/engine/mmh3Recipe.ts` and `src/lib/engine/mmh3Task.ts` | The mmh3 recipes (the fields each tier sends) and the request builder, the queue position and the wait for the artifact. |
+| `src/lib/engine/mmh3Recipe.ts` and `src/lib/engine/mmh3Task.ts` | The mmh3 recipes (the fields each tier sends, the turbo8 canvas pairing) and the request builder, the queue position and the wait for the artifact. |
+| `src/lib/engine/mmh3Recipes.ts` | What the engine says about its own recipes: the availability, the missing files and the canvas constraint of each tier, taken from `GET /v1/recipes` and falling back to the local table when the engine cannot be reached. |
 | `src/components/EngineSelector.tsx` | The shared engine picker with its health badge, used by the H3 workspaces and the settings. |
-| `electron/mmh3Api.ts` | The mmh3 HTTP client: status, submit, job, list, delete, artifact download, and the ComfyUI memory release. Privileged transport stays in Electron main. |
+| `electron/mmh3Api.ts` | The mmh3 HTTP client: status, submit, job, list, delete, artifact download, the ComfyUI memory release, the interrupt endpoint and the recipe list. Privileged transport stays in Electron main. |
 | `electron/engineSettings.ts` | The engine list as the main process reads it, mirroring the renderer's `src/lib/engine/engines.ts`. |
 | `electron/comfyCancellation.ts` | One cancellation path for Electron IPC and LAN, with modern ComfyUI and legacy queue handling. |
 | `electron/legacyBrowserStorage.ts` and `src/components/LegacyMigrationControl.tsx` | Staged, pre-session Local Storage restore with a recoverable backup and visible retry errors. |

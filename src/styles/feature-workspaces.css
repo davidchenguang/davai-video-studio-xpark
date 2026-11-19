@@ -1209,6 +1209,13 @@
 .engine-settings-default label { color: var(--muted); font-size: 12px; font-weight: 600; }
 .engine-settings-default select { min-width: 180px; }
 .engine-settings-default .field-help { flex-basis: 100%; margin: 0; }
+.engine-settings-add { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-top: 12px; padding: 12px; border: 1px dashed var(--line-strong); border-radius: 10px; }
+.engine-settings-add .field-help { flex-basis: 100%; margin: 0; }
+.engine-settings-custom { display: grid; gap: 8px; margin-top: 12px; }
+.engine-settings-custom .engine-settings-row { align-items: center; justify-content: space-between; }
+.engine-settings-custom .engine-settings-row > span { display: grid; gap: 3px; min-width: 0; }
+.engine-settings-custom .engine-settings-row strong { font-size: 13px; }
+.engine-settings-custom .engine-settings-row small { color: var(--muted); font-size: 11px; }
 .library-engine-badge { border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; background: var(--surface-2); color: var(--muted); font-size: 10px; font-style: normal; font-weight: 700; letter-spacing: .04em; }
 .media-lightbox footer .library-engine-badge { margin-left: 8px; }
 

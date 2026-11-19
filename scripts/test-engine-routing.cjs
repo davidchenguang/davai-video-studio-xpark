@@ -54,6 +54,7 @@ const MMH3_VIDEO_OPTIONS = [
   'token', 'attention', 'attention-precision', 'linear-precision', 'sparse-tau',
   'sparse-start', 'vsa-sparsity', 'veda-predictor', 'veda-sparsity',
   'veda-reference-sparsity', 'vram-budget', 'devices',
+  'keyframe', 'frame-index',
 ]
 const MMH3_IMAGE_OPTIONS = [
   'prompt', 'prompt-file', 'reference', 'width', 'height', 'min-generation-area',
@@ -67,7 +68,7 @@ const MMH3_MACHINE_OPTIONS = [
 ]
 const MMH3_FILE_OPTIONS = [
   'prompt-file', 'context', 'first-frame', 'last-frame', 'reference',
-  'reference-audio', 'reference-video',
+  'reference-audio', 'reference-video', 'keyframe',
 ]
 
 // The ComfyUI channels the app had before a second engine existed. They may
@@ -111,7 +112,17 @@ const MMH3_BRIDGE = {
   'mmh3:delete': 'mmh3Delete',
   'mmh3:download': 'mmh3Download',
   'mmh3:release-comfy': 'mmh3ReleaseComfy',
+  'mmh3:interrupt': 'mmh3Interrupt',
+  'mmh3:recipes': 'mmh3Recipes',
 }
+
+// The mmh3 channels the app had before the interrupt and recipe endpoints
+// existed. They may only grow; a renamed or dropped channel breaks the
+// deployed engine contract.
+const ORIGINAL_MMH3_CHANNELS = [
+  'mmh3:status', 'mmh3:submit', 'mmh3:submit-image', 'mmh3:job', 'mmh3:list',
+  'mmh3:delete', 'mmh3:download', 'mmh3:release-comfy',
+]
 
 const gates = []
 function gate(id, name, run) {
@@ -177,7 +188,7 @@ gate('G4', 'The three H3 dispatch points branch on the engine', () => {
 })
 
 gate('G5', 'The mmh3 recipes keep the fields the server accepts', () => {
-  const { mmh3VideoRecipe, mmh3ImageFields, recipeForTurbo, MMH3_FASTH3_PATCH, MMH3_TURBO4_LORA, MMH3_TURBO8_LORA, MMH3_PDMD_LORA } = loadModule('src/lib/engine/mmh3Recipe.ts')
+  const { mmh3VideoRecipe, mmh3ImageFields, recipeForTurbo, mmh3TierForCanvas, mmh3TierCanvas, MMH3_FASTH3_PATCH, MMH3_TURBO4_LORA, MMH3_TURBO8_LORA, MMH3_TURBO8_544P_LORA, MMH3_PDMD_LORA } = loadModule('src/lib/engine/mmh3Recipe.ts')
 
   assert.deepEqual(
     plain(mmh3VideoRecipe('off', { steps: 30 }).fields),
@@ -186,18 +197,23 @@ gate('G5', 'The mmh3 recipes keep the fields the server accepts', () => {
   )
   assert.deepEqual(
     plain(mmh3VideoRecipe('turbo4').fields),
-    { patch: MMH3_FASTH3_PATCH, steps: 4, attention: 'vsa', 'attention-precision': 'int8-fp8', 'shift-video': '12', 'shift-audio': '3' },
+    { patch: MMH3_FASTH3_PATCH, steps: 4, 'attention-precision': 'int8-fp8', 'shift-video': '12', 'shift-audio': '3' },
     'Turbo 4 sends the FastH3 patch and four steps',
   )
   assert.deepEqual(
     plain(mmh3VideoRecipe('turbo4-lora').fields),
-    { lora: MMH3_TURBO4_LORA, steps: 4, attention: 'sol', 'sparse-start': 0, 'shift-video': '6', 'shift-audio': '3' },
+    { lora: MMH3_TURBO4_LORA, steps: 4, attention: 'sol', 'attention-precision': 'int8-fp8', 'sparse-start': 0, 'shift-video': '6', 'shift-audio': '3' },
     'The 768p Turbo 4 LoRA tier keeps the shift it was trained with',
   )
   assert.deepEqual(
     plain(mmh3VideoRecipe('turbo8').fields),
-    { lora: MMH3_TURBO8_LORA, steps: 8, 'shift-video': '12', 'shift-audio': '3' },
-    'Turbo 8 sends the LoRA and eight steps',
+    { lora: MMH3_TURBO8_LORA, steps: 8, attention: 'sol', 'attention-precision': 'int8-fp8', 'sparse-start': 0, 'shift-video': '6', 'shift-audio': '3' },
+    'Turbo 8 sends the 768p LoRA, eight steps and the shift it was trained with',
+  )
+  assert.deepEqual(
+    plain(mmh3VideoRecipe('turbo8-544p').fields),
+    { lora: MMH3_TURBO8_544P_LORA, steps: 8, attention: 'sol', 'attention-precision': 'int8-fp8', 'sparse-start': 0, 'shift-video': '12', 'shift-audio': '3' },
+    'The 544p Turbo 8 tier sends its own LoRA file',
   )
   assert.deepEqual(
     plain(mmh3VideoRecipe('fast').fields),
@@ -207,13 +223,21 @@ gate('G5', 'The mmh3 recipes keep the fields the server accepts', () => {
   assert.equal(mmh3VideoRecipe('fast').target, 'fast', 'The fast tier runs on the second instance')
   assert.deepEqual(
     plain(mmh3VideoRecipe('pdmd').fields),
-    { lora: MMH3_PDMD_LORA, steps: 2, attention: 'sol', 'sparse-start': 0, 'shift-video': '12', 'shift-audio': '3' },
+    { lora: MMH3_PDMD_LORA, steps: 2, attention: 'sol', 'attention-precision': 'int8-fp8', 'sparse-start': 0, 'shift-video': '12', 'shift-audio': '3' },
     'PDMD sends its own LoRA and two steps',
   )
   assert.equal(recipeForTurbo('4'), 'turbo4', 'The 4-step tier maps to the FastH3 patch')
   assert.equal(recipeForTurbo('8'), 'turbo8', 'The 8-step tier maps to the Turbo 8 LoRA')
   assert.equal(recipeForTurbo('fast'), 'fast', 'The fast tier maps to the second instance')
   assert.equal(recipeForTurbo('off'), 'off', 'Everything else maps to the standard tier')
+
+  // The turbo8 weights pair with the canvas they were trained on: 1344x768
+  // takes the 768p LoRA, 960x544 the 544p one, and no other canvas gets turbo8.
+  assert.equal(mmh3TierForCanvas('turbo8', 1344, 768), 'turbo8', 'The 768p canvas keeps the 768p Turbo 8 tier')
+  assert.equal(mmh3TierForCanvas('turbo8', 960, 544), 'turbo8-544p', 'The 544p canvas swaps to the 544p Turbo 8 tier')
+  assert.equal(mmh3TierForCanvas('turbo8', 864, 480), 'off', 'A canvas without a trained Turbo 8 falls back to the standard tier')
+  assert.deepEqual(plain(mmh3TierCanvas('turbo8')), { width: 1344, height: 768 }, 'Turbo 8 names the canvas it was trained on')
+  assert.equal(mmh3TierCanvas('off'), null, 'The standard tier has no canvas constraint')
 
   assert.deepEqual(
     plain(mmh3ImageFields({ width: 1024, height: 768, steps: 6, seed: 7 })),
@@ -224,7 +248,7 @@ gate('G5', 'The mmh3 recipes keep the fields the server accepts', () => {
 
   // Every field the app sends has to be a field the server knows, and no
   // request may set one of the machine options.
-  for (const id of ['off', 'turbo4', 'turbo4-lora', 'turbo8', 'fast', 'pdmd']) {
+  for (const id of ['off', 'turbo4', 'turbo4-lora', 'turbo8', 'turbo8-544p', 'fast', 'pdmd']) {
     for (const name of Object.keys(mmh3VideoRecipe(id).fields)) {
       assert.ok(MMH3_VIDEO_OPTIONS.includes(name), `The ${id} tier sends "${name}", which the mmh3 server does not accept`)
       assert.ok(!MMH3_MACHINE_OPTIONS.includes(name), `The ${id} tier sends the machine option "${name}"`)
@@ -259,6 +283,30 @@ gate('G5', 'The mmh3 recipes keep the fields the server accepts', () => {
   for (const file of withFiles.files) {
     assert.ok(MMH3_FILE_OPTIONS.includes(file.field), `The upload "${file.field}" is not a file option`)
   }
+
+  // The engine's own recipe is the contract: its option keys are the form
+  // fields, the values ride along untouched, and a machine option never does.
+  const fromServer = mmh3VideoRequest({ engine, recipe: 'off', prompt: 'a wave', serverOptions: { 'shift-video': '6', steps: 8, models: 'some/dir' } })
+  assert.deepEqual(plain(fromServer.fields), { 'shift-video': '6', steps: 8, prompt: 'a wave' }, 'The engine recipe fields go into the request as they are')
+  for (const name of Object.keys(fromServer.fields)) {
+    assert.ok(!MMH3_MACHINE_OPTIONS.includes(name), `The engine recipe sends the machine option "${name}"`)
+  }
+
+  // The multi-anchor keyframes travel as paired keyframe/frame-index fields.
+  const anchored = mmh3VideoRequest({ engine, recipe: 'off', prompt: 'a wave', duration: 5, keyframes: [{ frameIndex: 30, path: '/tmp/anchor-1.png' }, { frameIndex: 60, path: '/tmp/anchor-2.png' }] })
+  assert.deepEqual(plain(anchored.files.map((file) => file.field)), ['keyframe', 'keyframe'], 'Each anchor uploads as a keyframe file')
+  // The server reads frame-index as one repeatable field: the i-th entry pairs
+  // with the i-th keyframe. Joining the indexes into one space-separated value
+  // is rejected with "pass one --frame-index for every --keyframe".
+  assert.deepEqual(plain(anchored.repeats ?? []), [{ name: 'frame-index', value: '30' }, { name: 'frame-index', value: '60' }], 'Each anchor carries its own frame-index entry')
+  assert.equal(anchored.fields['frame-index'], undefined, 'The frame indexes are never joined into a single field')
+  for (const repeat of anchored.repeats ?? []) {
+    assert.ok(MMH3_VIDEO_OPTIONS.includes(repeat.name), `An anchored request sends "${repeat.name}", which the mmh3 server does not accept`)
+  }
+  for (const name of Object.keys(anchored.fields)) {
+    assert.ok(MMH3_VIDEO_OPTIONS.includes(name), `An anchored request sends "${name}", which the mmh3 server does not accept`)
+  }
+  assert.deepEqual(plain(mmh3VideoRequest({ engine, recipe: 'off', prompt: 'a wave', duration: 5, keyframes: [{ frameIndex: 30, path: '/tmp/anchor-1.png' }] }).repeats ?? []), [{ name: 'frame-index', value: '30' }], 'One anchor sends exactly one frame-index')
 })
 
 gate('G6', 'The engine settings have one write channel', () => {
@@ -298,6 +346,51 @@ gate('G6', 'The engine settings have one write channel', () => {
   const [mmh3] = readSavedJobs(JSON.stringify([{ id: 'b', prompt: 'p', createdAt: 1, status: 'running', mode: 'text', progress: 1, width: 1, height: 1, duration: 1, engineId: 'mmh3' }]))
   assert.equal(mmh3.engineId, 'mmh3', 'An mmh3 record keeps its engine')
   assert.match(mmh3.error, /mmh3/, 'An interrupted mmh3 render says that the task id is gone')
+})
+
+gate('G7', 'The mmh3 channels only grow', () => {
+  const main = read('electron/main.ts')
+  const preload = read('electron/preload.ts')
+  const mock = read('src/browserMock.ts')
+  const channels = new Set([...main.matchAll(/ipcMain\.handle\('([^']+)'/g)].map((match) => match[1]))
+  // Every channel the deployed engines answer still exists.
+  for (const channel of ORIGINAL_MMH3_CHANNELS) {
+    assert.ok(channels.has(channel), `The ${channel} channel is still registered`)
+  }
+  // The two new endpoints are additions, not replacements.
+  assert.ok(channels.has('mmh3:interrupt'), 'The interrupt channel is registered')
+  assert.ok(channels.has('mmh3:recipes'), 'The recipes channel is registered')
+  assert.equal([...channels].filter((channel) => channel.startsWith('mmh3:')).length, Object.keys(MMH3_BRIDGE).length, 'mmh3 has exactly its own channels')
+  // Each channel is reachable from the renderer under its own bridge method.
+  for (const [channel, method] of Object.entries(MMH3_BRIDGE)) {
+    assert.match(preload, new RegExp(`${method}:\\s*\\(`), `The bridge exposes ${method}`)
+    assert.match(preload, new RegExp(`invoke\\('${channel}'`), `The bridge method ${method} calls ${channel}`)
+    assert.ok(mock.includes(`${method}:`), `The browser mock answers ${method}`)
+  }
+})
+
+gate('G8', 'The engine job states are read as the engine states them', () => {
+  const { parseJob, parseWeights } = loadModule('electron/mmh3Api.ts')
+  for (const state of ['queued', 'running', 'cancelling', 'cancelled', 'done', 'failed']) {
+    assert.equal(parseJob({ id: 'x', state }).state, state, `The ${state} state survives the parse`)
+  }
+  // A state the app does not know falls back to queued instead of pretending
+  // the job is running.
+  assert.equal(parseJob({ id: 'x', state: 'weird' }).state, 'queued', 'An unknown state is treated as queued')
+  // The per-step seconds are the ETA input; they are null until the first step.
+  assert.equal(parseJob({ id: 'x', state: 'running', step_seconds: 12.5 }).stepSeconds, 12.5, 'The engine step seconds are read')
+  assert.equal(parseJob({ id: 'x', state: 'running' }).stepSeconds, null, 'A job without a measured step has no step seconds')
+
+  // The weights the instance loaded: the dit carries its adapters in order.
+  const weights = parseWeights([
+    { kind: 'text_encoder', file: 'text.safetensors', bytes: 10, digest: 'abcd' },
+    { kind: 'dit', file: 'dit.safetensors', bytes: 20, digest: 'beef', adapters: [{ file: 'lora.safetensors', bytes: 5, digest: 'cafe', strength: 1, mode: 'adapter' }] },
+  ])
+  assert.equal(weights.length, 2, 'Both weights are read')
+  assert.equal(weights[1].kind, 'dit', 'The dit keeps its kind')
+  assert.equal(weights[1].adapters[0].file, 'lora.safetensors', 'The adapter of the dit is read')
+  assert.equal(weights[1].adapters[0].mode, 'adapter', 'The adapter mode is read')
+  assert.equal(parseWeights(null), null, 'A status without weights stays empty')
 })
 
 let failed = 0

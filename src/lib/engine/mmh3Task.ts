@@ -16,6 +16,9 @@ export const MMH3_POLL_MS = 1_500
 export type Mmh3VideoRequest = {
   engine: EngineConfig
   recipe: Mmh3RecipeId
+  /** The engine's own recipe options. When the engine answered, its option
+   *  keys ARE the form fields, so the values go into the request as they are. */
+  serverOptions?: Record<string, string | number | null>
   prompt: string
   seed?: number
   width?: number
@@ -27,6 +30,9 @@ export type Mmh3VideoRequest = {
   shiftAudio?: number
   firstFrame?: string
   lastFrame?: string
+  /** Mid-video anchors: the i-th image anchors the i-th frame index. Exclusive
+   * with first/last-frame and the reference family on the engine side. */
+  keyframes?: Array<{ frameIndex: number; path: string }>
   referenceImages?: string[]
   referenceVideos?: string[]
   referenceAudios?: string[]
@@ -48,6 +54,10 @@ export type Mmh3Request = {
   recipe: Mmh3Recipe
   fields: Record<string, string | number>
   files: Mmh3File[]
+  /** Repeatable text fields: each entry is its own value under one name, in
+   *  order. The server pairs the i-th frame-index with the i-th keyframe, so
+   *  joining them into one space-separated value would be rejected. */
+  repeats?: Array<{ name: string; value: string }>
 }
 
 /** The instance a recipe runs on: the fast tier has one of its own. */
@@ -57,21 +67,37 @@ export function mmh3BaseUrl(engine: EngineConfig, recipe: Pick<Mmh3Recipe, 'targ
 }
 
 /** The form a video request sends. */
+/** The machine-level options a request may never set: they belong to the
+ *  instance, not to a generation. */
+const MMH3_MACHINE_OPTIONS = ['models', 'dit', 'text-encoder', 'video-vae', 'audio-vae', 'devices', 'vram-budget', 'worker', 'worker-units', 'token']
+
 export function mmh3VideoRequest(request: Mmh3VideoRequest): Mmh3Request {
   const recipe = mmh3VideoRecipe(request.recipe, { steps: request.steps, shiftVideo: request.shiftVideo, shiftAudio: request.shiftAudio })
-  const fields: Record<string, string | number> = { ...recipe.fields }
+  // The engine's recipe is the contract when the engine answered: its option
+  // keys are the form fields and its values go in untouched. The local table
+  // is the fallback for an engine that cannot be reached.
+  const fields: Record<string, string | number> = request.serverOptions
+    ? Object.fromEntries(Object.entries(request.serverOptions)
+      .filter(([name, value]) => value !== null && value !== undefined && !MMH3_MACHINE_OPTIONS.includes(name))
+      .map(([name, value]) => [name, value as string | number]))
+    : { ...recipe.fields }
   if (request.prompt.trim()) fields.prompt = request.prompt.trim()
   if (request.seed !== undefined) fields.seed = Math.round(request.seed)
   if (request.width) fields.width = Math.round(request.width)
   if (request.height) fields.height = Math.round(request.height)
   if (request.duration) fields.frames = frameCount(request.duration)
   const files: Mmh3File[] = []
+  const repeats: Array<{ name: string; value: string }> = []
   if (request.firstFrame) files.push({ field: 'first-frame', path: request.firstFrame })
   if (request.lastFrame) files.push({ field: 'last-frame', path: request.lastFrame })
+  for (const anchor of request.keyframes ?? []) {
+    files.push({ field: 'keyframe', path: anchor.path })
+    repeats.push({ name: 'frame-index', value: String(Math.round(anchor.frameIndex)) })
+  }
   for (const path of request.referenceImages ?? []) files.push({ field: 'reference', path })
   for (const path of request.referenceVideos ?? []) files.push({ field: 'reference-video', path })
   for (const path of request.referenceAudios ?? []) files.push({ field: 'reference-audio', path })
-  return { baseUrl: mmh3BaseUrl(request.engine, recipe), recipe, fields, files }
+  return { baseUrl: mmh3BaseUrl(request.engine, recipe), recipe, fields, files, ...(repeats.length ? { repeats } : {}) }
 }
 
 /** The form a picture request sends. */
@@ -111,6 +137,8 @@ export type Mmh3TaskUpdate = {
   state: Mmh3Job['state']
   step: number | null
   steps: number | null
+  /** Seconds the just-finished step took; the ETA input. */
+  stepSeconds: number | null
   /** The generations waiting ahead of this one. */
   ahead: number
   error: string | null
@@ -127,15 +155,19 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
 
 /**
  * Waits for a generation to end. The update carries what the card shows:
- * the state, the step, and how many generations are ahead of this one.
+ * the state, the step, how many generations are ahead of this one, and the
+ * per-step seconds the engine just measured. The engine's cancelling /
+ * cancelled states are terminal-adjacent and pass through untouched — a
+ * cancelled job IS a terminal return, unlike the old soft-cancel race where
+ * the client kept polling until the engine said done.
  */
 export async function waitForMmh3Task(baseUrl: string, id: string, onUpdate: (update: Mmh3TaskUpdate) => void, signal?: AbortSignal): Promise<Mmh3Job> {
   for (;;) {
     if (signal?.aborted) throw new Error('mmh3 任务已中断。')
     const job = await window.minimax.mmh3Job(baseUrl, id)
     const ahead = job.state === 'queued' ? await mmh3QueueAhead(baseUrl, id) : 0
-    onUpdate({ state: job.state, step: job.step, steps: job.steps, ahead, error: job.error })
-    if (job.state === 'done' || job.state === 'failed') return job
+    onUpdate({ state: job.state, step: job.step, steps: job.steps, stepSeconds: job.stepSeconds, ahead, error: job.error })
+    if (job.state === 'done' || job.state === 'failed' || job.state === 'cancelled') return job
     await delay(MMH3_POLL_MS, signal)
   }
 }

@@ -44,7 +44,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { createPortal, flushSync } from 'react-dom'
 import QRCode from 'qrcode'
 import { createId } from './lib/createId'
-import { MMH3_RECIPE_CHOICES, MMH3_RECIPE_LABELS, recipeForTurbo, type Mmh3RecipeChoice, type Mmh3RecipeId } from './lib/engine/mmh3Recipe'
+import { MMH3_RECIPE_CHOICES, MMH3_RECIPE_LABELS, MMH3_RECIPES, mmh3TierCanvas, mmh3TierForCanvas, recipeForTurbo, type Mmh3RecipeChoice, type Mmh3RecipeId } from './lib/engine/mmh3Recipe'
+import { mmh3ServerRecipeForTier, mmh3TierAvailabilityMap, mmh3TierMissingText, useMmh3Recipes, type Mmh3TierAvailability } from './lib/engine/mmh3Recipes'
 import { findEngine, normalizeEngineSettings, type EngineConfig } from './lib/engine/engines'
 import { useEngineSelection, type EngineSelectionState } from './lib/engine/useEngineSelection'
 import { mmh3ImageRequest, mmh3OutputName, mmh3VideoRequest, waitForMmh3Task } from './lib/engine/mmh3Task'
@@ -437,6 +438,10 @@ function App() {
   const [renderAnyway, setRenderAnyway] = useState(false)
   const [firstFrame, setFirstFrame] = useState<MediaFile | null>(persisted.firstFrame)
   const [lastFrame, setLastFrame] = useState<MediaFile | null>(persisted.lastFrame)
+  // Multi-anchor keyframes: each pair anchors one frame index. Exclusive with
+  // first/last-frame and the reference family on the engine side; the first
+  // keyframe sets the canvas.
+  const [keyframes, setKeyframes] = useState<Array<{ frameIndex: number; file: MediaFile }>>([])
   const [referenceImages, setReferenceImages] = useState<MediaFile[]>(persisted.referenceImages)
   const [referenceVideos, setReferenceVideos] = useState<MediaFile[]>(persisted.referenceVideos)
   const [referenceAudios, setReferenceAudios] = useState<MediaFile[]>(persisted.referenceAudios)
@@ -470,6 +475,10 @@ function App() {
   const benchmarkConfigInitialized = useRef(false)
   const [cancellingIds, setCancellingIds] = useState<Set<string>>(() => new Set())
   const cancellationRequests = useRef(new Set<string>())
+  // The mmh3 jobs whose stop the engine accepted. Such a run ends on
+  // cancelled and never produces an artifact; a run that still lands on done
+  // (the last-step window) keeps what it made.
+  const mmh3InterruptAccepted = useRef(new Set<string>())
   const generateRef = useRef<((target?: 'video' | 'image', renderAnyway?: boolean, control?: { continuation?: ContinuationGenerationControl; engineId?: string }) => Promise<string | undefined>) | null>(null)
   const mediaHydrated = useRef(false)
   const thumbnailAttempts = useRef(new Set<string>())
@@ -631,11 +640,47 @@ function App() {
   // The gate the H3 workspaces show: on mmh3 it is that engine's own health,
   // and the ComfyUI checks below no longer speak for the workspace.
   const mmh3Active = h3Engine.engine.kind === 'mmh3'
+  // The engine's own recipes decide which tier can run and on which canvas;
+  // the app falls back to its local table when the engine cannot be reached.
+  const mmh3RecipeState = useMmh3Recipes(mmh3Active ? h3Engine.engine.baseUrl : undefined)
+  const mmh3TierAvailability = useMemo(
+    () => mmh3TierAvailabilityMap(mmh3RecipeState.recipes, MMH3_RECIPES),
+    [mmh3RecipeState.recipes],
+  )
   const mmh3Blocker = !mmh3Active ? '' : h3Engine.engineHealth?.state === 'offline'
     ? 'mmh3 引擎离线：请检查 mmh3.service 与 mmh3-fast.service 是否在运行。'
     : h3Engine.engineHealth?.state === 'models-missing'
       ? `mmh3 缺少模型文件：${h3Engine.engineHealth.missing.join('、') || '未知文件'}。请补齐后重试。`
       : ''
+  // Switching engines resets what only the other engine understands: the mmh3
+  // recipe choice belongs to mmh3, the refine/upscale chain belongs to
+  // ComfyUI. Carrying either across the switch would submit stale settings.
+  const previousEngineKind = useRef<'comfy' | 'mmh3' | null>(null)
+  const [engineSwitchReset, setEngineSwitchReset] = useState('')
+  useEffect(() => {
+    const kind = h3Engine.engine.kind
+    if (previousEngineKind.current && previousEngineKind.current !== kind) {
+      setMmh3RecipeChoice('auto')
+      if (kind === 'mmh3') {
+        // The keyframe anchors are an mmh3 concept; the ComfyUI pipeline does
+        // not read them, so they never travel with a ComfyUI render.
+        setKeyframes([])
+        if (upscaleMode !== 'off') {
+          setUpscaleMode('off')
+          setEngineSwitchReset('已切换到 mmh3：配方跟随默认，关键帧锚点已清空，精修/放大已关闭（依赖 ComfyUI 管线）。')
+        } else {
+          setEngineSwitchReset('已切换到 mmh3：配方跟随默认，关键帧锚点已清空。')
+        }
+      } else {
+        setEngineSwitchReset('已切换引擎：mmh3 配方选择已重置为跟随画质预设。')
+      }
+    } else {
+      setEngineSwitchReset('')
+    }
+    previousEngineKind.current = kind
+    // The reset runs on an actual engine change only; every other state here is read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [h3Engine.engine.kind])
   // The mmh3 server keeps what it wrote. A generation that has already ended
   // and that this app does not know about is an orphan from an earlier run.
   useEffect(() => {
@@ -1585,6 +1630,7 @@ function App() {
     setPromptSuggestionId('')
     setFirstFrame(null)
     setLastFrame(null)
+    setKeyframes([])
     setReferenceImages([])
     setReferenceVideos([])
     setReferenceAudios([])
@@ -1739,10 +1785,30 @@ function App() {
     if (!['queued', 'running'].includes(job.status) || cancellingIds.has(job.id)) return
     if (rippleBatchControl.current?.id === job.id) { await cancelRippleBatch(); return }
     if (job.mmh3JobId) {
-      // mmh3 cannot interrupt a generation that is already running. The card
-      // turns cancelled, and the artifact is dropped when the server is done.
       cancellationRequests.current.add(job.id)
       setCancellingIds((current) => new Set(current).add(job.id))
+      try {
+        // The real interrupt: the engine finishes the step in flight, then the
+        // job lands on cancelled and the artifact never exists. On an engine
+        // without the endpoint the old soft-cancel keeps the behavior stable.
+        const engine = (settings.engines ?? []).find((candidate) => candidate.kind === 'mmh3' && (candidate.id === job.engineId)) ?? (settings.engines ?? []).find((candidate) => candidate.kind === 'mmh3')
+        // The fast tier runs on its own port: the interrupt has to reach the
+        // instance the job was submitted to, not whichever one is first.
+        const interruptUrl = job.mmh3BaseUrl || engine?.baseUrl
+        if (engine && interruptUrl) {
+          const result = await window.minimax.mmh3Interrupt(interruptUrl, job.mmh3JobId)
+          if (result.interrupted) {
+            mmh3InterruptAccepted.current.add(job.id)
+            setJobs((current) => current.map((item) => item.id === job.id ? { ...item, status: 'cancelled', error: undefined, progressLabel: '正在停止（当前步跑完后生效）' } : item))
+            setNotice({ tone: 'neutral', text: '已请求停止：引擎会在当前步跑完后停；排队中的任务直接取消，不占 GPU。' })
+            return
+          }
+        }
+      } catch {
+        // A transport failure here falls through to the soft cancel below.
+      }
+      // mmh3 cannot interrupt a generation that is already running. The card
+      // turns cancelled, and the artifact is dropped when the server is done.
       setJobs((current) => current.map((item) => item.id === job.id ? { ...item, status: 'cancelled', error: undefined, progressLabel: 'mmh3 无法中断，仍在占用 GPU' } : item))
       setNotice({ tone: 'neutral', text: 'mmh3 无法中断运行中的生成，仍在占用 GPU；产物会被丢弃，不会入库。' })
       setCancellingIds((current) => { const next = new Set(current); next.delete(job.id); return next })
@@ -2402,6 +2468,7 @@ function App() {
     referenceVideos?: string[]
     referenceAudios?: string[]
     recipe?: Mmh3RecipeId
+    keyframes?: Array<{ frameIndex: number; path: string }>
     characterProjectId?: string
     outputName?: string
     engineOverride?: EngineConfig
@@ -2414,11 +2481,17 @@ function App() {
       // The handover stages surface in the status line, in order, before the job card exists.
       const warning = await h3Engine.prepareSubmit(engine.id, (stage) => setNotice({ tone: 'neutral', text: stage }))
       if (warning) setNotice({ tone: 'neutral', text: warning })
+      const wantedTier = options.recipe ?? recipeForTurbo(options.turbo)
+      // turbo8 is trained on two canvases only; on any other canvas the tier
+      // is not offered and the render falls back to the standard recipe.
+      const tier = mmh3TierForCanvas(wantedTier, options.width, options.height)
+      if (tier !== wantedTier) setNotice({ tone: 'neutral', text: `当前画布 ${options.width}×${options.height} 不提供 turbo8（只支持 1344×768 与 960×544），已回退到标准 30 步配方。` })
       const request = options.target === 'image'
         ? mmh3ImageRequest({ engine, prompt: options.prompt, width: options.width, height: options.height, steps: options.steps, seed: options.seed })
         : mmh3VideoRequest({
           engine,
-          recipe: options.recipe ?? recipeForTurbo(options.turbo),
+          recipe: tier,
+          serverOptions: mmh3ServerRecipeForTier(mmh3RecipeState.recipes, tier)?.options,
           prompt: options.prompt,
           seed: options.seed,
           width: options.width,
@@ -2429,6 +2502,7 @@ function App() {
           shiftAudio: options.shiftAudio,
           firstFrame: options.firstFrame,
           lastFrame: options.lastFrame,
+          keyframes: options.keyframes,
           referenceImages: options.referenceImages,
           referenceVideos: options.referenceVideos,
           referenceAudios: options.referenceAudios,
@@ -2459,24 +2533,31 @@ function App() {
           adapters: [MMH3_RECIPE_LABELS[request.recipe.id], request.recipe.badge].filter(Boolean) as string[],
           preview: '不可用 · mmh3 只回报步进进度',
           upscale: '不可用 · 依赖 ComfyUI 渲染管线',
-          referenceCount: (options.referenceImages?.length ?? 0) + (options.referenceVideos?.length ?? 0) + (options.referenceAudios?.length ?? 0) || undefined,
+          referenceCount: (options.referenceImages?.length ?? 0) + (options.referenceVideos?.length ?? 0) + (options.referenceAudios?.length ?? 0) + (options.keyframes?.length ?? 0) || undefined,
         },
       }
       setJobs((current) => [job, ...current])
       selectActiveJob(localId)
       const submitted = options.target === 'image'
         ? await window.minimax.mmh3SubmitImage(request.baseUrl, request.fields, request.files)
-        : await window.minimax.mmh3Submit(request.baseUrl, request.fields, request.files)
+        : await window.minimax.mmh3Submit(request.baseUrl, request.fields, request.files, request.repeats)
       if (!submitted.id) throw new Error('mmh3 没有返回任务 ID。')
-      setJobs((current) => current.map((item) => item.id === localId ? { ...item, mmh3JobId: submitted.id, status: 'running', progress: 4, progressLabel: 'mmh3 已接收任务' } : item))
+      setJobs((current) => current.map((item) => item.id === localId ? { ...item, mmh3JobId: submitted.id, mmh3BaseUrl: request.baseUrl, status: 'running', progress: 4, progressLabel: 'mmh3 已接收任务' } : item))
       setNotice({ tone: 'success', text: `已提交到 mmh3（${request.recipe.label}）。` })
       let discard = cancellationRequests.current.has(localId)
       if (discard) {
         setJobs((current) => current.map((item) => item.id === localId ? { ...item, status: 'cancelled', error: undefined, progressLabel: 'mmh3 无法中断，仍在占用 GPU' } : item))
         setNotice({ tone: 'neutral', text: 'mmh3 无法中断运行中的生成，仍在占用 GPU；产物会被丢弃，不会入库。' })
       }
+      // Whether the engine ever started the job: a task cancelled before it
+      // ran never occupied the GPU and never produced anything.
+      let startedRunning = false
       const finished = await waitForMmh3Task(request.baseUrl, submitted.id, (update) => {
         if (cancellationRequests.current.has(localId)) discard = true
+        if (update.state === 'running') startedRunning = true
+        const eta = update.stepSeconds !== null && update.step !== null && update.steps && update.step < update.steps
+          ? Math.round(update.stepSeconds * (update.steps - update.step))
+          : null
         setJobs((current) => current.map((item) => item.id === localId ? {
           ...item,
           status: item.status === 'cancelled' ? 'cancelled' : update.state === 'failed' ? 'failed' : 'running',
@@ -2488,9 +2569,11 @@ function App() {
             ? item.progressLabel
             : update.state === 'queued'
               ? `排队中（前面还有 ${update.ahead} 个）`
-              : update.state === 'running'
-                ? `mmh3 渲染中 · 第 ${update.step ?? 0} / ${update.steps ?? '?'} 步`
-                : item.progressLabel,
+              : update.state === 'cancelling'
+                ? `正在停止（当前步跑完后生效） · 第 ${update.step ?? 0} / ${update.steps ?? '?'} 步`
+                : update.state === 'running'
+                  ? `mmh3 渲染中 · 第 ${update.step ?? 0} / ${update.steps ?? '?'} 步${eta !== null ? ` · 剩余约 ${eta >= 60 ? `${Math.floor(eta / 60)} 分 ${eta % 60} 秒` : `${eta} 秒`}` : ''}`
+                  : item.progressLabel,
           error: update.state === 'failed' ? (update.error ?? 'mmh3 生成失败。') : item.error,
         } : item))
       })
@@ -2501,7 +2584,19 @@ function App() {
         setNotice({ tone: 'error', text: `mmh3 生成失败：${message}` })
         return undefined
       }
-      if (discard) {
+      if (finished.state === 'cancelled') {
+        // The engine stopped it for real: nothing was produced, so there is
+        // nothing to delete on the server and nothing to keep out of the library.
+        cancellationRequests.current.delete(localId)
+        const label = startedRunning ? '已停止：引擎在当前步后中断，未产生产物。' : '未开始执行，已取消，未产生产物。'
+        setJobs((current) => current.map((item) => item.id === localId ? { ...item, status: 'cancelled', error: undefined, progressLabel: label } : item))
+        setNotice({ tone: 'success', text: startedRunning ? 'mmh3 任务已停止，未产生产物。' : 'mmh3 任务在开始前已取消，没有占用 GPU。' })
+        return undefined
+      }
+      // The engine accepted the stop but the run still landed on done: the
+      // cancel came in the last-step window, so what it made is kept.
+      const cancelTooLate = discard && mmh3InterruptAccepted.current.has(localId)
+      if (discard && !cancelTooLate) {
         // The server keeps what it wrote until it is told otherwise.
         await window.minimax.mmh3Delete(request.baseUrl, submitted.id).catch(() => undefined)
         setJobs((current) => current.map((item) => item.id === localId ? { ...item, status: 'cancelled', error: undefined, progressLabel: 'mmh3 无法中断，仍在占用 GPU' } : item))
@@ -2509,7 +2604,9 @@ function App() {
         return undefined
       }
       const downloaded = await window.minimax.mmh3Download(request.baseUrl, submitted.id, kind, settings?.outputDirectory ?? '', mmh3OutputName(kind, options.prompt))
-      if (cancellationRequests.current.has(localId)) {
+      // A run the engine had already stopped never reaches this point; a run
+      // the engine could not interrupt still does, and its file goes away.
+      if (cancellationRequests.current.has(localId) && !mmh3InterruptAccepted.current.has(localId)) {
         // The download had already begun: the file goes away with the job.
         await window.minimax.deleteMedia({ files: [downloaded.path] }).catch(() => undefined)
         await window.minimax.mmh3Delete(request.baseUrl, submitted.id).catch(() => undefined)
@@ -2517,9 +2614,9 @@ function App() {
         return undefined
       }
       const outputUrl = await window.minimax.mediaUrl(downloaded.path)
-      setJobs((current) => current.map((item) => item.id === localId ? { ...item, status: 'completed', progress: 100, progressLabel: '已完成', outputUrl, localOutputPath: downloaded.path, queuePosition: undefined } : item))
+      setJobs((current) => current.map((item) => item.id === localId ? { ...item, status: 'completed', progress: 100, progressLabel: cancelTooLate ? '已完成（取消来得太晚：引擎在最后一步后完成）' : '已完成', outputUrl, localOutputPath: downloaded.path, queuePosition: undefined } : item))
       await window.minimax.mmh3Delete(request.baseUrl, submitted.id).catch(() => undefined)
-      setNotice({ tone: 'success', text: `mmh3 产物已保存到输出文件夹。` })
+      setNotice({ tone: 'success', text: cancelTooLate ? '引擎在最后一步后完成了这次生成，产物已保存到输出文件夹。' : 'mmh3 产物已保存到输出文件夹。' })
       return localId
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -2652,6 +2749,7 @@ function App() {
         shiftAudio,
         firstFrame: firstFrame?.path,
         lastFrame: lastFrame?.path,
+        keyframes: keyframes.length ? keyframes.map((anchor) => ({ frameIndex: anchor.frameIndex, path: anchor.file.path })) : undefined,
         referenceImages: mode === 'reference' ? renderReferenceImages.map((file) => file.path) : undefined,
         referenceVideos: mode === 'reference' ? referenceVideos.map((file) => file.path) : undefined,
         referenceAudios: mode === 'reference' ? referenceAudios.map((file) => file.path) : undefined,
@@ -3463,7 +3561,8 @@ function App() {
         {notice && <Notice tone={notice.tone} text={notice.text} onClose={() => setNotice(null)} />}
         <fieldset className="video-workspace-host" disabled={continuationPreparing} hidden={view !== 'create'} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>{continuationPreparing && <p role="status">正在准备续接。节拍入队后视频控件会恢复。</p>}
           <VideoWorkspaceShell onOpenNavigator={() => setNavigatorOpen(true)} key={`create-${createResetKey}`} sceneState={sceneState} setSceneState={setSceneState} onAnalyzeReference={path => analyzeSceneReference(settings, path)}
-            mmh3Active={mmh3Active} mmh3Blocker={mmh3Blocker} mmh3RecipeChoice={mmh3RecipeChoice} setMmh3RecipeChoice={setMmh3RecipeChoice}
+            mmh3Active={mmh3Active} mmh3Blocker={mmh3Blocker} mmh3RecipeChoice={mmh3RecipeChoice} setMmh3RecipeChoice={setMmh3RecipeChoice} engineSwitchReset={engineSwitchReset}
+            mmh3TierAvailability={mmh3TierAvailability} mmh3RecipesConnected={mmh3RecipeState.connected}
             projectName={workspaceProjects.find(project => project.id === activeWorkspaceProjectId && project.scope === workspaceProjectScope(view, musicEngine))?.name ?? '当前工作区'} onOpenProjects={() => setProjectManagerOpen(true)} onNavigate={(nextView, engine) => { if (engine) setMusicEngine(engine); setView(nextView) }} onReset={resetCurrentWorkspace} historyJobs={jobs.filter(job => job.provider === 'minimax').slice(0, 12)} onSelectJob={selectActiveJob} onGenerate={() => void generateRef.current?.('video', renderAnyway)} onGenerateStill={() => void generateRef.current?.('image')} onCancel={() => { if (activeRenderJob) void cancelJob(activeRenderJob) }} activeRenderJob={activeRenderJob} cancelling={Boolean(activeRenderJob && cancellingIds.has(activeRenderJob.id))} onOpenSettings={() => setView('settings')} onOpenCompare={() => setCompareOpen(true)} compareOpen={compareOpen}
             info={info}
             gpuRoutingSummary={h3GpuRouting?.summary ?? 'GPU 路由：自动'}
@@ -3532,6 +3631,8 @@ function App() {
             lastFrame={lastFrame}
             setFirstFrame={setFirstFrame}
             setLastFrame={setLastFrame}
+            keyframes={keyframes}
+            setKeyframes={setKeyframes}
             chooseMedia={chooseMedia}
             referenceImages={referenceImages}
             characters={characterProjects}
@@ -3816,9 +3917,14 @@ type CreateViewProps = {
   resolution: string; setResolution(value: string): void
   turbo: 'off' | '4' | '8' | 'fast'; setTurbo(value: 'off' | '4' | '8' | 'fast'): void
   /** mmh3 only: whether that engine is the workspace's current choice, and the one-line blocker its health reports ('' = clear). */
-  mmh3Active: boolean; mmh3Blocker: string
-  /** mmh3 only: the recipe the submit sends ('auto' follows the quality preset). */
+  mmh3Active: boolean; mmh3Blocker: string  /** mmh3 only: the recipe the submit sends ('auto' follows the quality preset). */
   mmh3RecipeChoice: Mmh3RecipeChoice; setMmh3RecipeChoice(value: Mmh3RecipeChoice): void
+  /** mmh3 only: what the engine says about each tier (availability, missing files, canvas). */
+  mmh3TierAvailability: Record<string, Mmh3TierAvailability>
+  /** mmh3 only: whether the engine answered the recipe query (false = local table). */
+  mmh3RecipesConnected: boolean
+  /** The one-line note an engine switch produced when it reset engine-specific settings ('' = nothing). */
+  engineSwitchReset: string
   turbo8Profile: Turbo8Profile; setTurbo8Profile(value: Turbo8Profile): void
   textEncoderPreference: 'fast' | 'quality'; setTextEncoderPreference(value: 'fast' | 'quality'): void
   steps: number; setSteps(value: number): void
@@ -3826,6 +3932,8 @@ type CreateViewProps = {
   advanced: boolean; setAdvanced(value: boolean): void
   firstFrame: MediaFile | null; lastFrame: MediaFile | null
   setFirstFrame(value: MediaFile | null): void; setLastFrame(value: MediaFile | null): void
+  /** mmh3 multi-anchor keyframes: the i-th image anchors the i-th frame index; the first one sets the canvas. */
+  keyframes: Array<{ frameIndex: number; file: MediaFile }>; setKeyframes(value: Array<{ frameIndex: number; file: MediaFile }>): void
   chooseMedia(kind: MediaKind, setter: (file: MediaFile) => void): Promise<void>
   referenceImages: MediaFile[]; referenceVideos: MediaFile[]; referenceAudios: MediaFile[]
   characters: CharacterProject[]; wardrobes: WardrobeProject[]; locations: LocationProject[]; accessories: AccessoryProject[]; selectedCharacterIds: string[]; selectedLocationIds: string[]; clearReferences(): void; removeCharacter(characterId: string): void; characterDetailReferencesEnabled: boolean; loadCharacter(characterId: string): void; loadWardrobe(wardrobeId: string): void; loadLocation(locationId: string): void; loadAccessory(accessoryId: string): void
@@ -3926,16 +4034,50 @@ function AssetRail({ props, onSelect }: { props: VideoShellProps; onSelect(file:
         {filter === 'all' && wardrobes.length + accessories.length > 0 && <section><h3>服装与配饰</h3>{wardrobes.map(item => <button type="button" className="video-asset-row" key={item.id} onClick={() => props.loadWardrobe(item.id)}><span className="video-asset-placeholder"><Shirt size={18} /></span><span><strong>{item.name}</strong><small>服装</small></span><Plus size={13} /></button>)}{accessories.map(item => <button type="button" className="video-asset-row" key={item.id} onClick={() => props.loadAccessory(item.id)}><span className="video-asset-placeholder"><Aperture size={18} /></span><span><strong>{item.name}</strong><small>配饰</small></span><Plus size={13} /></button>)}</section>}
         {resultCount === 0 && <div className="video-asset-empty" role="status"><Search size={19} /><strong>{emptyTitle}</strong><p>{emptyDescription}</p>{query ? <button type="button" onClick={() => setSearch('')}>清除搜索</button> : <button type="button" onClick={() => props.onNavigate(filter === 'characters' ? 'characters' : filter === 'locations' ? 'locations' : 'library')}>{filter === 'characters' ? '创建角色' : filter === 'locations' ? '创建地点' : '打开素材库'}</button>}</div>}
       </div>
-      {props.mode !== 'text' && <div className="video-asset-add"><button type="button" onClick={() => props.mode === 'reference' ? void props.chooseReference('image') : void props.chooseMedia('image', props.mode === 'frames' && props.firstFrame ? props.setLastFrame : props.setFirstFrame)}><Plus size={14} />{props.mode === 'reference' ? '添加图片' : '添加帧'}</button>{props.mode === 'reference' && <><button type="button" onClick={() => void props.chooseReference('video')}>视频</button><button type="button" onClick={() => void props.chooseReference('audio')}>音频</button></>}</div>}
+      {props.mode !== 'text' && <div className="video-asset-add"><button type="button" disabled={props.keyframes.length > 0} title={props.keyframes.length > 0 ? '关键帧锚点与首帧 / 尾帧、参考图互斥：先移除锚点' : undefined} onClick={() => props.mode === 'reference' ? void props.chooseReference('image') : void props.chooseMedia('image', props.mode === 'frames' && props.firstFrame ? props.setLastFrame : props.setFirstFrame)}><Plus size={14} />{props.mode === 'reference' ? '添加图片' : '添加帧'}</button>{props.mode === 'reference' && <><button type="button" onClick={() => void props.chooseReference('video')}>视频</button><button type="button" onClick={() => void props.chooseReference('audio')}>音频</button></>}</div>}
     </>}
   </aside>
 }
 
 function ModeInputStrip({ props, boundScene, selection, onSelect }: { props: VideoShellProps; boundScene: ScenePromptState; selection: SceneInspectorSelection; onSelect(selection: SceneInspectorSelection): void }) {
   if (props.mode === 'text') return null
-  if (props.mode === 'reference') return <section className="video-input-strip video-reference-strip"><header><strong>参考图</strong><span>{boundScene.references.length} 个已选</span></header><div className="video-reference-items">{boundScene.references.map((ref, index) => <button type="button" key={ref.id} className={`video-reference-item ${selection.kind === 'reference' && selection.id === ref.id ? 'selected' : ''}`} onClick={() => onSelect({ kind: 'reference', id: ref.id })}>{ref.file.preview && ref.file.kind === 'image' ? <img src={ref.file.preview} alt="" /> : <span className="video-reference-icon"><Film size={22} /></span>}<span><strong>{`图片 ${index + 1}`}</strong><small>{ref.file.referenceRole === 'subject' ? '主体或身份' : ref.file.referenceRole === 'wardrobe' ? '服装' : ref.file.referenceRole === 'prop' ? '道具或产品' : ref.file.referenceRole === 'location' ? '地点或场景' : ref.file.referenceRole === 'composition' ? '构图或姿势' : ref.file.referenceRole === 'lighting-style' ? '光线或视觉风格' : ref.videoRole === 'motion' ? '运动参考' : ref.audio?.layer ? '声音参考' : '参考图'} · {ref.ownerId ? boundScene.characters.find(item => item.id === ref.ownerId)?.name || '角色' : '场景'}</small></span></button>)}<button type="button" className="video-reference-add" onClick={() => void props.chooseReference('image')}><Plus size={18} /><span>添加参考图</span></button></div></section>
+  if (props.mode === 'reference') return <section className="video-input-strip video-reference-strip"><header><strong>参考图</strong><span>{boundScene.references.length} 个已选</span></header><div className="video-reference-items">{boundScene.references.map((ref, index) => <button type="button" key={ref.id} className={`video-reference-item ${selection.kind === 'reference' && selection.id === ref.id ? 'selected' : ''}`} onClick={() => onSelect({ kind: 'reference', id: ref.id })}>{ref.file.preview && ref.file.kind === 'image' ? <img src={ref.file.preview} alt="" /> : <span className="video-reference-icon"><Film size={22} /></span>}<span><strong>{`图片 ${index + 1}`}</strong><small>{ref.file.referenceRole === 'subject' ? '主体或身份' : ref.file.referenceRole === 'wardrobe' ? '服装' : ref.file.referenceRole === 'prop' ? '道具或产品' : ref.file.referenceRole === 'location' ? '地点或场景' : ref.file.referenceRole === 'composition' ? '构图或姿势' : ref.file.referenceRole === 'lighting-style' ? '光线或视觉风格' : ref.videoRole === 'motion' ? '运动参考' : ref.audio?.layer ? '声音参考' : '参考图'} · {ref.ownerId ? boundScene.characters.find(item => item.id === ref.ownerId)?.name || '角色' : '场景'}</small></span></button>)}<button type="button" className="video-reference-add" disabled={props.keyframes.length > 0} title={props.keyframes.length > 0 ? '关键帧锚点与参考图互斥：先移除锚点' : undefined} onClick={() => void props.chooseReference('image')}><Plus size={18} /><span>添加参考图</span></button></div></section>
   const slots: Array<{ label: string; file: MediaFile | null; setter(file: MediaFile | null): void }> = [{ label: props.mode === 'image' ? '起始图片' : '首帧', file: props.firstFrame, setter: props.setFirstFrame }, ...(props.mode === 'frames' ? [{ label: '尾帧', file: props.lastFrame, setter: props.setLastFrame }] : [])]
-  return <section className={`video-input-strip video-frame-strip ${props.mode === 'frames' ? 'paired' : ''}`}>{slots.map((slot, index) => <div className="video-frame-slot" key={slot.label}><button type="button" className="video-frame-preview" onClick={() => slot.file ? onSelect({ kind: 'reference', id: `${slot.file.kind}:${slot.file.path}:${index === 0 ? 'opening' : 'ending'}` }) : void props.chooseMedia('image', slot.setter)}>{slot.file?.preview ? <img src={slot.file.preview} alt="" /> : <ImagePlus size={25} />}</button><span><strong>{slot.label}</strong><small>{slot.file?.name || '添加一张图片'}</small></span><button type="button" onClick={() => void props.chooseMedia('image', slot.setter)}>{slot.file ? '替换' : '选择'}</button>{slot.file && <button type="button" className="video-slot-remove" title={`移除${slot.label}`} aria-label={`移除${slot.label}`} onClick={() => { slot.setter(null); onSelect({ kind: 'scene' }) }}><X size={15} /></button>}</div>).reduce<React.ReactNode[]>((items, element, index) => index ? [...items, <span className="video-frame-arrow" key="arrow">→</span>, element] : [element], [])}</section>
+  // The engine refuses a keyframe anchor next to a first or last frame, so the
+  // two entries cannot both be open; the reason is on the disabled control.
+  const keyframeLocked = props.keyframes.length > 0
+  const lockNote = '关键帧锚点与首帧 / 尾帧互斥：先移除锚点'
+  return <section className={`video-input-strip video-frame-strip ${props.mode === 'frames' ? 'paired' : ''}`}>{slots.map((slot, index) => <div className="video-frame-slot" key={slot.label}><button type="button" className="video-frame-preview" disabled={keyframeLocked} title={keyframeLocked ? lockNote : undefined} onClick={() => slot.file ? onSelect({ kind: 'reference', id: `${slot.file.kind}:${slot.file.path}:${index === 0 ? 'opening' : 'ending'}` }) : void props.chooseMedia('image', slot.setter)}>{slot.file?.preview ? <img src={slot.file.preview} alt="" /> : <ImagePlus size={25} />}</button><span><strong>{slot.label}</strong><small>{slot.file?.name || '添加一张图片'}</small></span><button type="button" disabled={keyframeLocked} title={keyframeLocked ? lockNote : undefined} onClick={() => void props.chooseMedia('image', slot.setter)}>{slot.file ? '替换' : '选择'}</button>{slot.file && <button type="button" className="video-slot-remove" title={`移除${slot.label}`} aria-label={`移除${slot.label}`} onClick={() => { slot.setter(null); onSelect({ kind: 'scene' }) }}><X size={15} /></button>}</div>).reduce<React.ReactNode[]>((items, element, index) => index ? [...items, <span className="video-frame-arrow" key="arrow">→</span>, element] : [element], [])}</section>
+}
+
+/**
+ * The mmh3 multi-anchor strip: each anchor is one image plus one frame index;
+ * the seconds come from the frame at 24 fps. The engine rejects anchors that
+ * collide with first/last-frame or the reference family, so the UI keeps them
+ * mutually exclusive and says why the other inputs are off.
+ */
+function KeyframeStrip({ props }: { props: VideoShellProps }) {
+  const frames = frameCount(props.duration)
+  const disabled = props.mode === 'text' || Boolean(props.firstFrame) || Boolean(props.lastFrame)
+  const anchors = props.keyframes
+  const addAnchor = () => props.chooseMedia('image', (file) => props.setKeyframes([...anchors, { frameIndex: 0, file }]))
+  const updateIndex = (index: number, value: number) => props.setKeyframes(anchors.map((anchor, i) => i === index ? { ...anchor, frameIndex: Math.max(0, Math.min(frames - 1, Math.round(Number(value) || 0))) } : anchor))
+  const duplicate = (index: number, value: number) => anchors.some((anchor, i) => i !== index && anchor.frameIndex === value)
+  return <section className="video-input-strip video-keyframe-strip">
+    <header><strong>mmh3 关键帧锚点</strong><span>{anchors.length ? `${anchors.length} 个锚点` : '可选'}</span></header>
+    {anchors.length > 0 && <div className="video-reference-items">{anchors.map((anchor, index) => <div className="video-keyframe-item" key={`${anchor.file.path}:${index}`}>
+      {anchor.file.preview && <img src={anchor.file.preview} alt="" />}
+      <label className="video-keyframe-index"><small>第</small><input type="number" min={0} max={frames - 1} value={anchor.frameIndex} aria-label={`锚点 ${index + 1} 帧序号`} onChange={event => updateIndex(index, Number(event.target.value))} /><small>帧 / 共 {frames} 帧 · 约 {Math.round(anchor.frameIndex / 24 * 10) / 10} 秒</small></label>
+      <button type="button" className="video-slot-remove" title={`移除锚点 ${index + 1}`} aria-label={`移除锚点 ${index + 1}`} onClick={() => props.setKeyframes(anchors.filter((_, i) => i !== index))}><X size={15} /></button>
+      {duplicate(index, anchor.frameIndex) && <small className="video-keyframe-conflict" role="alert">帧序号与其他锚点重复，mmh3 会拒绝。</small>}
+    </div>)}</div>}
+    <div className="video-keyframe-actions">
+      <button type="button" onClick={addAnchor} disabled={disabled || anchors.length >= 9} title={disabled ? '先清空首帧 / 尾帧再使用关键帧锚点' : undefined}><Plus size={14} />添加锚点</button>
+      <small className="field-help" role="status" aria-live="polite">{disabled
+        ? '关键帧锚点与首帧 / 尾帧互斥：移除首帧或尾帧后才能添加。'
+        : '每张图片锚定一个帧序号；第一张锚点同时决定输出画布。提示词按 <Picture 1..n> 的顺序引用锚图，并写明各自秒数（帧号 ÷ 24）。仅 mmh3 引擎支持，ComfyUI 渲染会忽略它们。'}</small>
+    </div>
+  </section>
 }
 
 function PreviewStage({ job, livePreview, liveEnabled, liveConnected, blurSensitive, blocker, onViewQueue, onDetach }: { job?: GenerationJob; livePreview: LivePreview | null; liveEnabled: boolean; liveConnected: boolean; blurSensitive: boolean; blocker: string; onViewQueue(): void; onDetach(): void }) {
@@ -3989,6 +4131,24 @@ function Inspector({ props, boundScene, selection, selectedFile, selectedReferen
   }
   const h3PreviewReady = Boolean(findH3PreviewOverrideNode(props.info) && props.selection.previewVae)
   const previewStatus = !props.liveEnabled ? '实时预览已关闭' : props.livePreviewMode === 'standard' ? '标准静帧预览' : h3PreviewReady ? 'H3 动态预览就绪' : props.livePreviewMode === 'h3-override' ? '需要 H3 动态组件' : '自动模式在 H3 就绪前使用静帧'
+  // The canvas the tier has to match: turbo8 was trained on 1344×768 and
+  // 960×544 only, and shift pairs with the canvas, so a mismatch is not a
+  // slower run but the wrong weights.
+  const canvasSize = props.resolution.split('x').map(Number)
+  const selectedTier = props.mmh3RecipeChoice === 'auto' ? null : props.mmh3RecipeChoice
+  const selectedTierMissing = selectedTier ? mmh3TierMissingText(props.mmh3TierAvailability[selectedTier]) : ''
+  const selectedTierCanvas = selectedTier ? mmh3TierCanvas(selectedTier) : null
+  const selectedTierCanvasNote = selectedTierCanvas && (selectedTierCanvas.width !== canvasSize[0] || selectedTierCanvas.height !== canvasSize[1])
+    ? `该档只在 ${selectedTierCanvas.width}×${selectedTierCanvas.height} 画布上提供，当前画布 ${props.resolution} 不提供这一档。`
+    : ''
+  // A tier that lacks files is disabled and can never be selected, so its file
+  // names have to be spelled out here for every such tier, not only the
+  // selected one — otherwise the picker says "missing" without saying what.
+  const missingTierNotes = MMH3_RECIPES
+    .map((id) => ({ id, availability: props.mmh3TierAvailability[id] }))
+    .filter((item) => item.availability?.available === false)
+    .map((item) => `${MMH3_RECIPE_LABELS[item.id]} 缺 ${(item.availability?.missing ?? []).join('、') || '引擎未列全所需文件'}`)
+  const missingTiersNote = missingTierNotes.length ? `模型缺失的档位（不可提交）：${missingTierNotes.join('；')}。` : ''
   return <aside className="video-inspector" aria-label="视频检查器"><header><strong>{selectedFile ? '素材属性' : '生成设置'}</strong>{selectedFile ? <button type="button" title="返回生成设置" aria-label="返回生成设置" onClick={onClearSelection}><X size={16} /></button> : null}</header>
     <div className="video-inspector-scroll">{selectedFile ? <div className="video-selected-asset">
       <div className="video-selected-preview">{selectedFile.preview && selectedFile.kind === 'image' ? <img src={selectedFile.preview} alt="" /> : <Film size={30} />}</div><strong>{selectedFile.name}</strong><small>{selectedFile.kind === 'image' ? '图片' : selectedFile.kind === 'video' ? '视频' : '音频'}来源</small>
@@ -3998,7 +4158,7 @@ function Inspector({ props, boundScene, selection, selectedFile, selectedReferen
       {selectedReference && props.mode === 'reference' && <button type="button" className="video-inline-action video-remove-action" onClick={() => { const index = (selectedFile.kind === 'image' ? props.referenceImages : selectedFile.kind === 'video' ? props.referenceVideos : props.referenceAudios).findIndex(item => item.path === selectedFile.path); if (index >= 0) props.removeReference(selectedFile.kind, index); onClearSelection() }}><Trash2 size={15} />从场景移除</button>}
     </div> : <>
       <div className={`video-preview-health ${h3PreviewReady && props.liveEnabled && props.livePreviewMode !== 'standard' ? 'ready' : ''}`} role="status"><span className="video-preview-health-dot" /><span>{previewStatus}</span></div>
-      <details className="video-inspector-section video-engine-section" open><summary><span>渲染引擎<small>{props.engineSelection.engine.label}</small></span><ChevronDown size={15} /></summary><div className="video-inspector-fields"><EngineSelector engines={props.engineSelection.engines} engineId={props.engineSelection.engineId} health={props.engineSelection.health} checking={props.engineSelection.checking} onChange={props.engineSelection.setEngineId} />{props.engineSelection.engine.kind === 'mmh3' && <small className="field-help" role="status" aria-live="polite">mmh3 用自己的配方渲染，与 ComfyUI 的输出不等价。实时预览帧、放大与续接依赖 ComfyUI 管线，在 mmh3 上不可用。</small>}
+      <details className="video-inspector-section video-engine-section" open><summary><span>渲染引擎<small>{props.engineSelection.engine.label}</small></span><ChevronDown size={15} /></summary><div className="video-inspector-fields"><EngineSelector engines={props.engineSelection.engines} engineId={props.engineSelection.engineId} health={props.engineSelection.health} checking={props.engineSelection.checking} onChange={props.engineSelection.setEngineId} />{props.engineSwitchReset && <small className="field-help" role="status" aria-live="polite">{props.engineSwitchReset}</small>}{props.engineSelection.engine.kind === 'mmh3' && <small className="field-help" role="status" aria-live="polite">mmh3 用自己的配方渲染，与 ComfyUI 的输出不等价。实时预览帧、放大与续接依赖 ComfyUI 管线，在 mmh3 上不可用。</small>}
         {props.engineSelection.engines.some((engine) => engine.kind === 'comfy') && props.engineSelection.engines.some((engine) => engine.kind === 'mmh3') && <div className="engine-compare-row"><button type="button" className="secondary-button" disabled={props.engineComparison?.running || props.submitting || props.stillSubmitting} onClick={props.onCompareEngines}>{props.engineComparison?.running ? '双引擎对比运行中…' : '双引擎对比'}</button><small className="field-help">用当前草稿在两台引擎各渲染一次（先 ComfyUI 后 mmh3），并排展示产物与耗时。两个任务都会进入队列。</small></div>}
         {props.engineComparison && <div className="engine-comparison" role="status" aria-live="polite">
           <div className="engine-comparison-head"><strong>双引擎对比</strong>{props.engineComparison.running && <span className="engine-comparison-phase">{props.engineComparison.phase}</span>}<button type="button" className="icon-button" aria-label="关闭对比结果" onClick={props.onCloseEngineComparison}><X size={14} /></button></div>
@@ -4013,7 +4173,7 @@ function Inspector({ props, boundScene, selection, selectedFile, selectedReferen
         </div>}
       </div></details>
       <details className="video-inspector-section video-output-section" open><summary><span>输出<small>尺寸、时长与可复现性</small></span><ChevronDown size={15} /></summary><div className="video-inspector-fields video-output-fields"><label className="video-resolution-label">分辨率<select value={props.resolution} onChange={event => props.setResolution(event.target.value)}>{!MINIMAX_VIDEO_RESOLUTIONS.includes(props.resolution) && <option value={props.resolution}>{videoResolutionLabel(props.resolution)}</option>}{(['square', 'landscape', 'portrait', 'ultrawide'] as const).map(orientation => <optgroup key={orientation} label={orientation === 'square' ? '方形' : orientation === 'landscape' ? '横屏' : orientation === 'portrait' ? '竖屏' : '超宽'}>{MINIMAX_VIDEO_RESOLUTION_GROUPS[orientation].map(size => <option value={size} key={size}>{videoResolutionLabel(size)}</option>)}</optgroup>)}</select></label><label>时长<select value={props.duration} onChange={event => props.setDuration(Number(event.target.value))}>{Array.from({ length: 27 }, (_, i) => i * .5 + 2).map(value => <option key={value} value={value}>{value} 秒</option>)}</select></label><label className="video-seed-label">种子<div className="video-seed-field"><input type="number" value={props.seed} min={0} max={999999999999} disabled={props.submitting || props.stillSubmitting} onChange={event => props.setSeed(Math.max(0, Math.floor(Number(event.target.value) || 0)))} aria-label="种子" /><button type="button" onClick={() => { props.setSeedLocked(true); props.setSeed(randomH3Seed(props.seed)) }} title="随机种子" aria-label="随机种子"><Dices size={15} /></button></div></label><label className="video-checkbox video-seed-lock"><input type="checkbox" checked={props.seedLocked} onChange={event => props.setSeedLocked(event.target.checked)} />锁定此种子以获得可复现的结果</label></div></details>
-      <details className="video-inspector-section video-quality-section" open><summary><span>画质与采样<small>{props.steps} 步 · {fixedSteps ? '固定配方' : qualityValue === 'custom' ? '自定义' : '预设管理'}</small></span><ChevronDown size={15} /></summary><div className="video-inspector-fields"><label>画质预设<select value={qualityValue} onChange={event => onPreset(event.target.value as 'off' | '8' | '4' | 'fast' | 'custom')}><option value="off">画质 · 原生</option><option value="8">Turbo 8 · 均衡</option><option value="4" disabled={!props.turbo4Available}>Turbo 4 · 实验</option>{props.mode === 'text' && <option value="fast">极速 · 仅文生视频</option>}<option value="custom">自定义…</option></select></label>{props.mmh3Active && <><label>mmh3 配方<select value={props.mmh3RecipeChoice} onChange={event => props.setMmh3RecipeChoice(event.target.value as Mmh3RecipeChoice)}>{MMH3_RECIPE_CHOICES.map(id => <option value={id} key={id} disabled={id === 'fast' && props.mode !== 'text'}>{id === 'auto' ? '跟随画质预设' : MMH3_RECIPE_LABELS[id]}</option>)}</select></label><small className="field-help">mmh3 按配方渲染：画质预设映射为对应配方（原生→标准 30 步、Turbo 4→FastH3 patch、Turbo 8→lightx2v 8 步、极速→第二实例）。PDMD 2 步与 Turbo 4 同权重对照是 mmh3 专属配方，只能在此选择；本机缺少配方所需文件时，mmh3 会拒绝并提示缺哪个模型。</small></>}<div className="video-step-control"><span><strong>采样步数</strong><small>{fixedSteps ? `${props.turbo === '4' ? 'Turbo 4' : '极速'}使用固定的 ${props.turbo === '4' ? 4 : 8} 步配方。选择「自定义」可调整步数。` : qualityValue === 'custom' ? '自定义数值决定渲染时间与精修程度。' : '修改此项会切换到自定义采样。'}</small></span><div><button type="button" aria-label="减少采样步数" disabled={fixedSteps || props.steps <= minSteps} onClick={() => setSteps(props.steps - 1)}>−</button><input type="number" aria-label="采样步数" min={minSteps} max={maxSteps} disabled={fixedSteps} value={fixedSteps ? props.turbo === '4' ? 4 : 8 : stepsDraft} onChange={event => setStepsDraft(event.target.value)} onBlur={commitStepsDraft} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /><button type="button" aria-label="增加采样步数" disabled={fixedSteps || props.steps >= maxSteps} onClick={() => setSteps(props.steps + 1)}>+</button></div><input className="video-step-slider" type="range" aria-label="采样步数滑块" min={minSteps} max={maxSteps} disabled={fixedSteps} value={fixedSteps ? props.turbo === '4' ? 4 : 8 : props.steps} onChange={event => setSteps(Number(event.target.value))} /></div><div className={`video-quality-note ${qualityValue === 'custom' ? 'custom' : ''}`}><strong>{fixedSteps ? '固定步数配方' : qualityValue === 'custom' ? '自定义采样已启用' : qualityValue === 'off' ? '最高细节' : '加速配方'}</strong><span>{fixedSteps ? '选择「自定义」获得可调的 Turbo 8 采样，或选择「原生」获得全画质采样。' : qualityValue === 'custom' ? '所选基础配方支持的自定义范围是 ' + minSteps + '–' + maxSteps + ' 步。' : qualityValue === 'off' ? '原生画质优先细节与一致性，而非速度。' : '官方 Turbo 设置更利于快速迭代。'}</span></div></div></details>
+      <details className="video-inspector-section video-quality-section" open><summary><span>画质与采样<small>{props.steps} 步 · {fixedSteps ? '固定配方' : qualityValue === 'custom' ? '自定义' : '预设管理'}</small></span><ChevronDown size={15} /></summary><div className="video-inspector-fields"><label>画质预设<select value={qualityValue} onChange={event => onPreset(event.target.value as 'off' | '8' | '4' | 'fast' | 'custom')}><option value="off">画质 · 原生</option><option value="8">Turbo 8 · 均衡</option><option value="4" disabled={!props.turbo4Available}>Turbo 4 · 实验</option>{props.mode === 'text' && <option value="fast">极速 · 仅文生视频</option>}<option value="custom">自定义…</option></select></label>{props.mmh3Active && <><label>mmh3 配方<select value={props.mmh3RecipeChoice} onChange={event => props.setMmh3RecipeChoice(event.target.value as Mmh3RecipeChoice)}>{MMH3_RECIPE_CHOICES.map(id => { const availability = props.mmh3TierAvailability[id]; const canvas = id === 'auto' ? null : mmh3TierCanvas(id); const canvasMismatch = Boolean(canvas && (canvas.width !== canvasSize[0] || canvas.height !== canvasSize[1])); const missing = availability?.available === false; return <option value={id} key={id} disabled={(id === 'fast' && props.mode !== 'text') || missing || canvasMismatch}>{id === 'auto' ? '跟随画质预设' : `${MMH3_RECIPE_LABELS[id]}${missing ? ' · 模型缺失' : canvasMismatch ? ` · 仅 ${canvas!.width}×${canvas!.height}` : canvas ? ` · ${canvas.width}×${canvas.height}` : ''}`}</option> })}</select></label><small className="field-help" role="status" aria-live="polite">{!props.mmh3RecipesConnected ? '未连接引擎，按本地配方显示。' : [selectedTierMissing, selectedTierCanvasNote, missingTiersNote].filter(Boolean).join('') || 'mmh3 按配方渲染：画质预设映射为对应配方（原生→引擎标准配方、Turbo 4→FastH3 patch、Turbo 8→lightx2v 8 步、极速→第二实例）。PDMD 2 步与 Turbo 4 同权重对照是 mmh3 专属配方，只能在此选择。引擎可达时步数与 shift 由引擎配方决定，应用不覆盖。'}</small></>}<div className="video-step-control"><span><strong>采样步数</strong><small>{fixedSteps ? `${props.turbo === '4' ? 'Turbo 4' : '极速'}使用固定的 ${props.turbo === '4' ? 4 : 8} 步配方。选择「自定义」可调整步数。` : qualityValue === 'custom' ? '自定义数值决定渲染时间与精修程度。' : '修改此项会切换到自定义采样。'}</small></span><div><button type="button" aria-label="减少采样步数" disabled={fixedSteps || props.steps <= minSteps} onClick={() => setSteps(props.steps - 1)}>−</button><input type="number" aria-label="采样步数" min={minSteps} max={maxSteps} disabled={fixedSteps} value={fixedSteps ? props.turbo === '4' ? 4 : 8 : stepsDraft} onChange={event => setStepsDraft(event.target.value)} onBlur={commitStepsDraft} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /><button type="button" aria-label="增加采样步数" disabled={fixedSteps || props.steps >= maxSteps} onClick={() => setSteps(props.steps + 1)}>+</button></div><input className="video-step-slider" type="range" aria-label="采样步数滑块" min={minSteps} max={maxSteps} disabled={fixedSteps} value={fixedSteps ? props.turbo === '4' ? 4 : 8 : props.steps} onChange={event => setSteps(Number(event.target.value))} /></div><div className={`video-quality-note ${qualityValue === 'custom' ? 'custom' : ''}`}><strong>{fixedSteps ? '固定步数配方' : qualityValue === 'custom' ? '自定义采样已启用' : qualityValue === 'off' ? '最高细节' : '加速配方'}</strong><span>{fixedSteps ? '选择「自定义」获得可调的 Turbo 8 采样，或选择「原生」获得全画质采样。' : qualityValue === 'custom' ? '所选基础配方支持的自定义范围是 ' + minSteps + '–' + maxSteps + ' 步。' : qualityValue === 'off' ? '原生画质优先细节与一致性，而非速度。' : '官方 Turbo 设置更利于快速迭代。'}</span></div></div></details>
       <details className="video-inspector-section video-preview-section" open><summary><span>实时预览<small>{props.liveEnabled ? '渲染时的中间帧' : '关闭 · 进度仍然可见'}</small></span><ChevronDown size={15} /></summary><div className="video-inspector-fields"><label className="video-checkbox"><input type="checkbox" checked={props.liveEnabled} onChange={event => props.setLiveEnabled(event.target.checked)} />生成时显示实时预览</label><small className="field-help">关闭后，新渲染会跳过预览节点。进度与已保存的输出不受影响。</small>{props.liveEnabled && <label>预览来源<select value={props.livePreviewMode} onChange={event => props.setLivePreviewMode(event.target.value as typeof props.livePreviewMode)}><option value="auto">自动 · H3 就绪后使用动态预览</option><option value="standard">标准首帧</option><option value="h3-override">必须使用 H3 动态预览</option></select></label>}</div></details>
       <details className="video-inspector-section video-advanced-section" open={advancedOpen} onToggle={event => { setAdvancedOpen(event.currentTarget.open); props.setAdvanced(event.currentTarget.open) }}><summary>高级<ChevronDown size={15} /></summary><div className="video-inspector-fields">
         <button type="button" className="video-inline-action" onClick={onSceneEditor}><SlidersHorizontal size={15} />编辑场景结构与连贯性</button>
@@ -4080,6 +4240,7 @@ function VideoWorkspaceShell(props: VideoShellProps) {
             <div className="video-workflow-intro"><h2>选择素材来源</h2><p>选择视频模式，并添加用于指导本次镜头的媒体。</p></div>
             <nav className="video-source-modes" aria-label="视频输入模式">{videoModeLabels.map(([id, label]) => <button key={id} type="button" aria-pressed={props.mode === id} title={modeInfo.find(item => item.id === id)?.note} className={props.mode === id ? 'active' : ''} onClick={() => { setSelection({ kind: 'scene' }); setRailAsset(null); if (id !== 'text' && props.turbo === 'fast') choosePreset('off'); props.setMode(id) }}>{label}</button>)}</nav>
             <ModeInputStrip props={props} boundScene={boundScene} selection={selection} onSelect={value => { setRailAsset(null); setSelection(value); setActiveSection('settings') }} />
+            <KeyframeStrip props={props} />
             {props.mode === 'reference' && <ReferenceSourcePanel characters={props.characters} locations={props.locations} selectedCharacterIds={props.selectedCharacterIds} selectedLocationIds={props.selectedLocationIds} imageCount={boundScene.references.filter(ref => ref.file.kind === 'image').length} videoCount={props.referenceVideos.length} audioCount={props.referenceAudios.length} images={props.referenceImages} videos={props.referenceVideos} audios={props.referenceAudios} managedImagePaths={new Set(bindings.map(binding => binding.file.path))} onAddCharacter={props.loadCharacter} onAddLocation={props.loadLocation} onClear={() => { setSelection({ kind: 'scene' }); setRailAsset(null); props.clearReferences() }} onChoose={kind => void props.chooseReference(kind)} onRemove={(kind, index) => { setSelection({ kind: 'scene' }); setRailAsset(null); props.removeReference(kind, index) }} onEditVideo={props.editVideoReference} onOpenCharacters={() => props.onNavigate('characters')} onOpenLocations={() => props.onNavigate('locations')} />}
             {props.mode === 'reference' ? <details className="video-more-assets"><summary>浏览全部项目素材</summary>{assetRail}</details> : assetRail}
           </section>

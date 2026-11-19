@@ -123,6 +123,35 @@ export function SettingsView({ settings, setSettings, info, models, jobs, gpu, h
     const engines = engineEntries.map((engine) => engine.id === id ? { ...engine, ...patch } : engine)
     setSettings({ ...settings, engines, ...(id === 'comfy' && patch.baseUrl ? { comfyUrl: patch.baseUrl } : {}) })
   }
+  // Custom mmh3 engines: the presets (comfy / mmh3 本机) cannot be added twice
+  // or deleted; only user-added instances go away, and never while they are the
+  // active default.
+  const [newEngineName, setNewEngineName] = useState('')
+  const [newEngineUrl, setNewEngineUrl] = useState('')
+  const [newEngineFastUrl, setNewEngineFastUrl] = useState('')
+  const addCustomEngine = () => {
+    const baseUrl = newEngineUrl.trim().replace(/\/+$/, '')
+    if (!/^https?:\/\/.+/.test(baseUrl)) return
+    const fastBaseUrl = newEngineFastUrl.trim().replace(/\/+$/, '')
+    const existing = settings.engines ?? []
+    const base = 'mmh3-custom'
+    let id = base
+    let n = 2
+    while (existing.some((engine) => engine.id === id)) id = `${base}-${n++}`
+    const label = newEngineName.trim() || baseUrl.replace(/^https?:\/\//, '')
+    setSettings({ ...settings, engines: [...existing, { id, label, kind: 'mmh3', baseUrl, ...(fastBaseUrl ? { fastBaseUrl } : {}) }] })
+    setNewEngineName('')
+    setNewEngineUrl('')
+    setNewEngineFastUrl('')
+  }
+  const removeCustomEngine = (engine: EngineConfig) => {
+    const wasDefault = settings.activeEngineId === engine.id
+    if (!window.confirm(wasDefault
+      ? `删除引擎「${engine.label}」（${engine.baseUrl}）？它是当前默认引擎，删除后默认引擎回落 ComfyUI，选择它的 H3 工作区也会退回。`
+      : `删除引擎「${engine.label}」（${engine.baseUrl}）？选择它的 H3 工作区会退回默认引擎。`)) return
+    const engines = (settings.engines ?? []).filter((item) => item.id !== engine.id)
+    setSettings({ ...settings, engines, ...(wasDefault ? { activeEngineId: 'comfy' } : {}) })
+  }
   const saveRenderPreset = () => {
     const name = presetName.trim()
     if (!name) return
@@ -270,6 +299,21 @@ export function SettingsView({ settings, setSettings, info, models, jobs, gpu, h
         {engine.kind === 'mmh3' && <small className="field-help">该引擎不校验令牌，安全由本机回环绑定保证。</small>}
       </div>)}</div>
       <div className="engine-settings-default"><label htmlFor="active-engine">默认引擎</label><select id="active-engine" value={settings.activeEngineId ?? 'comfy'} onChange={(event) => setSettings({ ...settings, activeEngineId: event.target.value })}>{engineEntries.map((engine) => <option key={engine.id} value={engine.id}>{engine.label}</option>)}</select><small className="field-help">H3 视频与 H3 生图各自记住上次选择的引擎；这里决定新工作区的起点。</small></div>
+      <div className="engine-settings-add">
+        <div className="field-group"><label htmlFor="new-engine-name">新引擎名称</label><input id="new-engine-name" value={newEngineName} placeholder="如 mmh3 (工作站)" onChange={(event) => setNewEngineName(event.target.value)} /></div>
+        <div className="field-group grow"><label htmlFor="new-engine-url">主实例地址</label><input id="new-engine-url" value={newEngineUrl} placeholder={DEFAULT_MMH3_BASE_URL} onChange={(event) => setNewEngineUrl(event.target.value)} /></div>
+        <div className="field-group grow"><label htmlFor="new-engine-fast-url">极速实例地址（可选）</label><input id="new-engine-fast-url" value={newEngineFastUrl} placeholder={DEFAULT_MMH3_FAST_BASE_URL} onChange={(event) => setNewEngineFastUrl(event.target.value)} /></div>
+        <button className="secondary-button" onClick={addCustomEngine} disabled={!/^https?:\/\/.+/.test(newEngineUrl.trim())}>添加引擎</button>
+        <small className="field-help">内置的 ComfyUI 与 mmh3 (本机) 不可删除；自定义引擎在列表里单独删除。</small>
+      </div>
+      {(engineEntries.some((engine) => engine.id !== 'comfy' && engine.id !== 'mmh3')) && <div className="engine-settings-custom">
+        {engineEntries.filter((engine) => engine.id !== 'comfy' && engine.id !== 'mmh3').map((engine) => (
+          <div className="engine-settings-row" key={`custom-${engine.id}`}>
+            <span><strong>{engine.label}</strong><small>{engine.baseUrl}{engine.fastBaseUrl ? ` · 极速 ${engine.fastBaseUrl}` : ''}{settings.activeEngineId === engine.id ? ' · 当前默认引擎' : ''}</small></span>
+            <button className="secondary-button" onClick={() => removeCustomEngine(engine)}>删除</button>
+          </div>
+        ))}
+      </div>}
       <p className="settings-note">ComfyUI 的服务器地址以「ComfyUI 引擎」一栏为准，两处保存为同一次原子写入，不会出现不一致的中间状态。</p>
     </section>
     <section className="settings-section gpu-routing-section" id="settings-routing"><div className="settings-heading"><div><Gauge size={19} /><span><strong>GPU 路由</strong><small>把完整的模型组件放到独立设备上；VAE 永远不会被拆分。</small></span></div><span className={`health-pill ${gpuRoutingPlan.warnings.length ? '' : 'online'}`}>{gpuRoutingPlan.warnings.length ? '回退已生效' : '就绪'}</span></div>

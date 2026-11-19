@@ -47,8 +47,32 @@ export const MMH3_SUBMIT_STAGES = {
   reach: '正在确认 mmh3 服务可达…',
 } as const
 
+/**
+ * The remembered choice. The id alone is enough to find the engine again, but
+ * the first frame after a restart arrives before the settings do — so the kind
+ * and the label travel with it, and the workspace does not flash ComfyUI while
+ * it waits for the list. An older record (a bare id) still reads.
+ */
+type StoredChoice = { id: string; kind?: EngineConfig['kind']; label?: string }
+
+function storedChoice(key: string): StoredChoice {
+  try {
+    const raw = window.localStorage.getItem(key)?.trim() ?? ''
+    if (!raw) return { id: '' }
+    if (raw.startsWith('{')) {
+      const parsed = JSON.parse(raw) as { id?: unknown; kind?: unknown; label?: unknown }
+      return {
+        id: typeof parsed.id === 'string' ? parsed.id.trim() : '',
+        kind: parsed.kind === 'comfy' || parsed.kind === 'mmh3' ? parsed.kind : undefined,
+        label: typeof parsed.label === 'string' ? parsed.label : undefined,
+      }
+    }
+    return { id: raw }
+  } catch { return { id: '' } }
+}
+
 function storedEngineId(key: string): string {
-  try { return window.localStorage.getItem(key)?.trim() ?? '' } catch { return '' }
+  return storedChoice(key).id
 }
 
 export function useEngineSelection(storageKey: string, settings: EngineSettingsLike | null, options: EngineSelectionOptions = {}): EngineSelectionState & {
@@ -66,13 +90,20 @@ export function useEngineSelection(storageKey: string, settings: EngineSettingsL
   const handedOff = useRef('')
 
   const remember = useCallback((id: string) => {
-    try { window.localStorage.setItem(storageKey, id) } catch { /* A browser that refuses storage still renders. */ }
-  }, [storageKey])
+    try {
+      const engine = engines.find((item) => item.id === id)
+      window.localStorage.setItem(storageKey, JSON.stringify({ id, kind: engine?.kind, label: engine?.label }))
+    } catch { /* A browser that refuses storage still renders. */ }
+  }, [engines, storageKey])
 
   const resolvedId = useMemo(() => {
     const known = (id: string) => engines.some((engine) => engine.id === id)
     const stored = storedEngineId(storageKey)
     if (known(stored)) return stored
+    // Settings have not arrived yet: hold the stored choice as a pending value
+    // instead of snapping to comfy, which the old first-frame flash came from.
+    // Once engines load, the effect below either confirms it or falls back.
+    if (!engines.length && stored) return stored
     const active = settings?.activeEngineId?.trim() ?? ''
     if (known(active)) return active
     return engines.some((engine) => engine.kind === 'comfy') ? 'comfy' : (engines[0]?.id ?? 'comfy')
@@ -87,12 +118,20 @@ export function useEngineSelection(storageKey: string, settings: EngineSettingsL
     const status = await window.minimax.mmh3Status(engine.baseUrl).catch((error: unknown) => ({
       reachable: false,
       generating: null,
+      cancelling: null,
       queued: 0,
       models: null,
+      weights: null,
       memory: null,
       error: error instanceof Error ? error.message : String(error),
     }))
-    return mmh3EngineHealth(engine, status)
+    // The fast tier runs on a second instance with its own weights; asking it
+    // too is what tells the two apart in the status line.
+    const fastBaseUrl = engine.fastBaseUrl?.trim()
+    const fastStatus = fastBaseUrl
+      ? await window.minimax.mmh3Status(fastBaseUrl).catch(() => null)
+      : null
+    return mmh3EngineHealth(engine, status, Date.now(), fastStatus)
   }, [options.comfyConnected, options.comfyDetail])
 
   const checkAll = useCallback(async () => {
@@ -116,7 +155,18 @@ export function useEngineSelection(storageKey: string, settings: EngineSettingsL
     if (handedOff.current !== id) handedOff.current = ''
   }, [remember])
 
-  const engine = useMemo(() => resolveEngine(engines, engineId || resolvedId), [engineId, engines, resolvedId])
+  const engine = useMemo(() => {
+    const wanted = engineId || resolvedId
+    const found = engines.find((item) => item.id === wanted)
+    if (found) return found
+    if (!engines.length) {
+      // The settings have not arrived yet: the remembered choice still names
+      // the engine, so the first frame does not show ComfyUI.
+      const remembered = storedChoice(storageKey)
+      return { id: wanted, label: remembered.label ?? wanted, kind: remembered.kind ?? 'comfy', baseUrl: '' }
+    }
+    return resolveEngine(engines, wanted)
+  }, [engineId, engines, resolvedId, storageKey])
   const engineHealth = health[engine.id]
 
   /**

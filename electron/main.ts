@@ -11,7 +11,7 @@ import { buildPromptCompletionRequest } from './promptCompletion.js'
 import { lmStudioEndpoint, parseLmStudioModels } from './lmStudioApi.js'
 import { readLlmStream, type LlmStreamUpdate } from './llmStream.js'
 import { mergeModelInventory, MODEL_KINDS, type ModelFile, type ModelKind } from './modelInventory.js'
-import { mmh3Delete, mmh3Download, mmh3Job, mmh3List, mmh3Status, mmh3Submit, mmh3SubmitImage, releaseComfyMemory, type Mmh3FileField, type Mmh3FieldValue } from './mmh3Api.js'
+import { mmh3Delete, mmh3Download, mmh3Interrupt, mmh3Job, mmh3List, mmh3Recipes, mmh3Status, mmh3Submit, mmh3SubmitImage, releaseComfyMemory, type Mmh3FileField, type Mmh3FieldValue, type Mmh3RepeatField } from './mmh3Api.js'
 import { normalizeEngines as defaultEngines, type EngineConfig } from './engineSettings.js'
 import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
@@ -1506,13 +1506,15 @@ app.whenReady().then(async () => {
   // graph API. It lives behind the same bridge as everything else: the
   // renderer never opens a socket of its own.
   ipcMain.handle('mmh3:status', async (_event, baseUrl: string) => mmh3Status(baseUrl))
-  ipcMain.handle('mmh3:submit', async (_event, baseUrl: string, fields: Record<string, string | number>, files: Mmh3FileField[] = []) => mmh3Submit(baseUrl, mmh3Fields(fields), files))
+  ipcMain.handle('mmh3:submit', async (_event, baseUrl: string, fields: Record<string, string | number>, files: Mmh3FileField[] = [], repeats: Mmh3RepeatField[] = []) => mmh3Submit(baseUrl, mmh3Fields(fields), files, repeats))
   ipcMain.handle('mmh3:submit-image', async (_event, baseUrl: string, fields: Record<string, string | number>, files: Mmh3FileField[] = []) => mmh3SubmitImage(baseUrl, mmh3Fields(fields), files))
   ipcMain.handle('mmh3:job', async (_event, baseUrl: string, id: string) => mmh3Job(baseUrl, id))
   ipcMain.handle('mmh3:list', async (_event, baseUrl: string) => mmh3List(baseUrl))
   ipcMain.handle('mmh3:delete', async (_event, baseUrl: string, id: string) => mmh3Delete(baseUrl, id))
   ipcMain.handle('mmh3:download', async (_event, baseUrl: string, id: string, kind: 'video' | 'image', outputDirectory: string, fileName: string) => mmh3Download(baseUrl, id, kind, outputDirectory, fileName))
   ipcMain.handle('mmh3:release-comfy', async (_event, comfyUrl: string) => releaseComfyMemory(comfyUrl))
+  ipcMain.handle('mmh3:interrupt', async (_event, baseUrl: string, id: string) => mmh3Interrupt(baseUrl, id))
+  ipcMain.handle('mmh3:recipes', async (_event, baseUrl: string) => mmh3Recipes(baseUrl))
   ipcMain.handle('outputs:resolve', async (_event, outputDirectory: string, file: { filename?: unknown; subfolder?: unknown; type?: unknown }) => {
     const settings = await loadSettings()
     if (!await trustedComfyOutputDirectory(settings, outputDirectory)) return null

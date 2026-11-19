@@ -359,8 +359,20 @@ export function H3ImageWorkspace({
 
   const cancel = async () => {
     if (mmh3Job) {
-      // mmh3 cannot interrupt a generation that is already running: the card
-      // turns cancelled and the artifact is dropped when the server is done.
+      // The engine can stop a picture too: it finishes the step in flight and
+      // the image never lands. On an engine without the endpoint the old
+      // soft-cancel keeps the behavior stable.
+      try {
+        const result = await window.minimax.mmh3Interrupt(mmh3Job.baseUrl, mmh3Job.id)
+        if (result.interrupted) {
+          mmh3Abort.current?.abort()
+          mmh3Abort.current = null
+          setMmh3Job(null)
+          setBusy(false); setError(false)
+          setMessage('已请求停止：引擎会在当前步跑完后停；排队中的任务直接取消，不占 GPU。')
+          return
+        }
+      } catch { /* A transport failure here falls through to the soft cancel. */ }
       mmh3Abort.current?.abort()
       mmh3Abort.current = null
       setMmh3Job(null)
